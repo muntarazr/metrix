@@ -1,0 +1,703 @@
+"use client";
+
+import { useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Line,
+  LineChart,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { BarChart2, Layers, TrendingUp } from "lucide-react";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
+import { translations, type Language } from "@/lib/translations";
+import { cn, formatNumberEn, localeWithEnglishDigits } from "@/lib/utils";
+import { PANEL_SURFACE } from "@/lib/surfaces";
+
+type TimeRange = "7d" | "30d" | "year" | "all";
+type ChartType = "bar" | "line" | "area";
+type BucketMode = "day" | "month";
+
+/**
+ * Maps every time range to the number of trailing days it represents, or
+ * `null` when the range has no cutoff (e.g. "all time"). A single source of
+ * truth keeps the filter + the empty-day pre-fill perfectly aligned.
+ */
+const RANGE_TO_DAYS: Record<TimeRange, number | null> = {
+  "7d": 7,
+  "30d": 30,
+  year: 365,
+  all: null,
+};
+
+/**
+ * Ranges that should render bars/dots per-day. Longer ranges ("year", "all")
+ * switch to monthly buckets so the chart stays readable.
+ */
+const DAY_BUCKET_RANGES: ReadonlySet<TimeRange> = new Set<TimeRange>([
+  "7d",
+  "30d",
+]);
+
+interface GrowthChartProps {
+  data: { date: string; points: number }[];
+  language?: Language;
+  className?: string;
+  fillHeight?: boolean;
+  embedded?: boolean;
+}
+
+function parseLocalDay(value: string) {
+  const [year, month, day] = value.split("T")[0].split("-").map(Number);
+  const date = new Date(year, (month || 1) - 1, day || 1);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function formatNumber(value: number) {
+  return formatNumberEn(value, {
+    maximumFractionDigits: value >= 10 ? 0 : 1,
+  });
+}
+
+export default function GrowthChart({
+  data,
+  language = "ar",
+  className,
+  fillHeight = false,
+  embedded = false,
+}: GrowthChartProps) {
+  const t = translations[language];
+  const isArabic = language === "ar";
+  const [timeRange, setTimeRange] = useState<TimeRange>("30d");
+  const [chartType, setChartType] = useState<ChartType>("bar");
+  const [isNarrowViewport, setIsNarrowViewport] = useState(false);
+  const didApplyMobileDefaultRange = useRef(false);
+  const gradientId = useId().replace(/:/g, "");
+
+  useLayoutEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)");
+    const apply = () => setIsNarrowViewport(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (didApplyMobileDefaultRange.current) return;
+    if (typeof window === "undefined") return;
+    if (window.matchMedia("(max-width: 639px)").matches) {
+      setTimeRange("7d");
+    }
+    didApplyMobileDefaultRange.current = true;
+  }, []);
+
+  const labels = {
+    noRangeData: isArabic
+      ? "لا يوجد نشاط ضمن هذا النطاق بعد."
+      : "No activity in this range yet.",
+  };
+
+  const locale = localeWithEnglishDigits(language);
+  const shortDayFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(locale, {
+        month: "short",
+        day: "numeric",
+      }),
+    [locale],
+  );
+  const weekDayFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(locale, {
+        weekday: "short",
+        day: "numeric",
+      }),
+    [locale],
+  );
+  const shortMonthFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(locale, {
+        month: "short",
+      }),
+    [locale],
+  );
+  const shortMonthYearFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(locale, {
+        month: "short",
+        year: "2-digit",
+      }),
+    [locale],
+  );
+  const longDayFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(locale, {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      }),
+    [locale],
+  );
+  const longMonthYearFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(locale, {
+        month: "long",
+        year: "numeric",
+      }),
+    [locale],
+  );
+
+  const chartConfig = useMemo<ChartConfig>(
+    () => ({
+      points: {
+        label: isArabic ? "النقاط" : "Points",
+        color: "var(--chart-1)",
+      },
+    }),
+    [isArabic],
+  );
+  const chartMargin = { top: 8, right: 10, left: 0, bottom: 4 };
+
+  const rangeDays = RANGE_TO_DAYS[timeRange];
+
+  const filteredData = useMemo(() => {
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    const now = new Date();
+    now.setHours(23, 59, 59, 999);
+
+    let cutoffDate = new Date(0);
+    if (rangeDays !== null) {
+      cutoffDate = new Date(now);
+      cutoffDate.setDate(now.getDate() - (rangeDays - 1));
+      cutoffDate.setHours(0, 0, 0, 0);
+    }
+
+    return data.filter((entry) => {
+      const entryDate = parseLocalDay(entry.date);
+      return entryDate >= cutoffDate && entryDate <= now;
+    });
+  }, [data, rangeDays]);
+
+  const bucketMode: BucketMode = DAY_BUCKET_RANGES.has(timeRange)
+    ? "day"
+    : "month";
+
+  const chartData = useMemo(() => {
+    if (filteredData.length === 0) {
+      return [];
+    }
+
+    const buckets = new Map<string, { rawDate: string; points: number }>();
+
+    // Pre-fill every day in the visible range with 0 so gaps show as empty bars
+    if (bucketMode === "day") {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const totalDays = rangeDays ?? 30;
+      for (let i = totalDays - 1; i >= 0; i--) {
+        const d = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        buckets.set(key, { rawDate: key, points: 0 });
+      }
+    } else {
+      const today = new Date();
+      const endMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const firstEntryDate = filteredData.reduce((earliest, entry) => {
+        const entryDate = parseLocalDay(entry.date);
+        return entryDate < earliest ? entryDate : earliest;
+      }, parseLocalDay(filteredData[0].date));
+      const startMonth =
+        timeRange === "all"
+          ? new Date(firstEntryDate.getFullYear(), firstEntryDate.getMonth(), 1)
+          : new Date(endMonth.getFullYear(), endMonth.getMonth() - 11, 1);
+
+      for (
+        const month = new Date(startMonth);
+        month <= endMonth;
+        month.setMonth(month.getMonth() + 1)
+      ) {
+        const key = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}-01`;
+        buckets.set(key, { rawDate: key, points: 0 });
+      }
+    }
+
+    filteredData.forEach((entry) => {
+      const entryDate = parseLocalDay(entry.date);
+      const rawDate =
+        bucketMode === "month"
+          ? `${entryDate.getFullYear()}-${String(entryDate.getMonth() + 1).padStart(2, "0")}-01`
+          : entry.date;
+
+      const existing = buckets.get(rawDate) ?? { rawDate, points: 0 };
+      existing.points += entry.points;
+      buckets.set(rawDate, existing);
+    });
+
+    return Array.from(buckets.values())
+      .sort(
+        (a, b) =>
+          parseLocalDay(a.rawDate).getTime() -
+          parseLocalDay(b.rawDate).getTime(),
+      )
+      .map((entry) => {
+        const entryDate = parseLocalDay(entry.rawDate);
+        const label =
+          bucketMode === "month"
+            ? timeRange === "all"
+              ? shortMonthYearFormatter.format(entryDate)
+              : shortMonthFormatter.format(entryDate)
+            : timeRange === "7d"
+              ? weekDayFormatter.format(entryDate)
+              : shortDayFormatter.format(entryDate);
+
+        const fullLabel =
+          bucketMode === "month"
+            ? longMonthYearFormatter.format(entryDate)
+            : longDayFormatter.format(entryDate);
+
+        return {
+          date: entry.rawDate,
+          label,
+          fullLabel,
+          points: entry.points,
+        };
+      });
+  }, [
+    bucketMode,
+    filteredData,
+    longDayFormatter,
+    longMonthYearFormatter,
+    rangeDays,
+    shortDayFormatter,
+    shortMonthFormatter,
+    shortMonthYearFormatter,
+    timeRange,
+    weekDayFormatter,
+  ]);
+
+  const maxBarSize =
+    chartData.length <= 7
+      ? 40
+      : chartData.length <= 12
+        ? 28
+        : chartData.length <= 30
+          ? 18
+          : chartData.length <= 60
+            ? 12
+            : chartData.length <= 90
+              ? 8
+              : 6;
+  const showDots = chartData.length <= 18;
+  const dayAxisTickGap = useMemo(() => {
+    if (bucketMode !== "day") return 0;
+    const n = chartData.length;
+    if (isNarrowViewport) {
+      if (n <= 7) return 10;
+      if (n <= 14) return 18;
+      if (n <= 30) return 26;
+      if (n <= 60) return 34;
+      return 42;
+    }
+    if (n <= 14) return 6;
+    if (n <= 30) return 10;
+    if (n <= 60) return 14;
+    if (n <= 90) return 18;
+    return 22;
+  }, [bucketMode, chartData.length, isNarrowViewport]);
+  const xAxisMinTickGap =
+    bucketMode === "day"
+      ? dayAxisTickGap
+      : chartData.length > 60
+        ? 44
+        : chartData.length > 30
+          ? 36
+          : isArabic
+            ? 30
+            : 28;
+  const xAxisInterval = "preserveStartEnd" as const;
+  const yAxisWidth = isArabic ? 40 : 34;
+  const xAxisMetaByDate = useMemo(() => {
+    const meta = new Map<string, { primary: string; secondary?: string }>();
+
+    chartData.forEach((entry, index) => {
+      if (bucketMode === "month") {
+        meta.set(entry.date, { primary: entry.label });
+        return;
+      }
+
+      const entryDate = parseLocalDay(entry.date);
+      const previousDate =
+        index > 0 ? parseLocalDay(chartData[index - 1].date) : null;
+      const showMonth =
+        index === 0 ||
+        !previousDate ||
+        entryDate.getMonth() !== previousDate.getMonth() ||
+        entryDate.getFullYear() !== previousDate.getFullYear();
+
+      meta.set(entry.date, {
+        primary: formatNumberEn(entryDate.getDate()),
+        secondary: showMonth
+          ? shortMonthFormatter.format(entryDate)
+          : undefined,
+      });
+    });
+
+    return meta;
+  }, [bucketMode, chartData, shortMonthFormatter]);
+  const renderXAxisTick = ({
+    x = 0,
+    y = 0,
+    payload,
+  }: {
+    x?: number;
+    y?: number;
+    payload?: { value?: string };
+  }) => {
+    const value = payload?.value ?? "";
+    const meta = xAxisMetaByDate.get(value);
+    const primary = meta?.primary ?? value;
+    const secondary = meta?.secondary;
+
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text
+          textAnchor="middle"
+          className="fill-muted-foreground text-[10.5px] font-medium"
+        >
+          <tspan x={0} dy={10}>
+            {primary}
+          </tspan>
+          {secondary ? (
+            <tspan x={0} dy={12} className="text-[9px] opacity-75">
+              {secondary}
+            </tspan>
+          ) : null}
+        </text>
+      </g>
+    );
+  };
+  const xAxisHeight = bucketMode === "day" ? 42 : 34;
+  const chartViewportClass = fillHeight
+    ? "aspect-auto h-full min-h-[178px] w-full shrink-0 flex-1 sm:min-h-[188px] md:min-h-[240px] lg:min-h-[262px]"
+    : "aspect-auto h-[180px] w-full shrink-0 sm:h-[196px] lg:h-[208px]";
+  const emptyStateClass = fillHeight
+    ? "h-full min-h-[178px] sm:min-h-[188px] md:min-h-[240px] lg:min-h-[262px]"
+    : "h-[180px] sm:h-[196px] lg:h-[208px]";
+
+  const containerClass = cn(
+    embedded
+      ? "rounded-none border-0 bg-transparent p-0 shadow-none ring-0 hover:bg-transparent"
+      : cn("relative flex flex-col overflow-hidden rounded-2xl p-2.5 sm:p-3", PANEL_SURFACE),
+    fillHeight && "h-full min-h-0",
+    className,
+  );
+
+  const timeRangeOptions: { key: TimeRange; label: string }[] = [
+    { key: "7d", label: t.thisWeek },
+    { key: "30d", label: t.thisMonth },
+    { key: "year", label: t.thisYear },
+    { key: "all", label: t.allTime },
+  ];
+
+  const chartTypeOptions: {
+    key: ChartType;
+    label: string;
+    icon: React.ReactNode;
+  }[] = [
+    { key: "bar", label: t.barChart, icon: <BarChart2 className="h-3 w-3" /> },
+    {
+      key: "line",
+      label: t.lineChart,
+      icon: <TrendingUp className="h-3 w-3" />,
+    },
+    { key: "area", label: t.areaChart, icon: <Layers className="h-3 w-3" /> },
+  ];
+
+  const renderChart = () => {
+    const tooltipContent = (
+      <ChartTooltipContent
+        className="border border-border bg-card shadow-sm"
+        indicator={chartType === "bar" ? "dashed" : "line"}
+        labelFormatter={(_, payload) => payload?.[0]?.payload?.fullLabel ?? ""}
+      />
+    );
+
+    switch (chartType) {
+      case "line":
+        return (
+          <LineChart data={chartData} margin={chartMargin}>
+            <CartesianGrid
+              vertical={false}
+              strokeDasharray="4 4"
+              className="stroke-border/45"
+            />
+            <XAxis
+              dataKey="date"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              minTickGap={xAxisMinTickGap}
+              interval={xAxisInterval}
+              height={xAxisHeight}
+              tick={renderXAxisTick}
+              className="text-[11.5px] fill-muted-foreground"
+            />
+            <YAxis
+              tickLine={false}
+              axisLine={false}
+              tickMargin={6}
+              width={yAxisWidth}
+              allowDecimals={false}
+              tickCount={4}
+              className="text-[11.5px] fill-muted-foreground"
+              tickFormatter={(value: number) => formatNumber(value)}
+            />
+            <ChartTooltip
+              cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
+              content={tooltipContent}
+            />
+            <Line
+              dataKey="points"
+              type="monotone"
+              stroke="var(--color-points)"
+              strokeWidth={2.75}
+              dot={
+                showDots
+                  ? {
+                      fill: "var(--color-points)",
+                      r: 3.5,
+                      strokeWidth: 2,
+                      stroke: "var(--background)",
+                    }
+                  : false
+              }
+              activeDot={{
+                r: 5,
+                strokeWidth: 2,
+                stroke: "var(--background)",
+              }}
+            />
+          </LineChart>
+        );
+
+      case "area":
+        return (
+          <AreaChart data={chartData} margin={chartMargin}>
+            <defs>
+              <linearGradient
+                id={`growth-gradient-${gradientId}`}
+                x1="0"
+                y1="0"
+                x2="0"
+                y2="1"
+              >
+                <stop
+                  offset="0%"
+                  stopColor="var(--color-points)"
+                  stopOpacity={0.35}
+                />
+                <stop
+                  offset="100%"
+                  stopColor="var(--color-points)"
+                  stopOpacity={0.04}
+                />
+              </linearGradient>
+            </defs>
+            <CartesianGrid
+              vertical={false}
+              strokeDasharray="4 4"
+              className="stroke-border/45"
+            />
+            <XAxis
+              dataKey="date"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              minTickGap={xAxisMinTickGap}
+              interval={xAxisInterval}
+              height={xAxisHeight}
+              tick={renderXAxisTick}
+              className="text-[11.5px] fill-muted-foreground"
+            />
+            <YAxis
+              tickLine={false}
+              axisLine={false}
+              tickMargin={6}
+              width={yAxisWidth}
+              allowDecimals={false}
+              tickCount={4}
+              className="text-[11.5px] fill-muted-foreground"
+              tickFormatter={(value: number) => formatNumber(value)}
+            />
+            <ChartTooltip
+              cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
+              content={tooltipContent}
+            />
+            <Area
+              dataKey="points"
+              type="monotone"
+              stroke="var(--color-points)"
+              strokeWidth={2.5}
+              fill={`url(#growth-gradient-${gradientId})`}
+              dot={
+                showDots
+                  ? {
+                      fill: "var(--color-points)",
+                      r: 3,
+                      strokeWidth: 2,
+                      stroke: "var(--background)",
+                    }
+                  : false
+              }
+              activeDot={{
+                r: 5,
+                strokeWidth: 2,
+                stroke: "var(--background)",
+              }}
+            />
+          </AreaChart>
+        );
+
+      case "bar":
+      default:
+        return (
+          <BarChart data={chartData} margin={chartMargin}>
+            <CartesianGrid
+              vertical={false}
+              strokeDasharray="4 4"
+              className="stroke-border/45"
+            />
+            <XAxis
+              dataKey="date"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              minTickGap={xAxisMinTickGap}
+              interval={xAxisInterval}
+              height={xAxisHeight}
+              tick={renderXAxisTick}
+              className="text-[11.5px] fill-muted-foreground"
+            />
+            <YAxis
+              tickLine={false}
+              axisLine={false}
+              tickMargin={6}
+              width={yAxisWidth}
+              allowDecimals={false}
+              tickCount={4}
+              className="text-[11.5px] fill-muted-foreground"
+              tickFormatter={(value: number) => formatNumber(value)}
+            />
+            <ChartTooltip
+              cursor={{ fill: "var(--muted)", opacity: 0.2 }}
+              content={tooltipContent}
+            />
+            <Bar
+              dataKey="points"
+              fill="var(--color-points)"
+              radius={[8, 8, 2, 2]}
+              maxBarSize={maxBarSize}
+            />
+          </BarChart>
+        );
+    }
+  };
+
+  return (
+    <div className={containerClass} dir={isArabic ? "rtl" : "ltr"}>
+      {/* Top accent removed for cleaner design */}
+
+      <div className="pb-1 sm:pb-1.5">
+        <div className="flex items-center gap-2 sm:gap-2.5">
+          <div
+            className="flex min-w-0 flex-1"
+            role="tablist"
+            aria-label={isArabic ? "النطاق الزمني" : "Time range"}
+          >
+            <div className="inline-flex max-w-full shrink-0 gap-1 rounded-xl border border-border/70 bg-muted/20 p-0.5">
+              {timeRangeOptions.map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  role="tab"
+                  onClick={() => setTimeRange(option.key)}
+                  aria-selected={timeRange === option.key}
+                  className={cn(
+                    "h-8 whitespace-nowrap rounded-lg px-3 text-[11px] font-bold leading-none transition-all duration-200 active:scale-95 sm:h-7 sm:px-2.5",
+                    isArabic
+                      ? "min-w-[3rem] tracking-normal"
+                      : "min-w-[2.75rem] tabular-nums",
+                    timeRange === option.key
+                      ? "bg-card text-foreground shadow-sm ring-1 ring-border/45"
+                      : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="inline-flex shrink-0 rounded-xl border border-border/70 bg-muted/20 p-0.5">
+            {chartTypeOptions.map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => setChartType(option.key)}
+                aria-pressed={chartType === option.key}
+                aria-label={option.label}
+                className={cn(
+                  "flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200 active:scale-95 sm:h-7 sm:w-7 sm:rounded-[10px]",
+                  chartType === option.key
+                    ? "bg-card text-foreground shadow-sm ring-1 ring-border/45"
+                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                )}
+                title={option.label}
+              >
+                {option.icon}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-1.5 flex flex-1 min-h-0">
+        <div className="flex w-full min-w-0 flex-1 min-h-0 overflow-hidden rounded-xl border border-border/45 bg-muted/12 p-2 sm:p-2.5 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]">
+          {chartData.length === 0 ? (
+            <div
+              className={cn(
+                "flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border/70 bg-card/12 px-5 text-center text-sm text-muted-foreground",
+                emptyStateClass,
+              )}
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/12 text-primary border border-primary/15 shadow-sm shadow-primary/12">
+                <BarChart2 className="h-6 w-6" />
+              </div>
+              <p className="font-extrabold text-foreground tracking-tight text-[15px]">{t.noDataYet}</p>
+              <p className="max-w-xs text-xs leading-relaxed text-muted-foreground/75">
+                {labels.noRangeData}
+              </p>
+            </div>
+          ) : (
+            <ChartContainer config={chartConfig} className={chartViewportClass} dir="ltr">
+              {renderChart()}
+            </ChartContainer>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

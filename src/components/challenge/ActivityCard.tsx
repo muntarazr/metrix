@@ -1,0 +1,1015 @@
+"use client";
+
+import Image from "next/image";
+import { useState } from "react";
+import {
+  Trophy,
+  Trash2,
+  AlertTriangle,
+  Loader2,
+  MoreVertical,
+  Pencil,
+  FileText,
+  Palette,
+  ChevronDown,
+  ChevronUp,
+  X,
+  ImageIcon,
+  Check,
+  Upload,
+  Copy,
+  WandSparkles,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  buildMilestoneImagePrompt,
+  normalizePromptStyle,
+  type PromptStyle,
+} from "@/lib/milestone-image-prompt";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import type { ChallengeEvent } from "./challenge-types";
+import { cardClass } from "./challenge-types";
+import { formatNumericDate, formatTime } from "./challenge-utils";
+import { apiUrl } from "@/lib/api";
+
+interface ActivityCardProps {
+  goalId?: string;
+  recentEvents: ChallengeEvent[];
+  visibleEvents: ChallengeEvent[];
+  canToggleEvents: boolean;
+  showAllEvents: boolean;
+  onToggleShowAll: () => void;
+  meName: string;
+  opponentName: string;
+  meGoalTitle?: string;
+  opponentGoalTitle?: string;
+  locale: string;
+  numberFormatter: Intl.NumberFormat;
+  ui: {
+    recentTitle: string;
+    activityEmpty: string;
+  };
+  t: {
+    challengeShowLess: string;
+    challengeShowMore: string;
+  };
+}
+
+type AccentColor = "emerald" | "violet" | "amber" | "rose" | "sky" | "slate";
+
+const accentConfig: Record<
+  AccentColor,
+  {
+    label: { ar: string; en: string };
+    swatch: string;
+    card: string;
+    border: string;
+    icon: string;
+  }
+> = {
+  /* The keys are the values already stored on existing challenges, so they stay.
+     What they render is now a single monochrome ramp — teal is the one opt-in
+     colour, everything else is a tone of the neutral scale. */
+  emerald: {
+    label: { ar: "فيروزي", en: "Teal" },
+    swatch: "bg-primary",
+    card: "from-primary/12 to-primary/12",
+    border: "border-primary/25",
+    icon: "text-primary",
+  },
+  violet: {
+    label: { ar: "فحمي", en: "Charcoal" },
+    swatch: "bg-foreground",
+    card: "from-foreground/12 to-foreground/12",
+    border: "border-foreground/25",
+    icon: "text-foreground",
+  },
+  amber: {
+    label: { ar: "رمادي", en: "Graphite" },
+    swatch: "bg-foreground/60",
+    card: "from-foreground/12 to-foreground/12",
+    border: "border-foreground/15",
+    icon: "text-foreground/75",
+  },
+  rose: {
+    label: { ar: "فضي", en: "Silver" },
+    swatch: "bg-muted-foreground",
+    card: "from-muted/60 to-muted/20",
+    border: "border-border",
+    icon: "text-muted-foreground",
+  },
+  sky: {
+    label: { ar: "ضبابي", en: "Mist" },
+    swatch: "bg-muted-foreground/60",
+    card: "from-muted/60 to-transparent",
+    border: "border-border",
+    icon: "text-muted-foreground/75",
+  },
+  slate: {
+    label: { ar: "حبري", en: "Ink" },
+    swatch: "bg-foreground/90",
+    card: "from-foreground/12 to-foreground/12",
+    border: "border-foreground/25",
+    icon: "text-foreground/90",
+  },
+};
+function normalizeAccentColor(value: unknown): AccentColor {
+  return typeof value === "string" && value in accentConfig
+    ? (value as AccentColor)
+    : "violet";
+}
+
+type EditMode = null | {
+  logId: string;
+  field: "name" | "description";
+  value: string;
+};
+
+type ImageDialogState = null | {
+  logId: string;
+  hasImage: boolean;
+};
+
+type PromptDialogState = null | {
+  logId: string;
+  prompt: string;
+  style: PromptStyle;
+  goalTitle: string;
+  goalSummary?: string;
+  milestoneName: string;
+  milestoneDescription: string;
+  tasksDescriptions: string[];
+  aspectRatio?: string;
+};
+
+const promptStyleOptions: Array<{
+  value: PromptStyle;
+  label: { ar: string; en: string };
+  hint: { ar: string; en: string };
+}> = [
+  {
+    value: "cinematic",
+    label: { ar: "سينمائي", en: "Cinematic" },
+    hint: { ar: "مشهد غني", en: "Layered scene" },
+  },
+  {
+    value: "minimal",
+    label: { ar: "هادئ", en: "Minimal" },
+    hint: { ar: "مرتب ومركب", en: "Clean layers" },
+  },
+  {
+    value: "neon",
+    label: { ar: "نيون", en: "Neon" },
+    hint: { ar: "طاقة وتقدم", en: "High energy" },
+  },
+  {
+    value: "realistic",
+    label: { ar: "واقعي", en: "Realistic" },
+    hint: { ar: "تفاصيل ملموسة", en: "Tangible detail" },
+  },
+  {
+    value: "anime",
+    label: { ar: "أنمي", en: "Anime" },
+    hint: { ar: "لقطة بطولية", en: "Hero key visual" },
+  },
+  {
+    value: "luxury",
+    label: { ar: "فاخر", en: "Luxury" },
+    hint: { ar: "تفاصيل فاخرة", en: "Premium detail" },
+  },
+];
+
+export function ActivityCard({
+  goalId,
+  recentEvents,
+  meGoalTitle,
+  opponentGoalTitle,
+  locale,
+  numberFormatter,
+  ui,
+}: ActivityCardProps) {
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [editMode, setEditMode] = useState<EditMode>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState(true);
+  const [imageDialog, setImageDialog] = useState<ImageDialogState>(null);
+  const [promptDialog, setPromptDialog] = useState<PromptDialogState>(null);
+  const [promptCopied, setPromptCopied] = useState(false);
+
+  const isArabic = locale === "ar" || locale?.startsWith("ar");
+  const milestoneEvents = recentEvents.filter((e) => e.milestone);
+
+  const refresh = () => {
+    if (goalId) {
+      window.dispatchEvent(
+        new CustomEvent("challenge-log-updated", { detail: { goalId } }),
+      );
+    }
+  };
+
+  const handleDelete = async (logId: string) => {
+    if (!goalId) return;
+    setBusyId(logId);
+    setErrorMessage(null);
+    try {
+      const response = await fetch(apiUrl("/api/goal/milestone"), {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logId, goalId }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(
+          data?.message ||
+            data?.error ||
+            (isArabic ? "تعذر حذف الإنجاز" : "Could not delete milestone"),
+        );
+      }
+      refresh();
+      setConfirmDeleteId(null);
+    } catch (e) {
+      console.error(e);
+      setErrorMessage(
+        e instanceof Error
+          ? e.message
+          : isArabic
+            ? "تعذر حذف الإنجاز"
+            : "Could not delete milestone",
+      );
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handlePatch = async (
+    logId: string,
+    payload: {
+      name?: string;
+      description?: string;
+      accentColor?: AccentColor;
+      imagePrompt?: string;
+      imageStylePreference?: PromptStyle;
+    },
+  ) => {
+    if (!goalId) return false;
+    setBusyId(logId);
+    setErrorMessage(null);
+    try {
+      const response = await fetch(apiUrl("/api/goal/milestone"), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logId, goalId, ...payload }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(
+          data?.message ||
+            data?.error ||
+            (isArabic ? "تعذر تحديث الإنجاز" : "Could not update milestone"),
+        );
+      }
+      refresh();
+      setEditMode(null);
+      return true;
+    } catch (e) {
+      console.error(e);
+      setErrorMessage(
+        e instanceof Error
+          ? e.message
+          : isArabic
+            ? "تعذر تحديث الإنجاز"
+            : "Could not update milestone",
+      );
+      return false;
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleCopyPrompt = async (prompt: string) => {
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setPromptCopied(true);
+      window.setTimeout(() => setPromptCopied(false), 1800);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : isArabic
+            ? "تعذر نسخ البرومبت"
+            : "Could not copy prompt",
+      );
+    }
+  };
+
+  const handleUploadImage = async (logId: string, file: File) => {
+    if (!goalId) return;
+    setBusyId(logId);
+    setErrorMessage(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("logId", logId);
+      formData.append("goalId", goalId);
+      formData.append("image", file);
+
+      const response = await fetch(apiUrl("/api/goal/milestone/image"), {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(
+          data?.message ||
+            data?.error ||
+            (isArabic ? "تعذر رفع الصورة" : "Could not upload image"),
+        );
+      }
+
+      refresh();
+      setImageDialog(null);
+    } catch (error) {
+      console.warn("Milestone image upload failed:", error);
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : isArabic
+            ? "تعذر رفع الصورة"
+            : "Could not upload image",
+      );
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <section className="rounded-xl border border-border bg-card p-3 shadow-sm shadow-black/[0.02] sm:p-4">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-muted/60 border border-border/70 text-muted-foreground">
+            <Trophy className="h-4 w-4" />
+          </div>
+          <span className="text-sm font-bold tracking-tight text-foreground">
+            {ui.recentTitle}
+          </span>
+          {milestoneEvents.length > 0 && (
+            <span className="rounded-full border border-border/70 bg-muted/20 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+              {milestoneEvents.length}
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => setCollapsed((c) => !c)}
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-muted px-2.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:opacity-90 active:scale-[0.98]"
+          aria-expanded={!collapsed}
+        >
+          {collapsed ? (
+            <>
+              <ChevronDown className="h-3.5 w-3.5" />
+              {isArabic ? "إظهار" : "Show"}
+            </>
+          ) : (
+            <>
+              <ChevronUp className="h-3.5 w-3.5" />
+              {isArabic ? "إخفاء" : "Hide"}
+            </>
+          )}
+        </button>
+      </div>
+
+      {errorMessage ? (
+        <div className="mt-2 flex items-start justify-between gap-2 rounded-xl border border-destructive/25 bg-destructive/12 px-3 py-2 text-xs font-semibold text-destructive">
+          <span>{errorMessage}</span>
+          <button
+            type="button"
+            onClick={() => setErrorMessage(null)}
+            className="rounded-md p-0.5 hover:bg-destructive/12"
+            aria-label={isArabic ? "إخفاء الخطأ" : "Dismiss error"}
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ) : null}
+
+      {imageDialog && (
+        <div className="fixed inset-0 z-90 flex items-end justify-center bg-black/55 p-0 sm:items-center sm:p-4">
+          <div
+            className="w-full max-w-lg rounded-t-3xl border border-border bg-card p-5 shadow-sm animate-in slide-in-from-bottom-4 duration-200 sm:rounded-3xl"
+            dir={isArabic ? "rtl" : "ltr"}
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-bold tracking-tight text-foreground">
+                  {imageDialog.hasImage
+                    ? isArabic
+                      ? "استبدال صورة الإنجاز"
+                      : "Replace milestone image"
+                    : isArabic
+                      ? "رفع صورة الإنجاز"
+                      : "Upload milestone image"}
+                </h3>
+                <p className="mt-1 text-xs font-medium leading-6 text-muted-foreground">
+                  {isArabic
+                    ? "أنشئ الصورة خارج التطبيق ثم ارفعها هنا."
+                    : "Generate your image externally, then upload it here."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setImageDialog(null)}
+                disabled={busyId === imageDialog.logId}
+                className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <label className="mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground shadow-sm transition hover:opacity-90 active:scale-[0.98]">
+              {busyId === imageDialog.logId ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Upload className="h-5 w-5" />
+              )}
+              {busyId === imageDialog.logId
+                ? isArabic
+                  ? "جاري الرفع..."
+                  : "Uploading..."
+                : imageDialog.hasImage
+                  ? isArabic
+                    ? "استبدال الصورة"
+                    : "Replace image"
+                  : isArabic
+                    ? "رفع الصورة"
+                    : "Upload image"}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                disabled={busyId === imageDialog.logId}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.currentTarget.value = "";
+                  if (!file) return;
+                  void handleUploadImage(imageDialog.logId, file);
+                }}
+              />
+            </label>
+          </div>
+        </div>
+      )}
+
+      {promptDialog && (
+        <div className="fixed inset-0 z-90 flex items-end justify-center bg-black/55 p-0 sm:items-center sm:p-4">
+          <div
+            className="w-full max-w-xl rounded-t-3xl border border-border bg-card p-5 shadow-sm animate-in slide-in-from-bottom-4 duration-200 sm:rounded-3xl"
+            dir={isArabic ? "rtl" : "ltr"}
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-bold tracking-tight text-foreground">
+                  {isArabic ? "برومبت الصورة" : "Image Prompt"}
+                </h3>
+                <p className="mt-1 text-xs font-medium leading-6 text-muted-foreground">
+                  {isArabic
+                    ? "مشهد مركب يحكي الإنجاز والهدف والمهام."
+                    : "A layered scene built from the milestone, goal, and tasks."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPromptDialog(null)}
+                disabled={busyId === promptDialog.logId}
+                className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {promptStyleOptions.map((styleOption) => (
+                  <button
+                    key={styleOption.value}
+                    type="button"
+                    onClick={() =>
+                      setPromptDialog((prev) => {
+                        if (!prev) return prev;
+                        return {
+                          ...prev,
+                          style: styleOption.value,
+                          prompt: buildMilestoneImagePrompt({
+                            goalTitle: prev.goalTitle,
+                            goalSummary: prev.goalSummary,
+                            milestoneName: prev.milestoneName,
+                            milestoneDescription: prev.milestoneDescription,
+                            tasksDescriptions: prev.tasksDescriptions,
+                            style: styleOption.value,
+                            aspectRatio: prev.aspectRatio,
+                          }),
+                        };
+                      })
+                    }
+                    className={cn(
+                      "rounded-xl border px-2.5 py-2 text-start transition",
+                      promptDialog.style === styleOption.value
+                        ? "border-primary bg-primary/12 text-foreground"
+                        : "border-border/70 bg-muted/20 text-muted-foreground hover:bg-muted hover:text-foreground",
+                    )}
+                  >
+                    <p className="text-xs font-bold">
+                      {isArabic ? styleOption.label.ar : styleOption.label.en}
+                    </p>
+                    <p className="mt-0.5 text-[10px] font-medium leading-4">
+                      {isArabic ? styleOption.hint.ar : styleOption.hint.en}
+                    </p>
+                  </button>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setPromptDialog((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          prompt: buildMilestoneImagePrompt({
+                            goalTitle: prev.goalTitle,
+                            goalSummary: prev.goalSummary,
+                            milestoneName: prev.milestoneName,
+                            milestoneDescription: prev.milestoneDescription,
+                            tasksDescriptions: prev.tasksDescriptions,
+                            style: prev.style,
+                            aspectRatio: prev.aspectRatio,
+                          }),
+                        }
+                      : prev,
+                  )
+                }
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary/25 bg-primary/12 px-3 py-2.5 text-sm font-bold text-primary transition hover:opacity-90 active:scale-[0.98]"
+              >
+                <WandSparkles className="h-4 w-4" />
+                {isArabic
+                  ? "إعادة صياغة البرومبت بشكل أقوى"
+                  : "Rewrite stronger prompt"}
+              </button>
+
+              <textarea
+                value={promptDialog.prompt}
+                onChange={(event) =>
+                  setPromptDialog((prev) =>
+                    prev ? { ...prev, prompt: event.target.value } : prev,
+                  )
+                }
+                className="h-44 w-full resize-none rounded-xl border border-border bg-background p-3 text-xs leading-6 text-foreground focus:border-primary focus:outline-none"
+                placeholder={isArabic ? "اكتب البرومبت..." : "Write prompt..."}
+              />
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleCopyPrompt(promptDialog.prompt)}
+                  disabled={!promptDialog.prompt.trim()}
+                  className="flex-1 rounded-xl border border-border bg-muted px-3 py-2.5 text-sm font-semibold text-muted-foreground transition hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
+                >
+                  <span className="inline-flex items-center gap-1.5">
+                    <Copy className="h-4 w-4" />
+                    {promptCopied
+                      ? isArabic
+                        ? "تم النسخ"
+                        : "Copied"
+                      : isArabic
+                        ? "نسخ"
+                        : "Copy"}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const ok = await handlePatch(promptDialog.logId, {
+                      imagePrompt: promptDialog.prompt.trim(),
+                      imageStylePreference: promptDialog.style,
+                    });
+                    if (ok) setPromptDialog(null);
+                  }}
+                  disabled={
+                    busyId === promptDialog.logId ||
+                    !promptDialog.prompt.trim()
+                  }
+                  className="flex-1 rounded-xl bg-primary px-3 py-2.5 text-sm font-bold text-primary-foreground shadow-sm transition hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
+                >
+                  <span className="inline-flex items-center gap-1.5">
+                    {busyId === promptDialog.logId ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <WandSparkles className="h-4 w-4" />
+                    )}
+                    {isArabic ? "حفظ البرومبت" : "Save prompt"}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!collapsed && (
+        <div className="mt-3">
+          {milestoneEvents.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 px-3 py-8 text-center">
+              <Trophy className="mx-auto mb-2 h-8 w-8 text-muted-foreground/50" />
+              <p className="text-sm text-muted-foreground">
+                {ui.activityEmpty}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
+              {milestoneEvents.map((event, index) => {
+                const actorIsMe = event.actor === "me";
+                const logId =
+                  event.logId || `${event.actor}-${event.createdAt}-${index}`;
+                const accentKey = normalizeAccentColor(
+                  event.milestone!.accentColor,
+                );
+                const accent = accentConfig[accentKey];
+                const isConfirmDelete = confirmDeleteId === logId;
+                const isBusy = busyId === logId;
+                const displayDesc =
+                  event.milestone!.short_description?.trim() ||
+                  event.milestone!.description;
+                const promptContext = event.milestone!.imagePromptContext;
+                const promptStyle = normalizePromptStyle(
+                  event.milestone!.imageStylePreference,
+                );
+                const promptGoalTitle =
+                  promptContext?.goalTitle?.trim() ||
+                  event.milestone!.goalTitle?.trim() ||
+                  (actorIsMe ? meGoalTitle : opponentGoalTitle)?.trim() ||
+                  (isArabic ? "هدفي الحالي" : "My current goal");
+                const promptGoalSummary =
+                  promptContext?.goalSummary?.trim() || "";
+                const promptTasks = Array.isArray(
+                  promptContext?.tasksDescriptions,
+                )
+                  ? promptContext.tasksDescriptions.filter(
+                      (task): task is string =>
+                        typeof task === "string" && task.trim().length > 0,
+                    )
+                  : [];
+                const generatedPrompt = buildMilestoneImagePrompt({
+                  goalTitle: promptGoalTitle,
+                  goalSummary: promptGoalSummary,
+                  milestoneName: event.milestone!.name,
+                  milestoneDescription: event.milestone!.description || "",
+                  tasksDescriptions: promptTasks,
+                  style: promptStyle,
+                  aspectRatio: event.milestone!.imageAspectRatio,
+                });
+                const isEditingThisCard = editMode?.logId === logId;
+                const milestoneActionsMenu =
+                  actorIsMe && event.logId ? (
+                    <DropdownMenu dir={isArabic ? "rtl" : "ltr"}>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white/80 transition-colors hover:bg-black/60 hover:text-white"
+                          aria-label={
+                            isArabic ? "خيارات الإنجاز" : "Milestone options"
+                          }
+                        >
+                          <MoreVertical className="h-2.5 w-2.5" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align={isArabic ? "start" : "end"}
+                        side="bottom"
+                        className={cn("w-52", isArabic && "text-right")}
+                      >
+                        <DropdownMenuItem
+                          onClick={() =>
+                            setEditMode({
+                              logId,
+                              field: "name",
+                              value: event.milestone!.name,
+                            })
+                          }
+                          className="cursor-pointer"
+                        >
+                          <Pencil className="h-4 w-4" />
+                          <span>{isArabic ? "تعديل الاسم" : "Edit name"}</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() =>
+                            setEditMode({
+                              logId,
+                              field: "description",
+                              value: event.milestone!.description,
+                            })
+                          }
+                          className="cursor-pointer"
+                        >
+                          <FileText className="h-4 w-4" />
+                          <span>{isArabic ? "تعديل الوصف" : "Edit text"}</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger className="cursor-pointer">
+                            <Palette className="h-4 w-4" />
+                            <span>
+                              {isArabic ? "تغيير اللون" : "Change color"}
+                            </span>
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent
+                            className={cn("w-44", isArabic && "text-right")}
+                          >
+                            {(Object.keys(accentConfig) as AccentColor[]).map(
+                              (color) => {
+                                const option = accentConfig[color];
+                                return (
+                                  <DropdownMenuItem
+                                    key={color}
+                                    onClick={() =>
+                                      handlePatch(logId, { accentColor: color })
+                                    }
+                                    className="cursor-pointer"
+                                  >
+                                    <span
+                                      className={cn(
+                                        "h-3.5 w-3.5 rounded-full ring-1 ring-black/10",
+                                        option.swatch,
+                                      )}
+                                    />
+                                    <span>
+                                      {isArabic
+                                        ? option.label.ar
+                                        : option.label.en}
+                                    </span>
+                                  </DropdownMenuItem>
+                                );
+                              },
+                            )}
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                        <DropdownMenuItem
+                          onClick={() =>
+                            setPromptDialog({
+                              logId,
+                              style: promptStyle,
+                              prompt:
+                                event.milestone!.imagePrompt?.trim() ||
+                                generatedPrompt,
+                              goalTitle: promptGoalTitle,
+                              goalSummary: promptGoalSummary,
+                              milestoneName: event.milestone!.name,
+                              milestoneDescription:
+                                event.milestone!.description || "",
+                              tasksDescriptions: promptTasks,
+                              aspectRatio: event.milestone!.imageAspectRatio,
+                            })
+                          }
+                          disabled={isBusy}
+                          className="cursor-pointer"
+                        >
+                          <WandSparkles className="h-4 w-4" />
+                          <span>
+                            {isArabic ? "برومبت الصورة" : "Image prompt"}
+                          </span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() =>
+                            setImageDialog({
+                              logId,
+                              hasImage: Boolean(event.milestone!.imageUrl),
+                            })
+                          }
+                          disabled={isBusy}
+                          className="cursor-pointer"
+                        >
+                          {isBusy ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <ImageIcon className="h-4 w-4" />
+                          )}
+                          <span>
+                            {event.milestone!.imageUrl
+                              ? isArabic
+                                ? "استبدال الصورة"
+                                : "Replace image"
+                              : isArabic
+                                ? "رفع الصورة"
+                                : "Upload image"}
+                          </span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => setConfirmDeleteId(logId)}
+                          variant="destructive"
+                          className="cursor-pointer"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span>{isArabic ? "حذف" : "Delete"}</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : null;
+
+                return (
+                  <div
+                    key={logId}
+                    className={cn(
+                      "group relative overflow-hidden rounded-xl border p-2 shadow-sm transition-colors duration-200",
+                      accent.card,
+                      accent.border,
+                    )}
+                  >
+                    {/* Delete confirm overlay */}
+                    {isConfirmDelete && (
+                      <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 rounded-xl bg-background p-4 text-center animate-in fade-in duration-200">
+                        <AlertTriangle className="h-6 w-6 text-destructive" />
+                        <p className="max-w-60 text-xs font-bold leading-relaxed text-foreground">
+                          {isArabic
+                            ? "حذف هذا الإنجاز؟ سيتم خصم نقاطه من الهدف."
+                            : "Delete this achievement? Its points will be deducted."}
+                        </p>
+                        <div className="flex w-full max-w-60 gap-2">
+                          <button
+                            onClick={() => setConfirmDeleteId(null)}
+                            disabled={isBusy}
+                            className="flex-1 rounded-lg border border-border bg-muted py-2 text-xs font-semibold text-muted-foreground transition hover:opacity-90 active:scale-[0.98]"
+                          >
+                            {isArabic ? "إلغاء" : "Cancel"}
+                          </button>
+                          <button
+                            onClick={() =>
+                              event.logId && handleDelete(event.logId)
+                            }
+                            disabled={isBusy}
+                            className="flex flex-1 items-center justify-center rounded-lg bg-destructive py-2 text-xs font-bold text-destructive-foreground transition hover:opacity-90 active:scale-[0.98]"
+                          >
+                            {isBusy ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : isArabic ? (
+                              "حذف"
+                            ) : (
+                              "Delete"
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Image — TOP */}
+                    <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted/20">
+                      {event.milestone!.imageUrl ? (
+                        <Image
+                          src={event.milestone!.imageUrl}
+                          alt={event.milestone!.name}
+                          fill
+                          sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
+                          className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                        />
+                      ) : (
+                        <div
+                          className={cn(
+                            "flex h-full w-full items-center justify-center",
+                            accent.icon,
+                          )}
+                        >
+                          <Trophy className="h-6 w-6" />
+                        </div>
+                      )}
+                      <div className="absolute inset-x-0 bottom-0 h-12 bg-black/40" />
+                      <div
+                        className={cn(
+                          "absolute top-1.5 flex items-center gap-1",
+                          isArabic ? "left-1.5" : "right-1.5",
+                        )}
+                      >
+                        {milestoneActionsMenu}
+                        <div className="rounded-full bg-black/45 px-1.5 py-[1.5px] text-[9px] font-semibold text-white/90">
+                          +{Intl.NumberFormat('en').format(event.points)}
+                        </div>
+                      </div>
+                      <div
+                        className={cn(
+                          "absolute bottom-1.5 flex items-center gap-1 rounded-full bg-black/45 px-1.5 py-[1.5px] text-[9px] font-semibold text-white/90",
+                          isArabic ? "right-2" : "left-2",
+                        )}
+                      >
+                        <span>
+                          {formatNumericDate(event.createdAt, 'en')} ·{" "}
+                          {formatTime(event.createdAt, 'en')}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Content — BOTTOM */}
+                    <div className="flex min-w-0 flex-col gap-1.5 px-0 pb-0 pt-2">
+                      {/* Inline editor */}
+                      {isEditingThisCard ? (
+                        <InlineEditor
+                          mode={editMode!}
+                          isArabic={isArabic}
+                          onCancel={() => setEditMode(null)}
+                          onSave={(value) =>
+                            event.logId &&
+                            handlePatch(event.logId, {
+                              [editMode!.field]: value,
+                            })
+                          }
+                          isBusy={isBusy}
+                        />
+                      ) : (
+                        <>
+                          <h4 className="line-clamp-2 text-xs font-bold leading-tight text-foreground">
+                            {event.milestone!.name}
+                          </h4>
+                          <p className="line-clamp-3 text-xs leading-relaxed text-muted-foreground">
+                            {displayDesc}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function InlineEditor({
+  mode,
+  isArabic,
+  onCancel,
+  onSave,
+  isBusy,
+}: {
+  mode: NonNullable<EditMode>;
+  isArabic: boolean;
+  onCancel: () => void;
+  onSave: (value: string) => void;
+  isBusy: boolean;
+}) {
+  const [value, setValue] = useState(mode.value);
+  const isMultiline = mode.field === "description";
+
+  return (
+    <div className="mt-1.5">
+      {isMultiline ? (
+        <textarea
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="w-full resize-none rounded-lg border border-border bg-background p-2 text-xs leading-relaxed text-foreground focus:border-primary focus:outline-none"
+          rows={3}
+          placeholder={isArabic ? "الوصف..." : "Description..."}
+          autoFocus
+        />
+      ) : (
+        <input
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="w-full rounded-lg border border-border bg-background p-2 text-xs font-bold text-foreground focus:border-primary focus:outline-none"
+          placeholder={isArabic ? "اسم الإنجاز..." : "Milestone name..."}
+          autoFocus
+        />
+      )}
+      <div className="mt-1.5 flex gap-1.5">
+        <button
+          onClick={() => onSave(value.trim())}
+          disabled={isBusy || !value.trim()}
+          className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-primary py-1 text-xs font-bold text-primary-foreground shadow-sm transition hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
+        >
+          {isBusy ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <Check className="h-3 w-3" />
+          )}
+          {isArabic ? "حفظ" : "Save"}
+        </button>
+        <button
+          onClick={onCancel}
+          disabled={isBusy}
+          className="rounded-lg bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground transition hover:opacity-90 active:scale-[0.98]"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      </div>
+    </div>
+  );
+}

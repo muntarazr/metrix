@@ -1,0 +1,71 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+!.env.example
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# capacitor mobile app
+/mobile/node_modules/
+/mobile/www/
+/mobile/android/build/
+/mobile/android/app/build/
+/mobile/android/.gradle/
+/mobile/android/local.properties
+/mobile/*.apk
+/mobile/resources/*.png
+
+# cloudflare / opennext
+.open-next/
+.wrangler/
+
+# Claude Code tool-internal state — not project source
+/.agents/
+/.claude/skills/
+/.impeccable/
+
+# stray duplicate outside src/, unreferenced by code (the real copy is
+# src/app/fonts/MSjawhara-Bold.ttf, which layout.tsx actually imports)
+/MSjawhara-Bold copy.ttf
+
+# licensed Arabic font, unknown redistribution terms — kept locally for
+# `next/font/local` at build time and for Vercel CLI deploys (which upload
+# the local tree directly, not via this repo), but never committed
+/src/app/fonts/*.ttf
+/src/app/fonts/*.otf

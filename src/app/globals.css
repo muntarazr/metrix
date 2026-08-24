@@ -1,0 +1,795 @@
+@import "tailwindcss";
+@plugin "tailwindcss-animate";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-canvas: var(--canvas);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-latin, "Plus Jakarta Sans"), var(--font-jawhara), var(--font-ibm-arabic, "IBM Plex Sans Arabic"), var(--font-fallback);
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-soft: var(--warning-soft);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-info-soft: var(--info-soft);
+  --color-surface: var(--surface);
+  --color-surface-foreground: var(--surface-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --shadow-xs: var(--elev-xs);
+  --shadow-sm: var(--elev-sm);
+  --shadow-md: var(--elev-md);
+  --shadow-lg: var(--elev-lg);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+}
+
+:root {
+  /* `--font-latin`, `--font-jawhara` and `--font-ibm-arabic` are defined by
+     next/font in layout.tsx — do NOT redefine them here, or the class it puts
+     on <html> and this `:root` rule will fight over identical specificity and
+     the winner will come down to stylesheet order.
+     Arabic is MS-jawhara; IBM Plex Sans Arabic sits behind it only to catch
+     glyphs MS-jawhara does not map.
+     Latin is composed first everywhere. Font matching is per-glyph, not
+     first-family-wins, so Arabic characters still fall through to the Arabic
+     family; the previous stack put Arabic first AND ended it in `sans-serif`,
+     a universal match, which made the Latin family unreachable. */
+  --font-fallback: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --radius: 0.625rem;
+
+  /* ELEVATION RAMP — the reason the interface reads as flat is contrast between
+     surfaces, not hue. Measured against --card (white):
+       canvas 1.26:1 · border 1.62:1 vs card / 1.29:1 vs canvas · input 1.92:1
+     The canvas has to be genuinely darker than the cards or nothing looks raised. */
+  --canvas: oklch(0.927 0 0);          /* the recessed page ground */
+  --background: oklch(1 0 0);
+  --card: oklch(1 0 0);                /* raised surfaces */
+  --popover: oklch(1 0 0);
+  --surface: oklch(0.968 0 0);         /* inset panels inside a card */
+  --muted: oklch(0.958 0 0);
+  --secondary: oklch(0.958 0 0);
+  --accent: oklch(0.948 0 0);
+
+  --foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --surface-foreground: oklch(0.205 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --muted-foreground: oklch(0.505 0 0);   /* 5.7:1 on card — was 4.7:1 */
+
+  /* Borders carry the structure now that the fills are close together. */
+  --border: oklch(0.842 0 0);
+  --input: oklch(0.795 0 0);              /* controls read louder than dividers */
+
+  /* The brand blue, taken from the logo: #0097b2 is oklch(0.623 0.111 216), so
+     the hue is pinned at 216 rather than the 218 it had drifted to.
+     Lightness is 0.49, not 0.525. The old value was justified as "5.24:1", but
+     that was measured against WHITE — and `body` is `bg-canvas` (0.927), not
+     white, so on the surface this text actually sits on it measured 4.00:1 and
+     FAILED AA across ~163 `text-primary` call sites. At 0.49 it measures
+     4.58:1 on canvas and 5.68:1 on card. Re-measure both if you touch this. */
+  --primary: oklch(0.49 0.125 216);
+  --primary-foreground: oklch(1 0 0);
+  --primary-soft: oklch(0.957 0.014 216);
+  --ring: oklch(0.49 0.125 216);
+
+  --destructive: oklch(0.505 0.155 27.5);
+  --destructive-foreground: oklch(1 0 0);
+  --destructive-soft: oklch(0.958 0.014 27.5);
+  --success: oklch(0.49 0.125 216);
+  --success-foreground: oklch(1 0 0);
+  --success-soft: oklch(0.957 0.014 216);
+  --warning: oklch(0.35 0 0);
+  --warning-foreground: oklch(1 0 0);
+  --warning-soft: oklch(0.948 0 0);
+  --info: oklch(0.42 0 0);
+  --info-foreground: oklch(1 0 0);
+  --info-soft: oklch(0.953 0 0);
+
+  --chart-1: oklch(0.49 0.125 216);
+  --chart-2: oklch(0.42 0 0);
+  --chart-3: oklch(0.66 0 0);
+  --chart-4: oklch(0.80 0 0);
+  --chart-5: oklch(0.68 0.07 216);
+
+  --sidebar: oklch(0.978 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.49 0.125 216);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.948 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.842 0 0);
+  --sidebar-ring: oklch(0.49 0.125 216);
+
+  /* Neutral shadow scale. The old values sat at 2% alpha, which paints nothing. */
+  --elev-xs: 0 1px 2px oklch(0 0 0 / 0.06);
+  --elev-sm: 0 1px 3px oklch(0 0 0 / 0.09), 0 1px 2px -1px oklch(0 0 0 / 0.07);
+  --elev-md: 0 4px 10px -2px oklch(0 0 0 / 0.10), 0 2px 4px -2px oklch(0 0 0 / 0.07);
+  --elev-lg: 0 12px 24px -6px oklch(0 0 0 / 0.13), 0 4px 8px -4px oklch(0 0 0 / 0.08);
+}
+
+.dark {
+  /* Same ramp inverted. Measured against --card:
+       canvas 1.55:1 · muted 1.30:1 · border 1.45:1 vs card · input 1.92:1 */
+  --canvas: oklch(0.125 0 0);
+  --background: oklch(0.125 0 0);
+  /* Recessed surfaces must be DARKER than --card here, exactly as they are
+     lighter than it in the light theme. They used to be lighter than the card,
+     which inverted every "track + raised pill" control in dark mode: the
+     selected tab read as pressed in rather than lifted out. */
+  --muted: oklch(0.185 0 0);
+  --secondary: oklch(0.185 0 0);
+  --surface: oklch(0.205 0 0);
+  --card: oklch(0.238 0 0);
+  --popover: oklch(0.255 0 0);
+  --accent: oklch(0.302 0 0);      /* hover lift, so this one is lighter */
+
+  --foreground: oklch(0.985 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --surface-foreground: oklch(0.985 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --muted-foreground: oklch(0.712 0 0);
+
+  /* Solid, not white-at-12% — a translucent border disappears over a dark card. */
+  --border: oklch(0.352 0 0);
+  --input: oklch(0.415 0 0);
+
+  /* Bright enough to read on the dark card, so its label goes near-black. */
+  --primary: oklch(0.725 0.115 216);
+  --primary-foreground: oklch(0.145 0 0);
+  --primary-soft: oklch(0.268 0.035 216);
+  --ring: oklch(0.725 0.115 216);
+
+  --destructive: oklch(0.665 0.16 25);
+  --destructive-foreground: oklch(0.145 0 0);
+  --destructive-soft: oklch(0.272 0.04 25);
+  --success: oklch(0.725 0.115 216);
+  --success-foreground: oklch(0.145 0 0);
+  --success-soft: oklch(0.268 0.035 216);
+  --warning: oklch(0.87 0 0);
+  --warning-foreground: oklch(0.145 0 0);
+  --warning-soft: oklch(0.272 0 0);
+  --info: oklch(0.79 0 0);
+  --info-foreground: oklch(0.145 0 0);
+  --info-soft: oklch(0.258 0 0);
+
+  --chart-1: oklch(0.725 0.115 216);
+  --chart-2: oklch(0.80 0 0);
+  --chart-3: oklch(0.60 0 0);
+  --chart-4: oklch(0.42 0 0);
+  --chart-5: oklch(0.58 0.07 216);
+
+  --sidebar: oklch(0.125 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.725 0.115 216);
+  --sidebar-primary-foreground: oklch(0.145 0 0);
+  --sidebar-accent: oklch(0.272 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.352 0 0);
+  --sidebar-ring: oklch(0.725 0.115 216);
+
+  /* Dark surfaces need deeper shadows plus the border to separate at all. */
+  --elev-xs: 0 1px 2px oklch(0 0 0 / 0.45);
+  --elev-sm: 0 1px 3px oklch(0 0 0 / 0.55), 0 1px 2px -1px oklch(0 0 0 / 0.45);
+  --elev-md: 0 4px 10px -2px oklch(0 0 0 / 0.6), 0 2px 4px -2px oklch(0 0 0 / 0.45);
+  --elev-lg: 0 12px 24px -6px oklch(0 0 0 / 0.7), 0 4px 8px -4px oklch(0 0 0 / 0.5);
+}
+
+@layer base {
+  html,
+  body {
+    min-height: 100dvh;
+  }
+
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-canvas text-foreground;
+    font-family: var(--font-latin, "Plus Jakarta Sans"), var(--font-jawhara), var(--font-ibm-arabic, "IBM Plex Sans Arabic"), var(--font-fallback);
+    font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+    overscroll-behavior-y: none;
+  }
+
+  /* Same order as body, deliberately. `layout.tsx` hardcodes dir="rtl" on
+     <html>, so this rule matches the root and every descendant inherits it —
+     putting the Arabic family first here would re-break Latin everywhere,
+     which is the bug this pass fixes. Per-glyph fallback already routes
+     Arabic to IBM Plex Sans Arabic; Plus Jakarta Sans carries no Arabic. */
+  :lang(ar),
+  [dir="rtl"] {
+    font-family: var(--font-latin, "Plus Jakarta Sans"), var(--font-jawhara), var(--font-ibm-arabic, "IBM Plex Sans Arabic"), var(--font-fallback);
+  }
+
+  /* Plus Jakarta Sans refinements for Latin/English text */
+  :where(h1, h2, h3, h4, h5, h6) {
+    font-feature-settings: "kern" 1, "liga" 1, "calt" 1, "ss01" 1;
+    letter-spacing: -0.02em;
+  }
+
+  /* Numeric figures — tabular for data/stats */
+  :where(.tabular-nums, [data-stat], [data-value]) {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
+  /* Custom Scrollbar Styles (ultra-thin + reveal on interaction) */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 9999px;
+    transition: background-color 160ms ease;
+  }
+
+  .scrollbar-thin:hover::-webkit-scrollbar-thumb,
+  .scrollbar-thin:focus-visible::-webkit-scrollbar-thumb,
+  .scrollbar-thin:active::-webkit-scrollbar-thumb {
+    background: color-mix(in oklch, var(--muted-foreground) 35%, transparent);
+  }
+
+  .scrollbar-thin:hover::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklch, var(--muted-foreground) 50%, transparent);
+  }
+
+  /* Firefox scrollbar */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+
+  .scrollbar-thin:hover,
+  .scrollbar-thin:focus-visible,
+  .scrollbar-thin:active {
+    scrollbar-color: color-mix(in oklch, var(--muted-foreground) 35%, transparent) transparent;
+  }
+
+  /* Fully hide scrollbar but keep scroll functionality */
+  .scrollbar-hide {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    width: 0 !important;
+    height: 0 !important;
+    display: none !important;
+  }
+}
+
+@keyframes focus-task-complete {
+  0% {
+    transform: translateY(0) scale(1);
+    filter: saturate(1);
+  }
+
+  38% {
+    transform: translateY(-2px) scale(1.01);
+    filter: saturate(1.06);
+  }
+
+  100% {
+    transform: translateY(0) scale(1);
+    filter: saturate(1);
+  }
+}
+
+@keyframes focus-task-pill-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.focus-task-completed-today {
+  position: relative;
+}
+
+.focus-task-completed-today::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(135deg, color-mix(in oklch, var(--primary) 8%, transparent), transparent 56%);
+}
+
+/* See the comment in components/ui/scroll-area.tsx: without this, a long
+   unbroken string inside a vertical-only ScrollArea widens Radix's table
+   wrapper past the viewport and `overflow-x: hidden` clips it — leftward under
+   RTL. Scoped to the attribute so a horizontal ScrollArea keeps the table. */
+[data-radix-scroll-area-viewport][data-vertical-only] > div {
+  display: block !important;
+  min-width: 0 !important;
+}
+
+.focus-task-completed-pill {
+  backdrop-filter: blur(10px);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .focus-task-completed-today[data-fresh="true"] {
+    animation: focus-task-complete 900ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .focus-task-completed-pill[data-fresh="true"] {
+    animation: focus-task-pill-pop 380ms ease-out both;
+  }
+}
+
+/* ============================================================ */
+/*  Calendar / Date-Picker Dropdown Styles                      */
+/* ============================================================ */
+
+/* Wrapper that holds the month + year selects */
+.rdp-dropdowns {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  justify-content: center;
+}
+
+/* RTL: reverse the order so year comes first visually */
+[dir="rtl"] .rdp-dropdowns {
+  flex-direction: row-reverse;
+}
+
+/* The <span> wrapper around each <select> */
+.rdp-dropdown_root {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* The hidden label text that sits behind the select */
+.rdp-dropdown_root > span.text-sm {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--foreground);
+  padding-inline: 0.5rem;
+  white-space: nowrap;
+}
+
+/* The native <select> element – make it invisible but still interactive */
+.rdp-dropdown,
+select.rdp-dropdown {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  z-index: 1;
+}
+
+/* The visible pill/button that wraps the hidden select */
+.rdp-dropdown_root {
+  height: 2rem;
+  min-width: 3.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  background: var(--muted);
+  transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.rdp-dropdown_root:hover {
+  background: var(--accent);
+  border-color: var(--ring);
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--ring) 20%, transparent);
+}
+
+/* Month dropdown is slightly wider */
+.rdp-months_dropdown + span,
+span:has(> select.rdp-months_dropdown) {
+  min-width: 5rem;
+}
+
+/* Year dropdown */
+.rdp-years_dropdown + span,
+span:has(> select.rdp-years_dropdown) {
+  min-width: 4rem;
+}
+
+/* Arabic / RTL text alignment inside the pill */
+[dir="rtl"] .rdp-dropdown_root > span.text-sm {
+  font-family: var(--font-jawhara), var(--font-ibm-arabic, "IBM Plex Sans Arabic"), var(--font-fallback);
+  letter-spacing: 0;
+}
+
+/* Month caption row */
+.rdp-month_caption {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding-block: 0.25rem;
+  min-height: 2.5rem;
+}
+
+/* Navigation buttons positioning */
+.rdp-nav {
+  position: absolute;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.rdp-nav button {
+  pointer-events: all;
+}
+
+/* Weekday header cells */
+.rdp-weekday {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+  opacity: 0.7;
+  text-align: center;
+  width: 2.25rem;
+  padding-block: 0.25rem;
+}
+
+[dir="rtl"] .rdp-weekday {
+  letter-spacing: 0;
+  font-size: 0.6875rem;
+}
+
+/* Day cells */
+.rdp-day_button {
+  border-radius: 0.5rem !important;
+  transition: background 120ms ease, transform 100ms ease, box-shadow 100ms ease;
+}
+
+.rdp-day_button:hover:not([disabled]):not([aria-selected="true"]) {
+  background: var(--muted) !important;
+  transform: scale(1.08);
+}
+
+.rdp-day_button[aria-selected="true"] {
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  box-shadow: 0 2px 8px color-mix(in oklch, var(--primary) 35%, transparent);
+}
+
+/* Today highlight */
+.rdp-today .rdp-day_button:not([aria-selected="true"]) {
+  background: color-mix(in oklch, var(--primary) 12%, transparent) !important;
+  color: var(--primary) !important;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--primary) 30%, transparent);
+}
+
+/* Outside-month days */
+.rdp-outside .rdp-day_button {
+  opacity: 0.3;
+}
+
+/* Popover that wraps the calendar */
+[data-radix-popper-content-wrapper] .rdp-root {
+  font-family: var(--font-jawhara), var(--font-ibm-arabic, "IBM Plex Sans Arabic"), var(--font-fallback);
+}
+
+@keyframes reward-pack-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes reward-pack-shimmer {
+  0% {
+    transform: translateX(-160%) rotate(18deg);
+  }
+
+  100% {
+    transform: translateX(210%) rotate(18deg);
+  }
+}
+
+@keyframes reward-pack-seal-break {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+
+  35% {
+    opacity: 1;
+    transform: translateY(-8%) scaleY(0.92);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-42%) scaleY(0.28);
+  }
+}
+
+@keyframes reward-pack-core-burst {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  42% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(0.62);
+  }
+}
+
+@keyframes reward-card-emerge {
+  0% {
+    opacity: 0;
+    transform: translateY(14%) scale(0.84);
+    filter: blur(8px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .reward-pack-shell {
+    animation: reward-pack-float 3.8s ease-in-out infinite;
+  }
+
+  .reward-pack-shell::after {
+    content: "";
+    position: absolute;
+    inset: -20% 32%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.26), transparent);
+    opacity: 0.55;
+    transform: translateX(-160%) rotate(18deg);
+    animation: reward-pack-shimmer 3.3s linear infinite;
+    pointer-events: none;
+  }
+
+  [data-opening="true"] .reward-pack-shell {
+    animation: reward-card-emerge 920ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  [data-opening="true"] .reward-pack-seal {
+    animation: reward-pack-seal-break 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  [data-opening="true"] .reward-pack-core {
+    animation: reward-pack-core-burst 680ms ease-out both;
+  }
+
+  .reward-card-face {
+    animation: reward-card-emerge 660ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+/* Dashboard animation utilities */
+@keyframes slide-in-from-top-3 {
+  0% {
+    opacity: 0;
+    transform: translateY(-0.75rem);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-from-bottom-5 {
+  0% {
+    opacity: 0;
+    transform: translateY(1.25rem);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.animate-in {
+  animation-duration: 300ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-fill-mode: both;
+}
+
+.fade-in {
+  animation-name: fade-in;
+}
+
+.slide-in-from-top-3 {
+  animation-name: slide-in-from-top-3;
+}
+
+.slide-in-from-bottom-5 {
+  animation-name: slide-in-from-bottom-5;
+}
+
+/* Snappy checkmark micro-interaction */
+@keyframes check-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-check-pop {
+  animation: check-pop 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Custom easing curve utilities */
+.ease-out-quart {
+  transition-timing-function: cubic-bezier(0.25, 1, 0.5, 1);
+}
+.ease-out-quint {
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ease-out-expo {
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+
+
+
+/* ── Goal analysis loader ─────────────────────────────────────────────
+   Two counter-rotating arcs, no copy. The analysis usually finishes in a
+   couple of seconds, so any text would flash by unread — the ring alone
+   carries the "working" signal. */
+
+.metrix-loader {
+  position: relative;
+  width: 4.5rem;
+  height: 4.5rem;
+}
+
+.metrix-loader__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 3px solid transparent;
+}
+
+.metrix-loader__ring--outer {
+  border-top-color: var(--primary);
+  border-right-color: color-mix(in oklch, var(--primary) 30%, transparent);
+}
+
+.metrix-loader__ring--inner {
+  inset: 0.65rem;
+  border-width: 2px;
+  border-bottom-color: color-mix(in oklch, var(--primary) 55%, transparent);
+  border-left-color: color-mix(in oklch, var(--primary) 18%, transparent);
+}
+
+.metrix-loader__core {
+  position: absolute;
+  inset: 1.55rem;
+  border-radius: 9999px;
+  background: color-mix(in oklch, var(--primary) 16%, transparent);
+}
+
+@keyframes metrix-loader-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes metrix-loader-breathe {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .metrix-loader__ring--outer {
+    animation: metrix-loader-spin 1.1s cubic-bezier(0.5, 0.15, 0.5, 0.85) infinite;
+  }
+
+  .metrix-loader__ring--inner {
+    animation: metrix-loader-spin 1.7s cubic-bezier(0.5, 0.15, 0.5, 0.85) infinite reverse;
+  }
+
+  .metrix-loader__core {
+    animation: metrix-loader-breathe 2s ease-in-out infinite;
+  }
+}

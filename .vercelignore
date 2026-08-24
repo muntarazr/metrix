@@ -1,0 +1,11 @@
+mobile/
+android/
+ios/
+supabase/
+scripts/
+.claude/
+.agents/
+.impeccable
+*.md
+!README.md
+proposal-homepage.html
