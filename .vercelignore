@@ -1,7 +1,7 @@
 mobile/
 android/
 ios/
-supabase/
+/supabase/
 scripts/
 .claude/
 .agents/

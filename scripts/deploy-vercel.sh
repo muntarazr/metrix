@@ -25,17 +25,24 @@ npx vercel link --yes --project metrix
 
 set -a; . ./.env.local; set +a
 
-KEYS=(
+REQUIRED_KEYS=(
   NEXT_PUBLIC_SUPABASE_URL
   NEXT_PUBLIC_SUPABASE_ANON_KEY
   SUPABASE_SERVICE_ROLE_KEY
   GEMINI_API_KEY
   MISTRAL_API_KEY
+)
+
+# Not required to run the live app: it is read only by
+# scripts/migrate-to-imagekit.mjs, a local one-off migration script. Image
+# display uses a public ik.imagekit.io URL that needs no key. Pass it along
+# only if the user has actually set it — never block a deploy on it.
+OPTIONAL_KEYS=(
   IMAGEKIT_PRIVATE_KEY
 )
 
 ARGS=()
-for K in "${KEYS[@]}"; do
+for K in "${REQUIRED_KEYS[@]}"; do
   if [ -z "${!K:-}" ]; then
     echo "error: $K is empty in .env.local" >&2
     exit 1
@@ -44,7 +51,16 @@ for K in "${KEYS[@]}"; do
   ARGS+=( -e "$K=$V" -b "$K=$V" )
 done
 
-echo "deploying with ${#KEYS[@]} environment variables (values not echoed)"
+for K in "${OPTIONAL_KEYS[@]}"; do
+  if [ -n "${!K:-}" ]; then
+    V="${!K}"
+    ARGS+=( -e "$K=$V" -b "$K=$V" )
+  else
+    echo "note: $K is empty — skipping (only needed for scripts/migrate-to-imagekit.mjs)"
+  fi
+done
+
+echo "deploying with ${#REQUIRED_KEYS[@]} required + up to ${#OPTIONAL_KEYS[@]} optional environment variables (values not echoed)"
 npx vercel deploy --prod --yes "${ARGS[@]}"
 
 cat <<'NEXT'
