@@ -2,7 +2,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   appId: "com.metrix.app",
-  appName: "Metrix",
+  appName: "METRIX",
   webDir: "www",
   server: {
     hostname: "localhost",
@@ -10,7 +10,7 @@ const config: CapacitorConfig = {
   },
   android: {
     allowMixedContent: false,
-    backgroundColor: "#0b1120",
+    backgroundColor: "#060606",
   },
   plugins: {
     Browser: {

@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background>
-        <inset android:drawable="@mipmap/ic_launcher_background" android:inset="16.7%" />
+        <!-- No inset: the background layer must fill the full 108dp or the
+             launcher mask exposes transparent corners. Only the foreground
+             is inset, into the 72dp safe zone. -->
+        <inset android:drawable="@mipmap/ic_launcher_background" android:inset="0%" />
     </background>
     <foreground>
         <inset android:drawable="@mipmap/ic_launcher_foreground" android:inset="16.7%" />

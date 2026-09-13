@@ -11,6 +11,18 @@ API_DISABLED="src/app/_api_disabled"
 AUTH_ROUTE="src/app/auth/callback/route.ts"
 AUTH_ROUTE_BACKUP="src/app/auth/callback/route.ts.bak"
 
+MANIFEST_FILE="src/app/manifest.ts"
+MANIFEST_BACKUP="src/app/manifest.ts.bak"
+
+# Trap to guarantee files are restored even if the build fails
+cleanup() {
+  echo "→ Restoring files..."
+  if [ -d "$API_DISABLED" ]; then mv "$API_DISABLED" "$API_DIR"; fi
+  if [ -f "$AUTH_ROUTE_BACKUP" ]; then mv "$AUTH_ROUTE_BACKUP" "$AUTH_ROUTE"; fi
+  if [ -f "$MANIFEST_BACKUP" ]; then mv "$MANIFEST_BACKUP" "$MANIFEST_FILE"; fi
+}
+trap cleanup EXIT
+
 if [ -d "$API_DIR" ]; then
   echo "→ Temporarily moving API routes out of the build..."
   mv "$API_DIR" "$API_DISABLED"
@@ -21,12 +33,18 @@ if [ -f "$AUTH_ROUTE" ]; then
   mv "$AUTH_ROUTE" "$AUTH_ROUTE_BACKUP"
 fi
 
+if [ -f "$MANIFEST_FILE" ]; then
+  echo "→ Temporarily removing manifest.ts for static export..."
+  mv "$MANIFEST_FILE" "$MANIFEST_BACKUP"
+fi
+
 # 2. Build static export
 echo "→ Building Next.js static export (BUILD_MOBILE=1)..."
 BUILD_MOBILE=1 npx next build
 
 # 3. Copy output to Capacitor www
 echo "→ Copying export to mobile/www..."
+mkdir -p mobile/www
 rm -rf mobile/www/*
 cp -r out/* mobile/www/
 
@@ -38,6 +56,10 @@ fi
 
 if [ -f "$AUTH_ROUTE_BACKUP" ]; then
   mv "$AUTH_ROUTE_BACKUP" "$AUTH_ROUTE"
+fi
+
+if [ -f "$MANIFEST_BACKUP" ]; then
+  mv "$MANIFEST_BACKUP" "$MANIFEST_FILE"
 fi
 
 # 5. Sync with Capacitor
