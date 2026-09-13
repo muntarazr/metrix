@@ -1,16 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireUser } from '@/lib/api-auth';
+import { requireAiQuota } from '@/lib/ai-quota';
+
+const MAX_AUDIO_SIZE_BYTES = 10 * 1024 * 1024;
+const ALLOWED_AUDIO_MIME_TYPES = new Set([
+  'audio/webm',
+  'audio/mp4',
+  'audio/mpeg',
+  'audio/wav',
+  'audio/ogg',
+]);
 
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireUser(request);
     if (auth.error) return auth.error;
 
+    const contentLength = Number(request.headers.get('content-length'));
+    if (Number.isFinite(contentLength) && contentLength > MAX_AUDIO_SIZE_BYTES) {
+      return NextResponse.json({ error: 'Audio file must be at most 10MB' }, { status: 413 });
+    }
+
     const formData = await request.formData();
-    const audioFile = formData.get('audio') as File;
-    
-    if (!audioFile) {
+    const audioFile = formData.get('audio');
+
+    if (!(audioFile instanceof File)) {
       return NextResponse.json({ error: 'No audio file provided' }, { status: 400 });
+    }
+    if (!ALLOWED_AUDIO_MIME_TYPES.has(audioFile.type)) {
+      return NextResponse.json({ error: 'Unsupported audio format' }, { status: 415 });
+    }
+    if (audioFile.size <= 0 || audioFile.size > MAX_AUDIO_SIZE_BYTES) {
+      return NextResponse.json({ error: 'Audio file must be greater than 0 and at most 10MB' }, { status: 413 });
     }
 
     const mistralApiKey = process.env.MISTRAL_API_KEY;
@@ -24,12 +45,15 @@ export async function POST(request: NextRequest) {
       }, { status: 200 });
     }
 
+    const language = formData.get('language') === 'en' ? 'en' : 'ar';
+    const quotaResponse = await requireAiQuota(auth.supabase, 'mistral', 'transcribe');
+    if (quotaResponse) return quotaResponse;
+
     // Convert audio file to bytes (Uint8Array works on Node and Workers alike)
     const arrayBuffer = await audioFile.arrayBuffer();
     const audioBuffer = new Uint8Array(arrayBuffer);
 
     // Call Mistral Voxtral API for transcription
-    const language = formData.get('language') as string || 'ar';
     const mistralFormData = new FormData();
     const fileName = audioFile.name || 'recording.webm';
     mistralFormData.append('file', new Blob([audioBuffer], { type: audioFile.type }), fileName);
@@ -45,13 +69,11 @@ export async function POST(request: NextRequest) {
     });
 
     if (!mistralResponse.ok) {
-      const errorText = await mistralResponse.text();
-      console.error('Mistral API error:', errorText);
-      return NextResponse.json({ 
-        error: 'Transcription failed',
-        details: errorText,
+      console.error('Mistral API error:', { status: mistralResponse.status });
+      return NextResponse.json({
+        error: mistralResponse.status === 429 ? 'provider_rate_limited' : 'transcription_failed',
         fallback: true
-      }, { status: mistralResponse.status });
+      }, { status: mistralResponse.status === 429 ? 429 : 502 });
     }
 
     const result = await mistralResponse.json();
@@ -67,7 +89,6 @@ export async function POST(request: NextRequest) {
     console.error('Transcription error:', error);
     return NextResponse.json({ 
       error: 'Internal server error',
-      message: error.message,
       fallback: true
     }, { status: 500 });
   }

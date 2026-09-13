@@ -15,6 +15,8 @@ import { LoadingSkeleton } from './challenge/LoadingSkeleton';
 import { FeedbackBanner } from './challenge/FeedbackBanner';
 import { RewardsSection } from './challenge/RewardsSection';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { PANEL_SURFACE } from '@/lib/surfaces';
+import { cn } from '@/lib/utils';
 
 export default function ChallengeTab({ goalId, currentPoints, targetPoints, language = 'ar' }: ChallengeTabProps) {
   const t = translations[language];
@@ -223,7 +225,7 @@ export default function ChallengeTab({ goalId, currentPoints, targetPoints, lang
 
       <ScrollArea className="flex-1 min-h-0" dir={isArabic ? 'rtl' : 'ltr'}>
         <div className="space-y-2.5 pr-0.5">
-        <section className="rounded-xl border border-border bg-card p-3 shadow-sm shadow-black/[0.02] sm:p-4">
+        <section className={cn(PANEL_SURFACE, "rounded-xl p-3 sm:p-4")}>
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-muted/60 border border-border/70 text-muted-foreground">

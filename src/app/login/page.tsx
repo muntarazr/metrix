@@ -1,11 +1,12 @@
 'use client';
 
+import Link from 'next/link';
 import { MatrixManifestoDialog } from '@/components/login/MatrixManifestoDialog';
 import { EmailAuthForm } from '@/components/login/EmailAuthForm';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
+import { BrandLockup } from '@/components/brand/Logo';
 import { useCapacitorAuth } from '@/hooks/useCapacitorAuth';
 import type { Language } from '@/lib/translations';
 import {
@@ -21,14 +22,20 @@ const copy = {
     google: 'تسجيل الدخول باستخدام جوجل',
     or: 'أو',
     manifesto: 'القصة وراء ماتريكس',
-    terms: 'بتسجيل الدخول، أنت توافق على شروط الخدمة وسياسة الخصوصية',
+    termsPrefix: 'بتسجيل الدخول، أنت توافق على',
+    termsLink: 'شروط الخدمة',
+    termsAnd: 'و',
+    privacyLink: 'سياسة الخصوصية',
     switchLanguage: 'English',
   },
   en: {
     google: 'Sign in with Google',
     or: 'or',
-    manifesto: 'The story behind Metrix',
-    terms: 'By signing in, you agree to the Terms of Service and Privacy Policy',
+    manifesto: 'The story behind METRIX',
+    termsPrefix: 'By signing in, you agree to the',
+    termsLink: 'Terms of Service',
+    termsAnd: 'and',
+    privacyLink: 'Privacy Policy',
     switchLanguage: 'العربية',
   },
 } as const;
@@ -121,28 +128,9 @@ export default function LoginPage() {
             </button>
           </div>
 
-          {/* Logo */}
+          {/* Logo — one currentColor lockup, no light/dark asset swap */}
           <div className="flex justify-center">
-            <Image
-              src="/logo1.svg"
-              alt="Metrix Logo"
-              width={180}
-              height={180}
-              sizes="(max-width: 640px) 192px, 208px"
-              priority
-              className="h-auto w-48 sm:w-52 dark:hidden"
-              style={{ height: 'auto' }}
-            />
-            <Image
-              src="/logo2.svg"
-              alt="Metrix Logo Dark"
-              width={180}
-              height={180}
-              sizes="(max-width: 640px) 192px, 208px"
-              priority
-              className="hidden h-auto w-48 sm:w-52 dark:block"
-              style={{ height: 'auto' }}
-            />
+            <BrandLockup className="h-auto w-48 text-foreground sm:w-52" />
           </div>
 
           {/* Login Button */}
@@ -190,7 +178,16 @@ export default function LoginPage() {
               {t.manifesto}
             </button>
 
-            <p className="text-xs text-center text-muted-foreground">{t.terms}</p>
+            <p className="text-xs text-center text-muted-foreground">
+              {t.termsPrefix}{' '}
+              <Link href="/terms" className="underline hover:text-foreground">
+                {t.termsLink}
+              </Link>{' '}
+              {t.termsAnd}{' '}
+              <Link href="/privacy" className="underline hover:text-foreground">
+                {t.privacyLink}
+              </Link>
+            </p>
           </div>
         </div>
       </div>

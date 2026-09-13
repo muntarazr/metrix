@@ -17,6 +17,7 @@ import {
   ImageIcon,
   Copy,
   Upload,
+  Flame,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { translations, type Language } from "@/lib/translations";
@@ -39,6 +40,10 @@ import {
   type DailyLogPerformanceMeta,
 } from "@/lib/daily-log-feedback";
 import GoalCompletionCelebration from "../goal/GoalCompletionCelebration";
+import ProgressUpdatesStep, { type ProgressUpdatesData } from "./ProgressUpdatesStep";
+import { computeStreak, parseStreakFreezes } from "@/lib/streak";
+import { calendarDaysUntilGoalEnd } from "@/lib/goal-dates";
+import { getLocalDateKey } from "@/lib/task-periods";
 import {
   Collapsible,
   CollapsibleContent,
@@ -53,6 +58,7 @@ interface ProgressLogDialogProps {
     title: string;
     ai_summary?: string;
     created_at?: string;
+    estimated_completion_date?: string | null;
     current_points?: number;
     target_points?: number;
   };
@@ -266,6 +272,8 @@ export default function ProgressLogDialog({
   const submittedRef = useRef(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [showTaskDetails, setShowTaskDetails] = useState(false);
+  const [updatesStepData, setUpdatesStepData] = useState<ProgressUpdatesData | null>(null);
+  const [showUpdatesScreen, setShowUpdatesScreen] = useState(false);
 
   // Milestone specific state
   const [milestoneName, setMilestoneName] = useState("");
@@ -437,6 +445,86 @@ export default function ProgressLogDialog({
       }
     },
     [goal.id, supabase, tasks],
+  );
+
+  const calculateUpdatesSnapshot = useCallback(
+    async (
+      deltaAwarded: number,
+      completedInSessionTaskIds: string[],
+      options?: {
+        logType?: "daily" | "milestone";
+        milestoneTitle?: string;
+        milestoneTier?: "minor" | "major" | "legendary";
+      },
+    ) => {
+      try {
+        const [{ data: logsData }, { data: goalRow }] = await Promise.all([
+          supabase
+            .from("daily_logs")
+            .select("created_at")
+            .eq("goal_id", goal.id)
+            .order("created_at", { ascending: false })
+            .limit(365),
+          supabase
+            .from("goals")
+            .select("streak_freezes, estimated_completion_date, current_points, target_points")
+            .eq("id", goal.id)
+            .maybeSingle(),
+        ]);
+
+        const freezes = parseStreakFreezes(goalRow?.streak_freezes);
+        const dateKeys = new Set<string>();
+        for (const log of logsData || []) {
+          if (log.created_at) {
+            dateKeys.add(getLocalDateKey(new Date(log.created_at)));
+          }
+        }
+
+        // Previous streak before today's log
+        const prevDateKeys = new Set(dateKeys);
+        const todayKey = getLocalDateKey();
+        prevDateKeys.delete(todayKey);
+        const prevStreak = computeStreak(prevDateKeys, freezes);
+        const newStreak = computeStreak(dateKeys, freezes);
+
+        // Days remaining
+        const estDate = goalRow?.estimated_completion_date || goal.estimated_completion_date;
+        const currentDaysRemaining = calendarDaysUntilGoalEnd(estDate);
+        // The previous days remaining is currentDaysRemaining + 1 (since today's completion brings it 1 day closer)
+        const prevDaysRemaining = currentDaysRemaining !== null ? currentDaysRemaining + 1 : null;
+        const newDaysRemaining = currentDaysRemaining;
+
+        // Tasks done today
+        const totalTasks = totalScorableTasks;
+        const newlyCompletedCount = completedInSessionTaskIds.length;
+        const prevTasksDone = Math.max(0, 0); // initial baseline or prior
+        const newTasksDone = Math.min(totalTasks, Math.max(prevTasksDone, newlyCompletedCount));
+
+        const prevPoints = Number(goal.current_points) || 0;
+        const newPoints = prevPoints + deltaAwarded;
+        const targetPoints = Number(goalRow?.target_points || goal.target_points) || 100;
+
+        setUpdatesStepData({
+          logType: options?.logType ?? "daily",
+          milestoneTitle: options?.milestoneTitle,
+          milestoneTier: options?.milestoneTier,
+          prevPoints,
+          newPoints,
+          targetPoints,
+          deltaPoints: deltaAwarded,
+          prevStreak,
+          newStreak: Math.max(prevStreak, newStreak, 1),
+          prevDaysRemaining,
+          newDaysRemaining,
+          prevTasksDone,
+          newTasksDone: Math.max(1, newTasksDone),
+          totalTasks,
+        });
+      } catch (e) {
+        console.error("Failed to calculate updates snapshot:", e);
+      }
+    },
+    [goal.id, goal.estimated_completion_date, goal.current_points, goal.target_points, supabase, totalScorableTasks],
   );
 
 
@@ -633,6 +721,7 @@ export default function ProgressLogDialog({
           .filter(Boolean);
 
         await syncTaskCheckins(completedTaskIds);
+        await calculateUpdatesSnapshot(deltaAwarded, completedTaskIds);
       } catch (syncError) {
         console.error(
           "Failed to sync task checkins after manual log:",
@@ -908,6 +997,7 @@ export default function ProgressLogDialog({
           .filter(Boolean);
 
         await syncTaskCheckins(completedTaskIds);
+        await calculateUpdatesSnapshot(deltaAwarded, completedTaskIds);
       } catch (syncError) {
         console.error("Failed to sync task checkins after AI log:", syncError);
       }
@@ -1016,6 +1106,11 @@ export default function ProgressLogDialog({
       }
 
       const currentPoints = (goal.current_points || 0) + data.score;
+      await calculateUpdatesSnapshot(data.score, [], {
+        logType: "milestone",
+        milestoneTitle: milestoneName,
+        milestoneTier: data.tier || "major",
+      });
       if (goal.target_points && currentPoints >= goal.target_points) {
         setShowCelebration(true);
       } else {
@@ -1119,8 +1214,14 @@ export default function ProgressLogDialog({
       evaluation.day_label ||
       getDailyPerformanceLabel(evaluation.performance_meta, language) ||
       (language === "ar" ? "تقييم اليوم" : "Day Review");
-    const performanceStyles =
-      performanceTier === "exceptional"
+    const isMilestoneEvaluation = Boolean(pendingMilestoneImage) || mode === "milestone";
+    const performanceStyles = isMilestoneEvaluation
+      ? {
+          hero: "border-amber-500/30 bg-amber-500/15 text-amber-500 shadow-md shadow-amber-500/10",
+          badge: "border-amber-500/30 bg-amber-500/15 text-amber-600 dark:text-amber-400 font-black",
+          summary: "border-amber-500/20 bg-amber-500/5 text-foreground",
+        }
+      : performanceTier === "exceptional"
         ? {
             hero: "border-foreground/15 bg-foreground/12 text-foreground/75",
             badge:
@@ -1151,7 +1252,10 @@ export default function ProgressLogDialog({
                 summary:
                   "border-border bg-muted/60 text-muted-foreground",
               };
-    const HeroIcon = performanceTier === "weak" ? AlertCircle : Trophy;
+    const HeroIcon = isMilestoneEvaluation ? Trophy : performanceTier === "weak" ? AlertCircle : Flame;
+    const finalPerformanceLabel = isMilestoneEvaluation
+      ? (isArabic ? "إنجاز مرحلي استثنائي" : "Milestone Achievement")
+      : performanceLabel;
     const scoreDisplay = formatPointsDisplay(
       evaluation.total_points_awarded,
       language,
@@ -1240,7 +1344,7 @@ export default function ProgressLogDialog({
                 <div
                   className={`inline-flex items-center rounded-full border px-3 py-1 ${badgeTextClass} ${performanceStyles.badge}`}
                 >
-                  {performanceLabel}
+                  {finalPerformanceLabel}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -1554,12 +1658,17 @@ export default function ProgressLogDialog({
 
             <button
               onClick={() => {
-                onSuccess();
-                onClose();
+                if (updatesStepData) {
+                  setShowUpdatesScreen(true);
+                } else {
+                  onSuccess();
+                  onClose();
+                }
               }}
-              className="w-full py-3.5 bg-primary text-primary-foreground rounded-[18px] font-bold text-base hover:opacity-90 transition-all shadow-none"
+              className="w-full py-3.5 bg-primary text-primary-foreground rounded-[18px] font-bold text-base hover:opacity-90 transition-all shadow-none flex items-center justify-center gap-2 cursor-pointer"
             >
-              {t.continueJourney}
+              <span>{t.nextStep || (isArabic ? "التالي" : "Next")}</span>
+              <span className="text-xs opacity-75">({t.continueJourney})</span>
             </button>
 
             {showCelebration && (
@@ -1574,6 +1683,24 @@ export default function ProgressLogDialog({
               />
             )}
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Updates Screen (Animated metrics: tube progress, streak flame, days remaining, completed tasks)
+  if (showUpdatesScreen && updatesStepData) {
+    return (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[80] flex items-center justify-center p-4">
+        <div className="bg-card rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-5 sm:p-6 border border-border shadow-2xl animate-in zoom-in-95 duration-300">
+          <ProgressUpdatesStep
+            updates={updatesStepData}
+            language={language}
+            onDone={() => {
+              onSuccess();
+              onClose();
+            }}
+          />
         </div>
       </div>
     );

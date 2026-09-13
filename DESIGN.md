@@ -18,11 +18,13 @@ reaching for the accent.
   drifted to 218 with no reason recorded.
 
   **Measure contrast against `--canvas`, never against white.** `body` is
-  `bg-canvas` (`oklch(0.927 0 0)`), so that is the surface text actually sits on.
+  `bg-canvas` — pure white (`oklch(1 0 0)`) since the grey `#e7e7e7` ground was
+  retired for reading as a fifth "dirty" colour — so that is the surface text
+  actually sits on.
   The previous light primary was justified in this file as "5.24:1" — true on
-  white, but it measured **4.00:1 on canvas and failed AA** across ~163
-  `text-primary` call sites. The current value measures 4.587:1 on canvas and
-  5.672:1 on card; dark measures 8.649:1 and 7.036:1.
+  white, but it measured **4.00:1 on the old 0.927 canvas and failed AA** across
+  ~163 `text-primary` call sites. On the current white canvas it measures 5.672:1;
+  dark measures 8.649:1 and 7.036:1.
 
 ### Elevation
 
@@ -34,13 +36,17 @@ surface is darker than its card in light mode and darker in dark mode too.
 
 | Role | Light | Dark | vs `--card` |
 |---|---|---|---|
-| `--canvas` (page ground) | `0.927` | `0.125` | 1.24 / 1.23 |
-| `--muted`, `--secondary` (recessed track) | `0.958` | `0.185` | 1.13 / 1.13 |
-| `--surface` (inset panel) | `0.968` | `0.205` | — |
+| `--canvas` (page ground) | `1.0` | `0.125` | 1.0 / 1.23 |
+| `--muted`, `--secondary` (recessed track) | `0.962` | `0.185` | 1.04 / 1.13 |
+| `--surface` (inset panel) | `0.966` | `0.205` | — |
 | `--card`, `--popover` (raised) | `1.0` | `0.238` | — |
-| `--accent` (hover lift) | `0.948` | `0.302` | — |
+| `--accent` (hover lift) | `0.952` | `0.302` | — |
 | `--border` | `0.842` | `0.352` | 1.62 / 1.47 |
 | `--input` (controls read louder) | `0.795` | `0.415` | 1.90 / 1.92 |
+
+Light mode separates surfaces with borders and shadows — the canvas is pure
+white, equal to the card, and a border or shadow is what lifts a card off the
+page. Dark mode keeps a genuinely recessed ground.
 
 Shadows come from `--elev-xs/sm/md/lg` (exposed as `shadow-xs…shadow-lg`). Never
 hand-roll `shadow-[0_1px_2px_rgba(0,0,0,0.03)]`: at that alpha it paints nothing,

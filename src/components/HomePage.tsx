@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { translations, type Language } from "@/lib/translations";
 import type { GoalTaskStats } from "@/app/page";
-import Image from "next/image";
+import { BrandLockup } from "@/components/brand/Logo";
 import { getIconComponent } from "./goal/IconPicker";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,11 +29,10 @@ import GoalProgressBar from "@/components/shared/GoalProgressBar";
 import { createClient } from "@/utils/supabase/client";
 import { getLocalDateKey } from "@/lib/task-periods";
 import {
-  useNotifications,
-  type UserGoalContext,
-} from "@/hooks/useNotifications";
-import NotificationsSection from "@/components/notifications/NotificationsSection";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+  useSmartNotifications,
+} from "@/hooks/useSmartNotifications";
+import NotificationBellPopover from "@/components/notifications/NotificationBellPopover";
+import AICoachBanner from "@/components/notifications/AICoachBanner";
 import ProgressLogDialog from "./progress/ProgressLogDialog";
 import type { TaskRow } from "@/lib/task-hierarchy";
 import { apiUrl } from "@/lib/api";
@@ -70,7 +69,7 @@ export default function HomePage({
   onSelectGoal,
   onNavigateToCreate,
   language = "ar",
-  recentGoalsLimit = 4,
+  recentGoalsLimit = 6,
 }: HomePageProps) {
   const [goalInput, setGoalInput] = useState("");
   const [isRecording, setIsRecording] = useState(false);
@@ -118,140 +117,19 @@ export default function HomePage({
     return pinned || goals[0] || null;
   }, [goals]);
 
-  /* ---- Fetch notification context ---- */
-  const supabase = createClient();
-  const [contextReady, setContextReady] = useState(false);
-  const [notifContext, setNotifContext] = useState<UserGoalContext | null>(null);
-
-  const fetchNotifContext = useCallback(async () => {
-    if (!primaryGoal) {
-      setContextReady(true);
-      return;
-    }
-    const goal = primaryGoal;
-    const todayKey = getLocalDateKey();
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date(todayStart);
-    todayEnd.setDate(todayEnd.getDate() + 1);
-
-    const { data: logs } = await supabase
-      .from("daily_logs")
-      .select("created_at, ai_score")
-      .eq("goal_id", goal.id)
-      .order("created_at", { ascending: false })
-      .limit(365);
-
-    let streak = 0;
-    let loggedToday = false;
-    let todayPts = 0;
-
-    if (logs && logs.length > 0) {
-      const loggedDateKeys = new Set<string>();
-      for (const log of logs) {
-        if (log.created_at) {
-          loggedDateKeys.add(getLocalDateKey(new Date(log.created_at)));
-        }
-      }
-      const now = new Date();
-      for (let i = 0; i < 365; i++) {
-        const checkDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-        const key = getLocalDateKey(checkDate);
-        if (loggedDateKeys.has(key)) {
-          if (i === 0) loggedToday = true;
-          streak++;
-        } else if (i > 0) {
-          break;
-        }
-      }
-    }
-
-    const { data: todayLogs } = await supabase
-      .from("daily_logs")
-      .select("ai_score")
-      .eq("goal_id", goal.id)
-      .gte("created_at", todayStart.toISOString())
-      .lt("created_at", todayEnd.toISOString());
-
-    todayPts = (todayLogs || []).reduce((sum, log) => sum + (log.ai_score || 0), 0);
-    loggedToday = (todayLogs || []).length > 0;
-
-    let sStatus: "safe" | "at_risk" | "broken" = "safe";
-    if (!loggedToday && streak > 0) sStatus = "at_risk";
-    else if (!loggedToday && streak === 0) sStatus = "broken";
-
-    const { data: participant } = await supabase
-      .from("challenge_participants")
-      .select("challenge_id")
-      .eq("goal_id", goal.id)
-      .order("joined_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    let challengeRoom: { id: string; ended_at: string | null } | null = null;
-    if (participant?.challenge_id) {
-      const { data: room } = await supabase
-        .from("challenge_rooms")
-        .select("id, ended_at")
-        .eq("id", participant.challenge_id)
-        .maybeSingle();
-      challengeRoom = room;
-    }
-
-    let cStatus: "none" | "pending" | "active" | "ended" = "none";
-    if (challengeRoom) {
-      if (challengeRoom.ended_at) {
-        cStatus = "ended";
-      } else {
-        const { count: participantCount } = await supabase
-          .from("challenge_participants")
-          .select("id", { count: "exact", head: true })
-          .eq("challenge_id", challengeRoom.id);
-        cStatus = (participantCount ?? 0) >= 2 ? "active" : "pending";
-      }
-    }
-
-    const { data: focusRow } = await supabase
-      .from("daily_focus_answers")
-      .select("answer, answered_at")
-      .eq("goal_id", goal.id)
-      .eq("prompt_date", todayKey)
-      .maybeSingle();
-
-    let fStatus: "none" | "unanswered" | "answered" = "none";
-    if (focusRow) {
-      fStatus = focusRow.answer && focusRow.answered_at ? "answered" : "unanswered";
-    }
-
-    setNotifContext({
-      goalId: goal.id,
-      goalTitle: goal.title,
-      goalIcon: goal.icon || "Target",
-      streakStatus: sStatus,
-      streakDays: streak,
-      hasLoggedToday: loggedToday,
-      challengeStatus: cStatus,
-      dailyFocusStatus: fStatus,
-      todaysPoints: todayPts,
-    });
-    setContextReady(true);
-  }, [primaryGoal, supabase]);
-
-  useEffect(() => {
-    fetchNotifContext();
-  }, [fetchNotifContext]);
+  const supabase = useMemo(() => createClient(), []);
 
   const {
     notifications,
-    loading: notifLoading,
-    error: notifError,
-    refresh,
-  } = useNotifications(notifContext ?? { goalId: "", goalTitle: "", goalIcon: "Target", streakStatus: "safe", streakDays: 0, hasLoggedToday: false, challengeStatus: "none", dailyFocusStatus: "none" }, isArabic ? "ar" : "en");
-
-  const handleRefreshNotifs = useCallback(async () => {
-    await fetchNotifContext();
-    refresh();
-  }, [fetchNotifContext, refresh]);
+    unreadNotifications,
+    highPriorityCount,
+    coachInsight,
+    refresh: handleRefreshNotifs,
+    markAllAsRead: handleMarkAllNotifsRead,
+  } = useSmartNotifications({
+    goals,
+    language: isArabic ? "ar" : "en",
+  });
 
   /* ---- RTL helper ---- */
   const isRTLText = (text: string) => {
@@ -501,50 +379,52 @@ export default function HomePage({
 
   return (
     <div
-      className="mx-auto flex h-full min-h-0 w-full max-w-3xl flex-col gap-4 overflow-hidden px-4 animate-in fade-in slide-in-from-bottom-6 duration-500 ease-out sm:gap-5 sm:px-6"
+      className="mx-auto flex min-h-0 w-full max-w-4xl 2xl:max-w-5xl flex-col gap-[28px] px-4 pt-[112px] pb-6"
       dir={isArabic ? "rtl" : "ltr"}
     >
-      {/* Logo */}
-      <div className="flex shrink-0 flex-col items-center justify-center gap-3 text-center sm:gap-4 pt-1 sm:pt-2">
-        <Image
-          src="/logo1.svg"
-          alt="METRIX Logo"
-          width={240}
-          height={96}
-          sizes="(max-width: 640px) 170px, (max-width: 768px) 220px, 240px"
-          className="w-[160px] sm:w-[210px] md:w-[230px] h-auto object-contain dark:hidden transition-transform duration-300 hover:scale-[1.02]"
-          style={{ height: "auto" }}
-          priority
-        />
-        <Image
-          src="/logo2.svg"
-          alt="METRIX Logo Dark"
-          width={240}
-          height={96}
-          sizes="(max-width: 640px) 170px, (max-width: 768px) 220px, 240px"
-          className="hidden w-[160px] sm:w-[210px] md:w-[230px] h-auto object-contain dark:block transition-transform duration-300 hover:scale-[1.02]"
-          style={{ height: "auto" }}
-          priority
-        />
-        <p
-          className="max-w-[20rem] text-sm font-semibold leading-relaxed text-muted-foreground/75 tracking-tight sm:max-w-[26rem] sm:text-[15px] sm:leading-8"
-          dir={isArabic ? "rtl" : "ltr"}
-          lang={isArabic ? "ar" : "en"}
-        >
-          {isArabic
-            ? "اذا ما استمرت بهدفك راح تفشل يا غبي"
-            : "If you don't stick to your goal, you'll fail, stupid"}
-        </p>
-      </div>
+      {/* Upper Main Focus Group (Logo, Notification Bell, Coach Quote, Action Box) */}
+      <div className="flex shrink-0 flex-col gap-3.5 sm:gap-4">
+        {/* Header with Logo & Notification Bell */}
+        <div className="flex shrink-0 items-center justify-between px-1">
+          <div className="w-9 sm:w-10" /> {/* Spacer for symmetry */}
+          <div className="flex flex-col items-center justify-center gap-2 text-center">
+            <BrandLockup className="h-auto w-[165px] text-foreground transition-transform duration-300 hover:scale-[1.02] sm:w-[205px] md:w-[230px]" />
+            <p
+              className="max-w-[18rem] text-xs font-semibold leading-relaxed text-muted-foreground/75 tracking-tight sm:max-w-[26rem] sm:text-sm"
+              dir={isArabic ? "rtl" : "ltr"}
+              lang={isArabic ? "ar" : "en"}
+            >
+              {isArabic
+                ? "اذا ما استمرت بهدفك راح تفشل يا غبي"
+                : "If you don't stick to your goal, you'll fail, stupid"}
+            </p>
+          </div>
+          <div className="shrink-0">
+            <NotificationBellPopover
+              notifications={notifications}
+              unreadCount={unreadNotifications.length}
+              highPriorityCount={highPriorityCount}
+              isArabic={isArabic}
+              onSelectGoal={onSelectGoal}
+              onMarkAllAsRead={handleMarkAllNotifsRead}
+            />
+          </div>
+        </div>
 
-      {/* Dual-mode box: vertical toggle + content */}
-      <div
-        className={cn(
-          "relative shrink-0 transition-all duration-300",
-          aiPromptVisible && boxMode === "new" ? "pt-10 sm:pt-11" : "pt-0"
-        )}
-        dir={isArabic ? "rtl" : "ltr"}
-      >
+        {/* AI Coach Banner (Personalized behavioral quote/guidance) */}
+        <AICoachBanner
+          insight={coachInsight}
+          isArabic={isArabic}
+        />
+
+        {/* Dual-mode box: vertical toggle + content */}
+        <div
+          className={cn(
+            "relative shrink-0 transition-all duration-300",
+            aiPromptVisible && boxMode === "new" ? "pt-10 sm:pt-11" : "pt-0"
+          )}
+          dir={isArabic ? "rtl" : "ltr"}
+        >
         <div
           className={cn(
             "pointer-events-none absolute inset-x-0 top-0 z-10 overflow-hidden transition-all duration-300",
@@ -799,170 +679,126 @@ export default function HomePage({
         </div>
       </div>
 
-      <Tabs
-        defaultValue="goals"
-        className="flex-1 min-h-0 flex flex-col"
+      {/* Lower Section: Recent Goals Container (Sized for ~3.5 card rows) */}
+      <div
+        className="shrink-0 flex flex-col overflow-hidden"
         dir={isArabic ? "rtl" : "ltr"}
       >
-        <style>{`
-          .metrix-tabs-list {
-            height: 50px !important;
-            padding: 5px !important;
-            background-color: var(--muted) !important;
-            border: 1px solid var(--border) !important;
-            box-shadow: var(--elev-xs) !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            border-radius: 16px !important;
-          }
-          
-          .metrix-tabs-trigger {
-            height: 100% !important;
-            border-radius: 12px !important;
-            transition: all 0.25s cubic-bezier(0.165, 0.84, 0.44, 1) !important;
-          }
-
-          /* The selected tab is a raised surface, so it uses --card. It used to
-             use --background, which is the darkest colour in the dark theme and
-             made the active tab look pressed in rather than lifted out. The
-             teal tints on the track and border are gone: structure is neutral,
-             the accent is reserved for content. */
-          .metrix-tabs-trigger[data-state="active"] {
-            border: 1px solid var(--border) !important;
-            background-color: var(--card) !important;
-            box-shadow: var(--elev-sm) !important;
-            color: var(--foreground) !important;
-          }
-
-          .metrix-tabs-trigger:hover:not([data-state="active"]) {
-            background-color: color-mix(in oklab, var(--foreground) 5%, transparent) !important;
-            color: var(--foreground) !important;
-          }
-        `}</style>
-
-        <TabsList className="metrix-tabs-list w-full shrink-0 mb-3 transition-all duration-300">
-          <TabsTrigger value="goals" className={cn("metrix-tabs-trigger flex-1 gap-2 text-sm font-semibold whitespace-nowrap transition-all duration-300", !primaryGoal && "w-full")}>
-            <Target className="h-4 w-4 opacity-80" />
-            {isArabic ? "الأهداف الأخيرة" : "Recent Goals"}
-            <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary/8 px-1.5 text-[11px] font-bold text-primary tabular-nums">
+        <div className="flex shrink-0 items-center justify-between mb-2 px-1">
+          <div className="flex items-center gap-2">
+            <Target className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary opacity-80" />
+            <h2 className="text-xs sm:text-sm font-bold text-foreground">
+              {isArabic ? "الأهداف الأخيرة" : "Recent Goals"}
+            </h2>
+            <span className="inline-flex h-4 sm:h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary/10 px-1.5 text-[10px] sm:text-[11px] font-bold text-primary tabular-nums">
               {recentGoals.length}
             </span>
-          </TabsTrigger>
-          {primaryGoal && (
-            <TabsTrigger value="notifications" className="metrix-tabs-trigger flex-1 gap-2 text-sm font-semibold whitespace-nowrap transition-all duration-300">
-              <Bell className="h-4 w-4 opacity-80" />
-              {isArabic ? "الإشعارات" : "Notifications"}
-              {notifications.length > 0 && (
-                <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary/8 px-1.5 text-[11px] font-bold text-primary tabular-nums">
-                  {notifications.length}
-                </span>
-              )}
-            </TabsTrigger>
-          )}
-        </TabsList>
+          </div>
+        </div>
 
-        <TabsContent value="goals" className="flex-1 min-h-0 overflow-hidden flex flex-col mt-0">
-          <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-        <div className={cn("flex-1 min-h-0 overflow-y-auto overscroll-contain rounded-2xl p-3 pt-3.5 scrollbar-thin sm:rounded-[22px] sm:p-4 sm:pt-4", WELL_SURFACE)}>
-          {recentGoals.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-3.5">
-              {recentGoals.map((goal) => {
-                const currentPoints = goal.current_points ?? 0;
-                const targetPoints = goal.target_points ?? 0;
-                const progress = targetPoints > 0 ? Math.round((currentPoints / targetPoints) * 100) : 0;
-                const Icon = getIconComponent(goal.icon || "Target");
-                const goalIsRTL = isArabic || isRTLText(goal.title);
-                const daysChip = getGoalEndDaysChip(goal.estimated_completion_date, isArabic);
-                const stats = taskStatsMap[goal.id];
-                const hasStatsBadge = !!stats && stats.total > 0;
-                const hasGoalBadges = goal.is_pinned || !!daysChip || hasStatsBadge;
+        <div className="overflow-hidden flex flex-col">
+          <div className={cn("h-[430px] overflow-y-auto overscroll-contain rounded-[18px] p-[10px] scrollbar-thin", WELL_SURFACE)}>
+            {recentGoals.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5">
+                  {recentGoals.map((goal) => {
+                    const currentPoints = goal.current_points ?? 0;
+                    const targetPoints = goal.target_points ?? 0;
+                    const progress = targetPoints > 0 ? Math.round((currentPoints / targetPoints) * 100) : 0;
+                    const Icon = getIconComponent(goal.icon || "Target");
+                    const goalIsRTL = isArabic || isRTLText(goal.title);
+                    const daysChip = getGoalEndDaysChip(goal.estimated_completion_date, isArabic);
+                    const stats = taskStatsMap[goal.id];
+                    const hasStatsBadge = !!stats && stats.total > 0;
+                    const hasGoalBadges = goal.is_pinned || !!daysChip || hasStatsBadge;
 
-                return (
-                  <div
-                    key={goal.id}
-                    className="group relative w-full rounded-xl border border-border bg-card p-3 shadow-xs transition-all duration-200 ease-out hover:border-primary/25 hover:shadow-md hover:-translate-y-px active:translate-y-0 dark:bg-card sm:p-4"
-                  >
-                    <button
-                      onClick={() => onSelectGoal(goal.id)}
-                      className="flex w-full cursor-pointer flex-col gap-3 rounded-xl text-start outline-none focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-1"
-                      dir={goalIsRTL ? "rtl" : "ltr"}
-                    >
-                      <div className="flex items-start justify-between gap-2.5">
-                        <div className="flex min-w-0 flex-1 items-center gap-2.5 sm:gap-3">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-primary/15 bg-primary/12 p-2 text-primary transition-colors duration-200 group-hover:bg-primary/12 sm:h-11 sm:w-11">
-                            <Icon className="h-5 w-5 sm:h-[22px] sm:w-[22px]" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <h3 className={cn("line-clamp-2 text-[15px] font-bold leading-snug text-foreground tracking-tight transition-colors sm:text-base", goalIsRTL ? "text-right" : "text-left")}>
-                              {goal.title}
-                            </h3>
-                            {hasGoalBadges && (
-                              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                                {goal.is_pinned && (
-                                  <span className="flex items-center gap-1 rounded-full bg-primary/12 px-2 py-0.5 text-[10px] font-semibold text-primary border border-primary/15">
-                                    <Pin className="h-2.5 w-2.5" />
-                                    {isArabic ? "مثبت" : "Pinned"}
-                                  </span>
-                                )}
-                                {daysChip && (
-                                  <span className={cn("flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums border", daysChip.tone === "soon" && "bg-primary/12 text-primary border-primary/15", daysChip.tone === "today" && "bg-foreground/12 text-foreground border-foreground/15", daysChip.tone === "late" && "bg-destructive/12 text-destructive border-destructive/15")} title={daysChip.title}>
-                                    <Clock className="h-2.5 w-2.5 shrink-0" aria-hidden />
-                                    {daysChip.text}
-                                  </span>
-                                )}
-                                {hasStatsBadge && (
-                                  <span className="flex items-center gap-1 rounded-full bg-primary/12 px-2 py-0.5 text-[10px] font-semibold text-primary tabular-nums border border-primary/15" title={isArabic ? `${stats.completed} من ${stats.total} مهمة منجزة` : `${stats.completed} of ${stats.total} tasks done`}>
-                                    <ListChecks className="h-2.5 w-2.5 shrink-0" aria-hidden />
-                                    <span dir="ltr">{stats.completed}/{stats.total}</span>
-                                  </span>
+                    return (
+                      <div
+                        key={goal.id}
+                        className="group relative w-full rounded-xl border border-border bg-card p-3 sm:p-3.5 shadow-xs transition-all duration-200 ease-out hover:border-primary/25 hover:shadow-md hover:-translate-y-px active:translate-y-0 dark:bg-card"
+                      >
+                        <button
+                          onClick={() => onSelectGoal(goal.id)}
+                          className="flex w-full cursor-pointer flex-col gap-2.5 rounded-xl text-start outline-none focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-1"
+                          dir={goalIsRTL ? "rtl" : "ltr"}
+                        >
+                          <div className="flex w-full items-start justify-between gap-2 sm:gap-3">
+                            <div className="flex min-w-0 flex-1 items-center gap-2.5 sm:gap-3">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary shadow-xs transition-colors duration-200 group-hover:border-primary/30 group-hover:bg-primary/15 sm:h-10 sm:w-10">
+                                <Icon className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <span className="block truncate text-sm sm:text-[15px] font-bold text-foreground transition-colors group-hover:text-primary">
+                                  {goal.title}
+                                </span>
+                                {hasGoalBadges && (
+                                  <div className="mt-1 flex flex-wrap items-center gap-1 sm:gap-1.5">
+                                    {goal.is_pinned && (
+                                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-1.5 py-0.2 text-[9px] sm:text-[10px] font-semibold text-primary">
+                                        <Pin className="h-2.5 w-2.5" />
+                                        {isArabic ? "مثبت" : "Pinned"}
+                                      </span>
+                                    )}
+                                    {daysChip && (
+                                      <span
+                                        className={cn(
+                                          "inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.2 text-[9px] sm:text-[10px] font-semibold",
+                                          daysChip.tone === "late"
+                                            ? "border-destructive/35 bg-destructive/10 text-destructive font-bold"
+                                            : "border-border/70 bg-muted/60 text-muted-foreground/85"
+                                        )}
+                                      >
+                                        <Clock className="h-2.5 w-2.5" />
+                                        {daysChip.text}
+                                      </span>
+                                    )}
+                                    {hasStatsBadge && (
+                                      <span
+                                        className={cn(
+                                          "inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.2 text-[9px] sm:text-[10px] font-semibold tabular-nums",
+                                          stats.completed >= stats.total
+                                            ? "border-primary/25 bg-primary/10 text-primary font-bold"
+                                            : "border-border/70 bg-muted/60 text-muted-foreground/85"
+                                        )}
+                                      >
+                                        <ListChecks className="h-2.5 w-2.5" />
+                                        <span dir="ltr">{stats.completed}/{stats.total}</span>
+                                      </span>
+                                    )}
+                                  </div>
                                 )}
                               </div>
-                            )}
+                            </div>
                           </div>
-                        </div>
+                          <GoalProgressBar
+                            currentPoints={currentPoints}
+                            targetPoints={targetPoints}
+                            progress={progress}
+                            className="h-8 sm:h-9"
+                            labelClassName="px-2.5 sm:px-3 text-[10px] sm:text-xs"
+                            percentClassName="text-xs sm:text-sm"
+                          />
+                        </button>
                       </div>
-                      <GoalProgressBar currentPoints={currentPoints} targetPoints={targetPoints} progress={progress} />
-                    </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/12 p-8 sm:p-12 text-center">
+                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-primary/15 bg-primary/12 text-primary/75">
+                    <Target className="h-6 w-6" />
                   </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/12 p-8 sm:p-12 text-center">
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-primary/15 bg-primary/12 text-primary/75">
-                <Target className="h-6 w-6" />
-              </div>
-              <h2 className="text-base sm:text-lg font-bold text-foreground tracking-tight">
-                {isArabic ? "لا توجد أهداف بعد" : "No goals yet"}
-              </h2>
-              <p className="mt-1.5 max-w-[16rem] text-sm text-muted-foreground/75 leading-relaxed">
-                {isArabic ? "ابدأ بإضافة هدفك الأول وسيظهر تقدمه هنا." : "Create your first goal and its progress will appear here."}
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-      </TabsContent>
-
-      {primaryGoal && (
-        <TabsContent value="notifications" className="flex-1 min-h-0 overflow-hidden flex flex-col mt-0">
-          <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-            <div className={cn("flex-1 min-h-0 overflow-y-auto overscroll-contain rounded-2xl p-3 pt-3.5 scrollbar-thin sm:rounded-[22px] sm:p-4 sm:pt-4", WELL_SURFACE)}>
-              <NotificationsSection
-                primaryGoal={primaryGoal}
-                isArabic={isArabic}
-                notifications={notifications}
-                notifLoading={notifLoading}
-                notifError={notifError}
-                contextReady={contextReady}
-                onRefresh={handleRefreshNotifs}
-              />
+                  <h2 className="text-base sm:text-lg font-bold text-foreground tracking-tight">
+                    {isArabic ? "لا توجد أهداف بعد" : "No goals yet"}
+                  </h2>
+                  <p className="mt-1.5 max-w-[16rem] text-sm text-muted-foreground/75 leading-relaxed">
+                    {isArabic ? "ابدأ بإضافة هدفك الأول وسيظهر تقدمه هنا." : "Create your first goal and its progress will appear here."}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
-        </TabsContent>
-      )}
-      </Tabs>
+        </div>
+      </div>
 
       {/* Progress Log Dialog (opened from daily-log mode) */}
       {showProgressDialog && selectedLogGoal && (
@@ -972,6 +808,7 @@ export default function HomePage({
             title: selectedLogGoal.title,
             ai_summary: selectedLogGoal.ai_summary || "",
             created_at: selectedLogGoal.created_at,
+            estimated_completion_date: selectedLogGoal.estimated_completion_date,
             current_points: selectedLogGoal.current_points,
             target_points: selectedLogGoal.target_points,
           }}

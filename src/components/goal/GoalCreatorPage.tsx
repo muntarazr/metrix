@@ -23,6 +23,7 @@ import { PANEL_SURFACE } from "@/lib/surfaces";
 import { translations, type Language } from '@/lib/translations';
 import { createClient } from '@/utils/supabase/client';
 import { Slider } from '@/components/ui/slider';
+import { MatrixOrb } from '@/components/ui/matrix-orb';
 import { apiUrl } from '@/lib/api';
 
 interface GoalCreatorPageProps {
@@ -478,15 +479,20 @@ export default function GoalCreatorPage({
             </div>
 
             <div
-                className="flex items-center justify-center py-20"
+                className="flex flex-col items-center justify-center py-16"
                 role="status"
                 aria-label={isArabic ? 'جارٍ التحليل' : 'Analyzing'}
             >
-                <div className="metrix-loader">
-                    <div className="metrix-loader__ring metrix-loader__ring--outer" />
-                    <div className="metrix-loader__ring metrix-loader__ring--inner" />
-                    <div className="metrix-loader__core" />
-                </div>
+                <MatrixOrb
+                    state={step === 'INVESTIGATING' ? 'thinking' : 'listening'}
+                    size={160}
+                    color="#0097b2"
+                    labels={{
+                        thinking: isArabic ? 'جارٍ تحليل هدفك وتجهيز الأسئلة...' : 'Analyzing your goal & preparing questions...',
+                        listening: isArabic ? 'جارٍ صياغة خطتك الذكية...' : 'Crafting your smart plan...',
+                        idle: isArabic ? 'جارٍ التحليل...' : 'Analyzing...',
+                    }}
+                />
             </div>
         </div>
     );

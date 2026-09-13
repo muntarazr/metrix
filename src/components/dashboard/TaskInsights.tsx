@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
+  TrendingUp,
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { type Language } from '@/lib/translations';
@@ -55,16 +56,57 @@ interface TaskAggregate {
   recentCount: number;
 }
 
+interface TopTaskItem {
+  id: string;
+  fullName: string;
+  icon: string;
+  completions: number;
+  totalPoints: number;
+  impactWeight: number;
+  frequency: string;
+  parentName: string | null;
+  completionCriteria: string | null;
+  miniVersion: string | null;
+  accent: ReturnType<typeof getTaskAccent>;
+  lastCompletedAt: string | null;
+}
+
 const copy = {
   en: {
-    title: 'Task Radar',
-    loading: 'Loading task insights...',
-    empty: 'Complete a few tasks and this panel will start mapping your strongest patterns.',
+    title: 'Most Frequent Skills',
+    subtitle: 'Skills and tasks with your highest consistency and repetition',
+    loading: 'Loading skill insights...',
+    empty: 'Complete a few tasks first, and your most frequent skills will be mapped here.',
+    completions: 'Completions',
+    times: 'times',
+    points: 'pts',
+    daily: 'Daily',
+    weekly: 'Weekly',
+    rank: 'Rank',
+    totalDone: 'total completions',
+    pillar: 'Pillar',
+    criteria: 'Completion Criteria',
+    miniVersion: '2-Minute Rule',
+    activeSkills: 'top skills',
+    details: 'Skill Details',
   },
   ar: {
-    title: 'رادار المهام',
-    loading: 'جارِ تحميل إحصائيات المهام...',
-    empty: 'أنجز كم مهمة بالبداية، وهنا راح يظهر نمط المهام الأقوى عندك.',
+    title: 'المهارات الأكثر تكرارًا',
+    subtitle: 'المهارات والمهام الأكثر التزاماً وتكراراً في مسار نموك',
+    loading: 'جارِ تحميل إحصائيات المهارات...',
+    empty: 'أنجز بعض المهام أولاً، وسيظهر هنا تلقائياً ترتيب المهارات الأكثر تكراراً والتزاماً.',
+    completions: 'مرات التكرار',
+    times: 'مرات',
+    points: 'نقطة',
+    daily: 'يومية',
+    weekly: 'أسبوعية',
+    rank: 'المرتبة',
+    totalDone: 'إنجاز كلي',
+    pillar: 'الركيزة / المسار',
+    criteria: 'معيار الإنجاز',
+    miniVersion: 'نسخة الدقيقتين',
+    activeSkills: 'مهارات متميزة',
+    details: 'تفاصيل المهارة',
   },
 } as const;
 
@@ -74,7 +116,7 @@ export default function TaskInsights({ goalId, tasks, language = 'ar' }: TaskIns
   const text = copy[language];
   const [history, setHistory] = useState<TaskCheckinRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [taskNameDialog, setTaskNameDialog] = useState<string | null>(null);
+  const [selectedTask, setSelectedTask] = useState<TopTaskItem | null>(null);
 
   const todayStr = useMemo(() => {
     return getLocalDateKey();
@@ -258,11 +300,12 @@ export default function TaskInsights({ goalId, tasks, language = 'ar' }: TaskIns
     const aggregates = Array.from(baseAggregates.values());
     const completedTasks = aggregates.filter((item) => item.completionCount > 0);
 
-    const topTasks = [...completedTasks]
+    const topTasks: TopTaskItem[] = [...completedTasks]
       .sort((a, b) => b.completionCount - a.completionCount || b.totalPoints - a.totalPoints)
       .slice(0, 6)
       .map((item) => {
         const source = taskMap.get(item.id);
+        const originalTask = tasks.find((t) => t.id === item.id);
         const accentSeed = source?.parentTaskId || item.id;
         const mainTaskMeta = source?.parentTaskId
           ? mainTaskMap.get(source.parentTaskId) || null
@@ -276,7 +319,14 @@ export default function TaskInsights({ goalId, tasks, language = 'ar' }: TaskIns
           fullName: item.label,
           icon: item.icon,
           completions: item.completionCount,
+          totalPoints: item.totalPoints,
+          impactWeight: item.impactWeight,
+          frequency: item.frequency,
+          parentName: source?.parentTaskId ? (mainTaskMap.get(source.parentTaskId)?.label ?? null) : null,
+          completionCriteria: originalTask?.completion_criteria ?? null,
+          miniVersion: originalTask?.mini_version ?? null,
           accent: getTaskAccent(accentSeed, accentColor),
+          lastCompletedAt: item.lastCompletedAt,
         };
       });
 
@@ -289,15 +339,38 @@ export default function TaskInsights({ goalId, tasks, language = 'ar' }: TaskIns
 
   if (loading) {
     return (
-      <div className={cn(PANEL_SURFACE, "rounded-2xl p-3")}>
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+      <div
+        className={cn(PANEL_SURFACE, "rounded-2xl p-3.5 sm:p-4")}
+        dir={isArabic ? 'rtl' : 'ltr'}
+      >
+        <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-border/60">
+          <div className="flex items-center gap-2.5">
+            <div className="h-7 w-7 rounded-lg bg-muted/60 animate-pulse" />
+            <div className="space-y-1">
+              <div className="h-3.5 w-28 rounded bg-muted/60 animate-pulse" />
+              <div className="h-2.5 w-40 rounded bg-muted/30 animate-pulse hidden sm:block" />
+            </div>
+          </div>
+          <div className="h-5 w-16 rounded bg-muted/40 animate-pulse" />
+        </div>
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
-              className="flex min-w-0 items-center justify-between gap-1.5 rounded-xl border border-border/45 bg-muted/20 px-2.5 py-2.5"
+              className="flex flex-col justify-between rounded-xl border border-border/60 bg-card p-3 gap-2.5"
             >
-              <div className="h-6 w-6 shrink-0 rounded-lg bg-muted/60 animate-pulse" />
-              <div className="h-5 w-10 rounded-lg bg-muted/60 animate-pulse" />
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <div className="h-5 w-5 rounded bg-muted/50 animate-pulse" />
+                  <div className="h-7 w-7 rounded-lg bg-muted/50 animate-pulse" />
+                  <div className="h-3.5 w-32 rounded bg-muted/60 animate-pulse" />
+                </div>
+                <div className="h-5 w-8 rounded-lg bg-muted/50 animate-pulse" />
+              </div>
+              <div className="flex items-center justify-between pt-2 border-t border-border/30">
+                <div className="h-3 w-20 rounded bg-muted/40 animate-pulse" />
+                <div className="h-3 w-16 rounded bg-muted/40 animate-pulse" />
+              </div>
             </div>
           ))}
         </div>
@@ -308,16 +381,16 @@ export default function TaskInsights({ goalId, tasks, language = 'ar' }: TaskIns
   if (!analytics.aggregates.length || analytics.totalCompleted === 0) {
     return (
       <div
-        className={cn(PANEL_SURFACE, "rounded-2xl p-6")}
+        className={cn(PANEL_SURFACE, "rounded-2xl p-4 sm:p-5")}
         dir={isArabic ? 'rtl' : 'ltr'}
       >
-        <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted/60 text-muted-foreground/75 ring-1 ring-border/25">
-            <AlertCircle className="h-6 w-6" />
+        <div className="flex items-start gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20 shrink-0">
+            <TrendingUp className="h-4 w-4" />
           </div>
           <div>
-            <div className="text-[15px] font-extrabold text-foreground">{text.title}</div>
-            <p className="mt-1.5 text-sm text-muted-foreground/75 leading-relaxed">{text.empty}</p>
+            <div className="text-xs sm:text-sm font-extrabold text-foreground">{text.title}</div>
+            <p className="mt-0.5 text-xs text-muted-foreground/80 leading-relaxed">{text.empty}</p>
           </div>
         </div>
       </div>
@@ -325,127 +398,225 @@ export default function TaskInsights({ goalId, tasks, language = 'ar' }: TaskIns
   }
 
   const summary = isArabic ? getSummaryTextAr() : getSummaryTextEn();
+  const maxCompletions = analytics.topTasks[0]?.completions || 1;
 
   return (
-    <section dir={isArabic ? 'rtl' : 'ltr'} className="space-y-3">
+    <section dir={isArabic ? 'rtl' : 'ltr'} className="space-y-2.5">
+      {/* Detail Dialog */}
       <Dialog
-        open={taskNameDialog !== null}
+        open={selectedTask !== null}
         onOpenChange={(open) => {
-          if (!open) setTaskNameDialog(null);
+          if (!open) setSelectedTask(null);
         }}
       >
-        <DialogContent className="sm:max-w-md rounded-2xl" dir={isArabic ? 'rtl' : 'ltr'}>
-          <DialogHeader>
-            <DialogTitle className="text-start text-base font-bold leading-snug sm:text-lg">
-              {taskNameDialog}
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent className="sm:max-w-md rounded-2xl p-5" dir={isArabic ? 'rtl' : 'ltr'}>
+          {selectedTask && (
+            <div className="space-y-3.5">
+              <DialogHeader>
+                <div className="flex items-start gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface border border-border/70 text-xl shadow-xs mt-0.5">
+                    {selectedTask.icon}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex h-5 items-center justify-center rounded bg-primary/10 border border-primary/20 px-1.5 text-[10px] font-black text-primary">
+                        #{analytics.topTasks.findIndex((t) => t.id === selectedTask.id) + 1}
+                      </span>
+                      {selectedTask.parentName && (
+                        <span className="text-xs font-semibold text-muted-foreground truncate">
+                          {selectedTask.parentName}
+                        </span>
+                      )}
+                    </div>
+                    <DialogTitle className="text-start text-sm sm:text-base font-bold text-foreground leading-snug mt-1.5">
+                      {selectedTask.fullName}
+                    </DialogTitle>
+                  </div>
+                </div>
+              </DialogHeader>
+
+              {/* Stats overview in dialog */}
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/60">
+                <div className="rounded-xl border border-border/60 bg-surface/50 p-2.5">
+                  <div className="text-[10px] font-medium text-muted-foreground">
+                    {text.completions}
+                  </div>
+                  <div className="text-sm font-black text-foreground mt-0.5">
+                    {formatNumberEn(selectedTask.completions)} {text.times}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-surface/50 p-2.5">
+                  <div className="text-[10px] font-medium text-muted-foreground">
+                    {isArabic ? 'إجمالي النقاط' : 'Total Points'}
+                  </div>
+                  <div className="text-sm font-black text-primary mt-0.5">
+                    +{formatNumberEn(selectedTask.totalPoints)} {text.points}
+                  </div>
+                </div>
+              </div>
+
+              {/* Details / criteria if any */}
+              {selectedTask.completionCriteria && (
+                <div className="rounded-xl border border-border/60 bg-muted/20 p-2.5">
+                  <div className="text-[10px] font-bold text-foreground/80 mb-0.5">
+                    {text.criteria}
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {selectedTask.completionCriteria}
+                  </p>
+                </div>
+              )}
+
+              {selectedTask.miniVersion && (
+                <div className="rounded-xl border border-primary/15 bg-primary/8 p-2.5">
+                  <div className="text-[10px] font-bold text-primary mb-0.5">
+                    {text.miniVersion}
+                  </div>
+                  <p className="text-xs text-foreground/90 leading-relaxed">
+                    {selectedTask.miniVersion}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
       {/* Daily Progress Box Card (Only displays at the end of the day, after 5 PM) */}
       {isEndOfDay && (
-        <div className={cn(PANEL_SURFACE, "rounded-2xl p-4")}>
-          <div className="flex flex-col gap-2">
-            <div className="text-[14px] font-extrabold text-foreground flex items-center gap-1.5">
+        <div className={cn(PANEL_SURFACE, "rounded-2xl p-3.5")}>
+          <div className="flex flex-col gap-1.5">
+            <div className="text-xs sm:text-sm font-extrabold text-foreground flex items-center gap-1.5">
               {summary.header}
             </div>
-            <p className="text-sm text-muted-foreground/90 leading-relaxed font-medium">
+            <p className="text-xs text-muted-foreground/90 leading-relaxed font-medium">
               {summary.body}
             </p>
           </div>
         </div>
       )}
 
-      {/* Top Tasks Grid Container */}
-      <style>{`
-        /* Task accent roles. One monochrome ramp plus the brand teal — retired
-           hues resolve to the tone that replaced them (see lib/task-colors.ts). */
-        .metrix-task-card { --c-brand: var(--muted-foreground); }
-        .metrix-task-card[data-color="zinc"],
-        .metrix-task-card[data-color="fuchsia"] { --c-brand: var(--foreground); }
-        .metrix-task-card[data-color="violet"],
-        .metrix-task-card[data-color="blue"],
-        .metrix-task-card[data-color="indigo"] { --c-brand: color-mix(in oklab, var(--foreground) 75%, var(--card)); }
-        .metrix-task-card[data-color="sky"],
-        .metrix-task-card[data-color="lime"] { --c-brand: var(--muted-foreground); }
-        .metrix-task-card[data-color="amber"],
-        .metrix-task-card[data-color="orange"] { --c-brand: color-mix(in oklab, var(--muted-foreground) 70%, var(--card)); }
-        .metrix-task-card[data-color="rose"],
-        .metrix-task-card[data-color="pink"] { --c-brand: color-mix(in oklab, var(--muted-foreground) 50%, var(--card)); }
-        .metrix-task-card[data-color="teal"],
-        .metrix-task-card[data-color="emerald"],
-        .metrix-task-card[data-color="cyan"] { --c-brand: var(--primary); }
+      {/* Top Skills Section Card - Refined Balanced Height */}
+      <div className={cn(PANEL_SURFACE, "rounded-2xl p-3.5 sm:p-4 transition-all duration-300")}>
+        {/* Section Header */}
+        <div className="flex items-center justify-between gap-3 pb-2.5 mb-3 border-b border-border/60">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/15">
+              <TrendingUp className="h-3.5 w-3.5" />
+            </span>
+            <div className="min-w-0">
+              <h3 className="truncate text-xs font-extrabold text-foreground sm:text-sm">
+                {text.title}
+              </h3>
+              <p className="hidden sm:block text-[11px] text-muted-foreground/75 leading-tight truncate mt-0.5">
+                {text.subtitle}
+              </p>
+            </div>
+          </div>
 
-        .metrix-tasks-container {
-          background-color: var(--card) !important;
-          border: 1px solid var(--border) !important;
-          border-radius: 16px !important;
-          padding: 12px !important;
-        }
+          <span className="inline-flex items-center gap-1.5 rounded-lg border border-border/70 bg-muted/30 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground shrink-0">
+            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+            <span>
+              {formatNumberEn(analytics.topTasks.length)} {text.activeSkills}
+            </span>
+          </span>
+        </div>
 
-        .metrix-task-card {
-          display: flex !important;
-          align-items: center !important;
-          justify-content: space-between !important;
-          gap: 8px !important;
-          padding: 8px 10px !important;
-          border-radius: 12px !important;
-          background-color: color-mix(in oklab, var(--c-brand) 3%, transparent) !important;
-          border: 1px solid color-mix(in oklab, var(--c-brand) 10%, var(--border)) !important;
-          transition: all 0.2s cubic-bezier(0.165, 0.84, 0.44, 1) !important;
-        }
+        {/* Top Tasks Balanced Grid */}
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+          {analytics.topTasks.map((item, index) => {
+            const progressPercent = Math.max(14, Math.round((item.completions / maxCompletions) * 100));
+            const isTopRank = index === 0;
 
-        .metrix-task-card:hover {
-          border-color: color-mix(in oklab, var(--c-brand) 50%, transparent) !important;
-          background-color: color-mix(in oklab, var(--c-brand) 100%, var(--background)) !important;
-          transform: translateY(-1px) scale(1.02) !important;
-          box-shadow: 0 4px 12px -3px color-mix(in oklab, var(--c-brand) 15%, transparent) !important;
-        }
+            return (
+              <div
+                key={item.id}
+                onClick={() => setSelectedTask(item)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSelectedTask(item);
+                  }
+                }}
+                className={cn(
+                  "group relative flex flex-col justify-between rounded-xl border border-border/70 bg-card p-3 text-start transition-all duration-200 hover:border-primary/45 hover:shadow-xs cursor-pointer active:scale-[0.99]",
+                  isTopRank && "border-primary/30 ring-1 ring-primary/20 bg-primary/[0.02]"
+                )}
+              >
+                {/* Top Row: Rank + Icon + Full Name + Multiplier */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span
+                      className={cn(
+                        "inline-flex h-5 min-w-5 items-center justify-center rounded px-1.5 text-[10px] font-black shrink-0 tabular-nums",
+                        isTopRank
+                          ? "bg-primary text-primary-foreground shadow-xs"
+                          : "bg-muted text-muted-foreground font-bold"
+                      )}
+                    >
+                      #{index + 1}
+                    </span>
 
-        .metrix-task-card:hover * {
-          color: var(--background) !important;
-        }
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-surface border border-border/60 text-sm shadow-xs">
+                      {item.icon}
+                    </span>
 
-        .metrix-task-icon {
-          font-size: 1.15rem !important;
-        }
+                    <h4
+                      className="truncate text-xs sm:text-sm font-bold text-foreground group-hover:text-primary transition-colors leading-tight"
+                      title={item.fullName}
+                    >
+                      {item.fullName}
+                    </h4>
+                  </div>
 
-        .metrix-task-badge {
-          font-size: 11px !important;
-          font-weight: 800 !important;
-          padding: 3px 6px !important;
-          border-radius: 6px !important;
-          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
-          transition: all 0.2s ease !important;
-          background-color: color-mix(in oklab, var(--c-brand) 12%, var(--background)) !important;
-          color: color-mix(in oklab, var(--c-brand) 80%, var(--foreground)) !important;
-        }
-      `}</style>
+                  <span
+                    className="inline-flex shrink-0 items-center gap-0.5 rounded-lg border border-primary/20 bg-primary/10 px-2 py-0.5 text-xs font-black text-primary tabular-nums"
+                    dir="ltr"
+                  >
+                    <span className="text-[10px] font-bold">×</span>
+                    {formatNumberEn(item.completions)}
+                  </span>
+                </div>
 
-      <div className="metrix-tasks-container relative overflow-hidden transition-all duration-300">
-        <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-6 transition-all duration-300">
-          {analytics.topTasks.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              title={item.fullName}
-              data-color={item.accent.key}
-              onClick={() => setTaskNameDialog(item.fullName)}
-              className="metrix-task-card group relative flex min-w-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            >
-              <span className="metrix-task-icon shrink-0">
-                {item.icon}
-              </span>
+                {/* Bottom Row: Metadata (Pillar / Frequency) & Points / Consistency bar */}
+                <div className="mt-2.5 pt-2 border-t border-border/40 flex items-center justify-between gap-2 text-[11px]">
+                  <div className="flex items-center gap-1.5 min-w-0 text-muted-foreground truncate">
+                    {item.parentName && (
+                      <>
+                        <span className="truncate max-w-[120px] text-[10px] font-medium text-muted-foreground/80">
+                          {item.parentName}
+                        </span>
+                        <span className="text-muted-foreground/40 text-[9px]">•</span>
+                      </>
+                    )}
+                    <span className="text-[10px] font-medium text-muted-foreground/75">
+                      {item.frequency === 'daily' ? text.daily : text.weekly}
+                    </span>
+                  </div>
 
-              <span className="metrix-task-badge shrink-0 tabular-nums" dir="ltr">
-                <span className="text-[10px] font-bold transition-colors">×</span>
-                {formatNumberEn(item.completions)}
-              </span>
-            </button>
-          ))}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[11px] font-bold text-foreground/85 tabular-nums">
+                      <span className="text-primary font-black">+{formatNumberEn(item.totalPoints)}</span>
+                      <span className="text-[9px] text-muted-foreground ms-0.5">{text.points}</span>
+                    </span>
+
+                    {/* Mini consistency indicator track */}
+                    <div className="w-12 h-1.5 overflow-hidden rounded-full bg-muted/50 shrink-0">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all duration-500"
+                        style={{ width: `${progressPercent}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>
   );
 }
+

@@ -59,8 +59,15 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // If user is not signed in and the current path is not /login or /auth/callback, redirect to /login
-  if (!user && !pathname.startsWith('/login') && !pathname.startsWith('/auth/callback')) {
+  // If user is not signed in and the current path is not /login, /auth/callback,
+  // or a public legal page, redirect to /login
+  const isPublicPath =
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/auth/callback') ||
+    pathname.startsWith('/privacy') ||
+    pathname.startsWith('/terms') ||
+    pathname.startsWith('/home');
+  if (!user && !isPublicPath) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
@@ -85,7 +92,12 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder
+     *
+     * `webmanifest` and `ico` are in the extension list on purpose. Without
+     * them the proxy bounces /manifest.webmanifest to /login for a signed-out
+     * visitor, and the browser gets an HTML page where it expects JSON — so
+     * the install metadata (name, icons, theme colour) silently never loads.
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|webmanifest)$).*)',
   ],
 };

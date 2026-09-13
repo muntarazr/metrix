@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import type { Language } from "@/lib/translations";
 import { cn } from "@/lib/utils";
 import {
@@ -42,6 +42,7 @@ interface TaskEditDialogProps {
   onOpenChange: (open: boolean) => void;
   onSave: (taskId: string, patch: TaskPatch) => Promise<void>;
   language?: Language;
+  goalTitle?: string;
 }
 
 /** Main tasks weigh up to 10; a subtask sits inside one, so it caps at 5. */
@@ -56,6 +57,7 @@ export default function TaskEditDialog({
   onOpenChange,
   onSave,
   language = "ar",
+  goalTitle = "",
 }: TaskEditDialogProps) {
   const isArabic = language === "ar";
 
@@ -65,7 +67,38 @@ export default function TaskEditDialog({
   const [minutes, setMinutes] = useState("0");
   const [criteria, setCriteria] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isGeneratingCriteria, setIsGeneratingCriteria] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const handleGenerateCriteria = async () => {
+    if (!description.trim()) return;
+    setIsGeneratingCriteria(true);
+    setErrorMessage(null);
+    try {
+      const res = await fetch("/api/goal/task-criteria", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskId: task?.id,
+          taskDescription: description.trim(),
+          goalTitle: goalTitle || undefined,
+          taskType: task?.task_type ?? "sub",
+          language,
+          force: true,
+        }),
+      });
+      const data = await res.json();
+      if (data.criteria) {
+        setCriteria(data.criteria);
+      } else if (data.error === "quota_exceeded") {
+        setErrorMessage(isArabic ? data.message_ar : data.message_en);
+      }
+    } catch (e) {
+      console.error("Failed to generate criteria:", e);
+    } finally {
+      setIsGeneratingCriteria(false);
+    }
+  };
 
   useEffect(() => {
     if (!task || !open) {
@@ -262,9 +295,25 @@ export default function TaskEditDialog({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="task-edit-criteria" className="text-xs font-bold text-muted-foreground/75">
-                {t.criteria}
-              </Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="task-edit-criteria" className="text-xs font-bold text-muted-foreground/75">
+                  {t.criteria}
+                </Label>
+                <button
+                  type="button"
+                  onClick={handleGenerateCriteria}
+                  disabled={isGeneratingCriteria || !description.trim()}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/8 px-2 py-0.5 text-[11px] font-bold text-primary transition-all duration-200 hover:bg-primary hover:text-primary-foreground active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
+                  title={isArabic ? "توليد معيار إنجاز بالذكاء الاصطناعي" : "Generate completion criteria with AI"}
+                >
+                  {isGeneratingCriteria ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3 w-3" />
+                  )}
+                  <span>{isArabic ? "توليد بالذكاء الاصطناعي" : "Generate with AI"}</span>
+                </button>
+              </div>
               <Textarea
                 id="task-edit-criteria"
                 value={criteria}

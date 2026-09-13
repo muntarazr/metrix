@@ -40,7 +40,7 @@ export function getGoalEndDaysChip(
 
   if (daysToEnd > 0) {
     return {
-      text: daysLabel,
+      text: isArabic ? `${daysLabel} يوم` : `${daysLabel}d`,
       tone: 'soon',
       title: isArabic
         ? `${daysLabel} يوم متبقٍ حتى انتهاء الهدف (${endDateLabel})`
@@ -49,7 +49,7 @@ export function getGoalEndDaysChip(
   }
   if (daysToEnd === 0) {
     return {
-      text: '0',
+      text: isArabic ? 'اليوم الأخير' : 'Today',
       tone: 'today',
       title: isArabic
         ? `آخر يوم لموعد انتهاء الهدف (${endDateLabel})`
@@ -59,7 +59,7 @@ export function getGoalEndDaysChip(
   const late = -daysToEnd;
   const lateLabel = formatNumberEn(late);
   return {
-    text: lateLabel,
+    text: isArabic ? `متأخر ${lateLabel} يوم` : `${lateLabel}d late`,
     tone: 'late',
     title: isArabic
       ? `متأخر ${lateLabel} يومًا عن موعد انتهاء الهدف (${endDateLabel})`

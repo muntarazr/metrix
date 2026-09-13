@@ -1,89 +1,124 @@
-# METRIX — AI-Powered Goal Achievement Platform
+# METRIX — نظام صارم قائم على النقاط لتتبع الأهداف
 
-> Turn any life goal into a structured, trackable plan — powered by Google Gemini AI.
+> حوّل أي هدف شخصي إلى خطة منظمة قابلة للتتبع، بمساعدة Google Gemini.
 
-**🌐 Live Demo:** [https://metrix-bete.vercel.app](https://metrix-bete.vercel.app)
+METRIX منصة ثنائية اللغة (عربي/إنجليزي، RTL كواجهة أولى) لتتبع الأهداف بالنقاط، بدلاً من قوائم المهام العادية. الويب مبني بـ Next.js وSupabase، ونفس الكود يُصدَّر كتطبيق Android عبر Capacitor.
 
----
+## ✨ الميزات
 
-## 📌 Overview
+- **توليد خطة بالذكاء الاصطناعي** — وصف الهدف يتحول إلى خطة كاملة عبر Gemini، أو إضافة خطة يدوية.
+- **تسجيل يومي وأسبوعي** — Check-ins للمهام الرئيسية والفرعية بحسب دورتها (يومية/أسبوعية).
+- **مراجعة أسبوعية وMilestones** — تحليل أنماط الأداء وتوليد صور/احتفالات عند تحقيق إنجازات.
+- **تحديات (Challenges)** — منافسة 1 مقابل 1 على هدف مشترك عبر رمز دعوة.
+- **تسجيل صوتي** — تفريغ الملاحظات الصوتية عبر Mistral.
+- **ثنائية اللغة RTL/LTR** — عربي وإنجليزي كواجهتين كاملتين، وليس ترجمة سطحية.
+- **تطبيق Android** — نفس الكود يُصدَّر عبر Capacitor.
 
-METRIX is a goal-tracking platform that helps users achieve **any goal in life** — not just fitness. Whether it's learning a skill, building a habit, or completing a project, METRIX either generates a complete AI-powered plan for you, or lets you bring your own existing plan and track it.
+## 🛠️ التقنيات
 
-The core idea: goals fail because of poor tracking, not poor planning. METRIX solves this with structured daily and weekly check-ins, smart statistics, and progress insights that keep users accountable and motivated.
-
-## ✨ Features
-
-- **AI Plan Generation** — describe your goal, and Gemini AI builds a complete step-by-step plan for you
-- **Custom Plans** — already have a plan? Add it manually and use METRIX as your tracking system
-- **Daily & Weekly Check-ins** — log your progress based on your plan's schedule
-- **Smart Statistics** — visual insights into your consistency, streaks, and progress over time (daily, weekly, monthly)
-- **Flexible Tracking** — the system adapts to your plan type: daily logging or weekly logging
-- **Google Authentication** — sign in securely with your Google account in one click
-
-## 🛠️ Tech Stack
-
-| Layer | Technology |
+| الطبقة | التقنية |
 |---|---|
-| Framework | Next.js (React) |
-| Database | Supabase |
-| AI | Google Gemini API |
-| Authentication | Google OAuth |
-| Hosting | Vercel |
+| Framework | Next.js 16 (Turbopack) |
+| قاعدة البيانات | Supabase (Postgres + RLS) |
+| الذكاء الاصطناعي | Google Gemini، Mistral (تفريغ صوتي) |
+| المصادقة | Supabase Auth (Google OAuth) |
+| الموبايل | Capacitor (Android) |
+| الاستضافة | Vercel |
 
-## 🧠 How It Works
+## 🚀 التشغيل محليًا
 
-1. **Sign in** with your Google account
-2. **Set your goal** — any goal you want to achieve
-3. **Choose your path:**
-   - Let Gemini AI generate a full plan tailored to your goal, or
-   - Add your own plan manually
-4. **Log your progress** — daily or weekly check-ins depending on your plan
-5. **Track & improve** — view statistics, streaks, and insights to stay on track
-
-## 📸 Screenshots
-
-> Coming soon — screenshots will be added to the `screenshots/` folder.
-
-<!-- Once you upload images to a screenshots/ folder, use:
-| Dashboard | AI Plan | Statistics |
-|---|---|---|
-| ![dashboard](screenshots/dashboard.png) | ![plan](screenshots/plan.png) | ![stats](screenshots/stats.png) |
--->
-
-## 🚀 Getting Started
+يتطلب Node.js. إذا كان مثبتًا عبر `nvm` بدون أن يكون على `PATH` الافتراضي:
 
 ```bash
-# Clone the repository
-git clone https://github.com/[YOUR-GITHUB-USERNAME]/metrix.git
-cd metrix
+export PATH="$HOME/.nvm/versions/node/vX.Y.Z/bin:$PATH"
+```
 
-# Install dependencies
+```bash
 npm install
-
-# Set up environment variables
 cp .env.example .env.local
-# Add your keys: Gemini API, Supabase URL & keys, Google OAuth credentials
-
-# Run the development server
+# عبّئ متغيرات Supabase وGemini وMistral وImageKit في .env.local
 npm run dev
 ```
 
-## 🗺️ Roadmap
+الأوامر الأساسية:
 
-- [ ] Mobile app version
-- [ ] AI-powered plan adjustment based on progress
-- [ ] Social features — share goals and progress
-- [ ] Arabic language support
+| المهمة | الأمر |
+|---|---|
+| خادم التطوير | `npm run dev` |
+| بناء الإنتاج | `npm run build` |
+| فحص الأنواع | `npx tsc --noEmit` |
+| اختبارات المنطق الحساس | `npm test` |
+| Lint | `npm run lint` |
+| فحص قاعدة البيانات الحية | `./scripts/check-db.sh` |
+| بناء تطبيق Android | `./scripts/build-mobile.sh` |
 
-## 👤 Author
+## 🗄️ قاعدة البيانات
+
+`supabase/setup.sql` هو المصدر الكامل للـ schema — الصقه في Supabase SQL Editor. `supabase/migrations/` نفس المحتوى مقسّمًا للمراجعة والتاريخ. شغّل `./scripts/check-db.sh` بعد الإعداد للتأكد من وجود كل الجداول وRPCs وStorage buckets المطلوبة.
+
+**مهاجرتان لم تُطبَّقا بعد على مشروع Supabase الحي ويجب لصقهما يدويًا في SQL Editor:**
+- `supabase/migrations/0007_ai_usage_limits.sql` — حدود استخدام الذكاء الاصطناعي لكل مستخدم.
+- `supabase/migrations/0008_challenge_hardening.sql` — إصلاح سباقات التحديات وتقوية رمز الدعوة.
+
+بدون تطبيقهما، مسارات الذكاء الاصطناعي سترجع خطأ `503 ai_quota_unavailable`.
+
+## 🧪 الاختبارات
+
+```bash
+npm test
+```
+
+يشغّل `node --test` المدمج في Node (بدون أي dependency خارجية) على اختبارات `src/lib/__tests__/`: منطق الفترات الزمنية (`task-periods.ts`)، السلاسل اليومية ويوم الراحة (`streak.ts`)، وتسلسل المهام والنقاط (`task-hierarchy.ts`). الحل التقني في `scripts/test-alias-loader.mjs` (يحل alias الاستيراد `@/*`).
+
+## 📌 حالة المشروع
+
+المشروع في مرحلة **Private Beta / Pre-production**. راجع [`task.md`](task.md) لسجل جاهزية الإنتاج الكامل بالتفصيل: كل مهمة، حالتها، الملفات المتأثرة، وطريقة التحقق منها.
+
+## 🧾 سجل التحديثات (2026-09-04)
+
+جلسة تدقيق وتجهيز شاملة للإنتاج. هذا ملخص لكل ما تغيّر من البداية إلى النهاية؛ التفاصيل الكاملة والتحقق من كل نقطة موجودة في [`task.md`](task.md).
+
+### الأمان والتفويض
+- تدقيق شامل لكل مسارات `src/app/api/**` — تأكيد أن لا مسار مكشوف بلا مصادقة (الحماية لا تعتمد على `src/proxy.ts` لأنه يتجاوز `/api/*`).
+- إصلاح ثغرة في `weekly-review`: عضو تحدٍ كان يستطيع طلب تحليل سلوكي تفصيلي لهدف خصمه بسبب صلاحيات RLS الخاصة بالتحديات. أُضيف قيد ملكية صريح على الاستعلام.
+- إصلاح ثغرة في `goal-reminders`: كان يمكن إنشاء تذكير مرتبط بهدف غير مملوك للمستخدم. أُضيف تحقق ملكية الهدف قبل الإدراج.
+- إصلاح سباق (race condition) في `create_goal_challenge` و`join_goal_challenge`: طلبات متزامنة كانت قادرة على تجاوز قيد "تحدٍ نشط واحد لكل مستخدم" وقيد "مشاركين اثنين لكل غرفة". أُضيف قفل ذري (`pg_advisory_xact_lock`) في migration `0008`.
+- تقوية رمز دعوة التحديات من 6 محارف (~30 بت) إلى 10 محارف (~50 بت) في نفس المهاجرة.
+
+### حماية تكلفة الذكاء الاصطناعي
+- إضافة نظام حصة (quota) ذري في Postgres: جدول `ai_usage_events` ودالة `consume_ai_quota` (migration `0007`)، يحدّان الاستخدام لكل مستخدم عبر قفل معاملة حقيقي يعمل بشكل صحيح مع تعدد السيرفرات والطلبات المتزامنة.
+- الحدود الحالية: Gemini — 6 طلبات/دقيقة و30 طلبًا/يوم. Mistral (تفريغ صوتي) — 3 طلبات/دقيقة و10 طلبات/يوم.
+- ربط الحصة بجميع مسارات الذكاء الاصطناعي: `plan`, `evaluate`, `investigate`, `ai-edit`, `daily-focus`, `task-mini`, `weekly-review`, تقييم milestone، والتفريغ الصوتي.
+- إضافة حدود حجم JSON (200KB) على مسارات `plan`, `evaluate`, `investigate`, `ai-edit`, `daily-focus` لمنع تضخيم الطلبات ورفع التكلفة.
+- تحصين رفع الصوت في `/api/transcribe`: سقف 10MB، تحقق من نوع الملف الحقيقي، تطبيع اللغة إلى `ar`/`en`، وإخفاء رسالة الخطأ الخام القادمة من Mistral عن العميل.
+
+### الجودة والتحقق
+- تأكيد نجاح `npm run build` فعليًا من الصفر (وليس فقط بدء العملية).
+- تأكيد نجاح `./scripts/check-db.sh` بالكامل على مشروع Supabase الحي (كل الجداول، RPCs، وStorage buckets موجودة).
+- إضافة أول Test suite للمشروع: 27 اختبارًا لمنطق الفترات الزمنية، السلاسل، وتسلسل المهام، باستخدام `node --test` المدمج بدون أي dependency جديدة (مع حل مشكلة alias الاستيراد عبر `scripts/test-alias-loader.mjs`).
+- تفعيل `allowImportingTsExtensions` في `tsconfig.json` ليتوافق فحص الأنواع مع تشغيل الاختبارات مباشرة.
+
+### تجربة المستخدم
+- إكمال تفاعل الإشعارات: الضغط على إشعار كان يسجّل فقط في console؛ أصبح يفتح لوحة الهدف المرتبط به.
+- إزالة سجلات console في المتصفح والسيرفر التي كانت تكشف نص هدف المستخدم أو نص التفريغ الصوتي.
+
+### الخصوصية والوثائق
+- إنشاء صفحتي `/privacy` و`/terms` (نسخة مبدئية ثنائية اللغة، تحتاج مراجعة قانونية قبل الاعتماد النهائي) وربطهما كمسارين عامّين في `src/proxy.ts` وكروابط فعلية في صفحة `/login`.
+- تحديث `README.md` (هذا الملف) ليعكس الحالة الفعلية للمشروع بدل نص placeholder قديم.
+- تصحيح اسم الحزمة في `package.json` من `my-app` إلى `metrix`.
+- إنشاء `.env.example` يوثّق كل متغيرات البيئة المطلوبة دون قيم حقيقية.
+
+### المتبقي الذي يحتاج إجراءً يدويًا خارج الكود
+1. لصق `supabase/migrations/0007_ai_usage_limits.sql` و`supabase/migrations/0008_challenge_hardening.sql` في Supabase SQL Editor للمشروع الحي.
+2. مراجعة قانونية لنصوص `/privacy` و`/terms`.
+3. اختبار يدوي على أجهزة Android/iOS حقيقية.
+4. ربط خدمة Error tracking خارجية (مثل Sentry) بمفتاح API فعلي.
+
+القائمة الكاملة بالأولويات، بما تمّ وبما تبقّى، موجودة بالتفصيل في [`task.md`](task.md).
+
+## 👤 المطوّر
 
 **Muntadhar Ahmed Jawad**
-- 📧 Email: [muntzr557@gmail.com](mailto:muntzr557@gmail.com)
-- 📱 Phone / WhatsApp: +964 787 629 4108 
-- 🌐 Brand: **wbtio**
-- 📍 Basra, Iraq 🇮🇶
-
----
-
-*Part of the **wbtio** ecosystem — building practical AI tools for real life.*
+- 📧 muntzr557@gmail.com
+- 🌐 wbtio
+- 📍 البصرة، العراق 🇮🇶

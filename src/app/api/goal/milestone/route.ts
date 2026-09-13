@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createRequestClient } from "@/utils/supabase/server-request";
 import { GeminiService, GeminiQuotaError } from "@/lib/gemini";
+import { requireAiQuota } from "@/lib/ai-quota";
 import { getErrorMessage } from "@/components/challenge/challenge-utils";
 import {
   buildMilestoneImagePrompt,
@@ -329,6 +330,9 @@ export async function POST(req: NextRequest) {
         { status: 404 },
       );
     }
+
+    const quotaResponse = await requireAiQuota(supabase, "gemini", "milestone_evaluate");
+    if (quotaResponse) return quotaResponse;
 
     // 1. Evaluate Milestone
     const evaluation = await GeminiService.evaluateMilestone(

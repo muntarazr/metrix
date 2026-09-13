@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { requireUser } from "@/lib/api-auth";
 import { GeminiQuotaError, GeminiService } from "@/lib/gemini";
 import { computeGoalProjection } from "@/lib/goal-projection";
+import { requireAiQuota } from "@/lib/ai-quota";
 
 /**
  * Builds one week's review for a goal.
@@ -53,6 +54,7 @@ export async function POST(req: NextRequest) {
         "id, title, ai_summary, current_points, target_points, created_at, estimated_completion_date",
       )
       .eq("id", goalId)
+      .eq("user_id", auth.user.id)
       .maybeSingle();
 
     if (goalError || !goal) {
@@ -176,6 +178,9 @@ export async function POST(req: NextRequest) {
     if (completedCount === 0 && skippedCount === 0 && loggedDayKeys.size === 0) {
       return NextResponse.json({ empty: true, stats });
     }
+
+    const quotaResponse = await requireAiQuota(auth.supabase, "gemini", "weekly_review");
+    if (quotaResponse) return quotaResponse;
 
     const review = await GeminiService.generateWeeklyReview(
       {

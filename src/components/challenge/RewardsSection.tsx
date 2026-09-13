@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { ChevronDown, ChevronUp, Crown, LockKeyhole, Star } from 'lucide-react';
-import Image from 'next/image';
+import { BrandMark } from '@/components/brand/Logo';
 import type { Language } from '@/lib/translations';
 import { cn } from '@/lib/utils';
 import { cardClass } from './challenge-types';
@@ -170,14 +170,20 @@ function buildAccentColor(rank: RewardStage): CSSProperties {
   return { color: `rgba(${rank.palette.metal}, 0.92)` };
 }
 
-function CardLogo({ size = 32 }: { size?: number }) {
+function CardLogo({ rank, size = 32 }: { rank: RewardStage; size?: number }) {
+  // The card face is a fixed RGB gradient (buildCardFace) and stays dark in both
+  // themes, so a theme token like `text-primary` would swing to its darker light
+  // -mode value against an unchanged dark surface. Paint in the rank's own metal,
+  // exactly like buildAccentColor and CardCorner do on this same surface.
   return (
-    <Image
-      src="/logo.svg"
-      alt="logo"
+    <BrandMark
       width={size}
       height={size}
-      className="object-contain"
+      style={{
+        width: size,
+        height: "auto",
+        color: `rgba(${rank.palette.metal}, 0.97)`,
+      }}
     />
   );
 }
@@ -237,7 +243,7 @@ function RevealedCardFace({
 
       {/* center: logo + title */}
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-1 px-1">
-        <CardLogo size={logoSize} />
+        <CardLogo rank={reward} size={logoSize} />
         <div
           className="text-center font-black uppercase leading-tight tracking-wide"
           style={{

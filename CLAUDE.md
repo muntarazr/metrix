@@ -134,17 +134,52 @@ The challenge functions signal failure by raising an exception whose message con
 
 `src/lib/gemini.ts` wraps all Gemini calls (plan generation, progress evaluation, daily focus, milestone images) and defines typed failures — `GeminiQuotaError`, `GeminiImageUnavailableError` — that routes are expected to handle. Voice notes go to Mistral via `/api/transcribe`.
 
+## Brand
+
+`BRAND.md` owns the identity: the name, the mark, the lockups and the generated
+asset set in `public/brand/`. Three things bite:
+
+- The **identity is English only**: the logo reads `METRIX` (always all-caps) in
+  every locale, and there is deliberately no Arabic wordmark. The Arabic *copy*
+  still calls the product `ماتريكس` (manifesto dialog, top reward tier, auth
+  emails) — that is body copy, not branding, and it stays.
+- **Never add a light/dark logo pair.** `src/components/brand/Logo.tsx` inlines
+  the paths and paints in `currentColor`; that is what replaced the old
+  `logo1.svg` / `logo2.svg` + `dark:hidden` swap.
+- Assets are **generated**, not hand-drawn: `./scripts/brand/build.sh` rebuilds
+  every one byte-identically from `public/brand/source/`. Edit the script, not
+  the output.
+
 ## Product and design constraints
 
 `PRODUCT.md` and `DESIGN.md` are the source of truth and are specific enough to follow literally: blue `oklch(0.49 0.125 216)` primary (light) / `oklch(0.725 0.115 216)` (dark) — hue 216 is the logo's `#0097b2`, IBM Plex Sans Arabic / Plus Jakarta Sans, motion only as state-change feedback with named duration bands and easing curves, `prefers-reduced-motion` respected everywhere, tabular numerics, RTL treated as first-class rather than a mirror of the LTR layout.
 
-Both fonts load through `next/font/google` in `src/app/layout.tsx`, which owns the
-`--font-ibm-arabic` and `--font-latin` variables — `globals.css` composes them into
-`--font-sans` and must not redefine them. A `@import url(...)` of Google Fonts does **not**
-work here: Tailwind v4 strips the remote import from the compiled stylesheet, which is why
-neither family reached the browser at all until 2026-08-24.
+Both fonts load through `next/font/google` in `src/app/layout.tsx`. A `@import url(...)` of
+Google Fonts does **not** work here: Tailwind v4 strips the remote import from the compiled
+stylesheet, which is why neither family reached the browser at all until 2026-08-24.
 
-Contrast is measured against `--canvas` (`oklch(0.927 0 0)`), not white — `body` is
+`globals.css` names `"Plus Jakarta Sans"` and `"IBM Plex Sans Arabic"` **literally** in its
+font stacks and does not use `--font-latin` / `--font-ibm-arabic`. Those variables are
+unusable in a stack: next/font folds an auto-generated companion face into each one, so
+`--font-latin` expands to `"Plus Jakarta Sans", "Plus Jakarta Sans Fallback"` where the
+second is `local("Arial")` with **no `unicode-range`** — i.e. U+0-10FFFF. Any face without a
+`unicode-range` matches every codepoint and ends per-glyph matching for every script, so
+composing `var(--font-latin), var(--font-ibm-arabic)` put that Arial between the two real
+families and rendered **all Arabic in Arial** while IBM Plex Sans Arabic loaded zero faces.
+`adjustFontFallback: false` is the documented off switch and is silently stripped on Next
+16.3.2 (absent from next/font's types, dropped by its validator). Rules:
+
+- Nothing universal may precede `"IBM Plex Sans Arabic"` in any stack.
+- Keep the `.variable` classes on `<html>` — they carry the `@font-face` rules.
+- Verify by measurement, not by reading `getComputedStyle().fontFamily`: that returns the
+  stack, not the family that actually painted. Compare canvas `measureText` widths of an
+  Arabic word under the body stack vs. `"IBM Plex Sans Arabic"` vs. `Arial`, or check
+  `document.fonts` for Arabic-subset faces stuck at `status: "unloaded"`.
+
+Arabic tops out at weight 700 (Google ships no 800/900 for the family), so
+`font-extrabold` / `font-black` on Arabic render at 700 rather than a synthesised faux-bold.
+
+Contrast is measured against `--canvas` (pure white, `oklch(1 0 0)`), not a grey — `body` is
 `bg-canvas`. Measuring against white is how the previous primary shipped at 4.00:1 while
 its own comment claimed 5.24:1.
 
@@ -159,3 +194,13 @@ Onboarding (`src/components/shared/WelcomeDialog.tsx`) is a plain skippable feat
 - Path alias `@/*` → `src/*`.
 - shadcn/ui (new-york style) in `src/components/ui/`, lucide icons, Tailwind v4 with CSS variables in `globals.css`.
 - `src/components/AppSidebar.tsx` is dead code — not imported anywhere.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

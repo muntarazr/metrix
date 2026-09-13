@@ -282,25 +282,37 @@ function normalizePlanHierarchy(rawPlan: any) {
   // Ensure structure shape
   result.main_tasks = result.main_tasks.map((main: any, mainIdx: number) => {
     const subtasks = Array.isArray(main.subtasks) ? main.subtasks : [];
+    const mainDesc = main.task || main.task_description || `Main Task ${mainIdx + 1}`;
+    const mainCriteria = (typeof main.completion_criteria === "string" && main.completion_criteria.trim())
+      ? main.completion_criteria.trim()
+      : `إنجاز خطوات مسار "${mainDesc}" بانتظام ومتابعة التقدم.`;
+
     return {
       id: main.id || `m${mainIdx + 1}`,
-      task: main.task || main.task_description || `Main Task ${mainIdx + 1}`,
+      task: mainDesc,
       impact_weight: clamp(Number(main.impact_weight) || 5, 1, 10),
       frequency: normalizeFrequency(main.frequency),
-      completion_criteria: main.completion_criteria || "",
+      completion_criteria: mainCriteria,
       notes: main.notes || "",
-      subtasks: subtasks.map((sub: any, subIdx: number) => ({
-        id: sub.id || `m${mainIdx + 1}-s${subIdx + 1}`,
-        task: sub.task || sub.task_description || `Subtask ${subIdx + 1}`,
-        frequency: normalizeFrequency(sub.frequency),
-        time_required_minutes: Math.max(
-          0,
-          Number(sub.time_required_minutes) || 0,
-        ),
-        impact_weight: clamp(Number(sub.impact_weight) || 1, 1, 5),
-        completion_criteria: sub.completion_criteria || "",
-        notes: sub.notes || "",
-      })),
+      subtasks: subtasks.map((sub: any, subIdx: number) => {
+        const subDesc = sub.task || sub.task_description || `Subtask ${subIdx + 1}`;
+        const subCriteria = (typeof sub.completion_criteria === "string" && sub.completion_criteria.trim())
+          ? sub.completion_criteria.trim()
+          : `إتمام "${subDesc}" بالكامل وتأكيد النتيجة اليومية.`;
+
+        return {
+          id: sub.id || `m${mainIdx + 1}-s${subIdx + 1}`,
+          task: subDesc,
+          frequency: normalizeFrequency(sub.frequency),
+          time_required_minutes: Math.max(
+            0,
+            Number(sub.time_required_minutes) || 0,
+          ),
+          impact_weight: clamp(Number(sub.impact_weight) || 1, 1, 5),
+          completion_criteria: subCriteria,
+          notes: sub.notes || "",
+        };
+      }),
     };
   });
 
@@ -629,6 +641,11 @@ HARD CONSTRAINTS:
 - Subtasks frequency must be only "daily" or "weekly".
 - Do NOT use monthly or x_times_per_week.
 - Keep total subtasks between 4 and 12.
+- COMPLETION CRITERIA (معيار الإنجاز) IS MANDATORY:
+  - Every main task and every subtask MUST have a concrete, measurable "completion_criteria" (Definition of Done).
+  - It must answer clearly: "How does the user know with 100% certainty that this task is finished today without self-deception?"
+  - Examples: "قراءة 10 صفحات وتدوين ملاحظة واحدة", "كتابة 20 سطر كود وتشغيل الاختبارات", "30 دقيقة تمرين متواصل مع تمارين الإطالة".
+  - NEVER output an empty completion_criteria or generic phrases like "finish the task".
 - LANGUAGE: Respond entirely in ${userLanguage === "ar" ? "Arabic" : "English"}.
 - CURRENT DATE: ${currentDate}
 
@@ -842,6 +859,7 @@ SYSTEM ROLE:
 - اجعل الـ goal_task تعتمد على target_type المناسب (main إذا كان مساراً جديداً، sub إذا كان خطوة تحت مسار موجود مع parent_task_id صحيح).
 - حاول تخلط على الأقل external_booster واحد إذا كانت البيانات تظهر أن أسلوب الحياة أو البيئة تأثر على التنفيذ.
 - كل اقتراح لازم يكون عنده emoji واحد يمثل طبيعته.
+- كل اقتراح لازم يحتوي على completion_criteria محدد وقابل للقياس يبين شلون يعرف المستخدم إنه أنجز هاي الخطوة بالضبط (مثلاً: "جلسة تركيز 25 دقيقة بدون تشتت"، "إرسال 3 رسائل تواصل مهنية"، "شرب 2 لتر ماء على مدار اليوم").
 - frequency: بس "daily" أو "weekly".
 - impact_weight: 1..5 للمهام الفرعية و 1..10 للمهام الرئيسية.
 - اذا كانت السجلات والإجابات قليلة، اقترح 1-2 اقتراحات خفيفة مستنبطة من الهدف+المهام فقط.
@@ -876,6 +894,7 @@ OUTPUT JSON ONLY:
       "emoji": "a single emoji that best represents this suggestion (e.g. 📖, 🏃, 💡, 🧘, 🎯, 💰, 🛡️, 🌱)",
       "title": "string",
       "reason": "string",
+      "completion_criteria": "string (معيار إنجاز ملموس ومحدد وقابل للقياس يوضح متى تعتبر المهمة منجزة اليوم)",
       "frequency": "daily|weekly",
       "impact_weight": number,
       "target_type": "main|sub",
@@ -1010,6 +1029,12 @@ ${options.answer || ""}
               title: typeof item?.title === "string" ? item.title.trim() : "",
               reason:
                 typeof item?.reason === "string" ? item.reason.trim() : "",
+              completion_criteria:
+                typeof item?.completion_criteria === "string" && item.completion_criteria.trim()
+                  ? item.completion_criteria.trim()
+                  : typeof item?.reason === "string" && item.reason.trim()
+                    ? item.reason.trim()
+                    : "",
               emoji:
                 typeof item?.emoji === "string" && item.emoji.trim()
                   ? item.emoji.trim()
@@ -1876,6 +1901,59 @@ EXAMPLES:
       return (response.text || "").trim().replace(/^["'\u201c\u201d]|["'\u201c\u201d]$/g, "");
     } catch (error) {
       console.error("Gemini generateMiniVersion Error:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generates a concrete, measurable definition of done (معيار الإنجاز)
+   * for a task based on its context and goal.
+   */
+  static async generateCompletionCriteria(
+    taskDescription: string,
+    goalTitle: string,
+    taskType: "main" | "sub" = "sub",
+    language: "ar" | "en" = "ar",
+  ): Promise<string> {
+    const safetyCheck = GeminiService.checkContentSafety(
+      `${taskDescription}\n${goalTitle}`,
+    );
+    if (!safetyCheck.isSafe) return "";
+
+    const isArabic = language === "ar";
+    const systemPrompt = isArabic
+      ? `أنت خبير صياغة "معايير الإنجاز" (Definition of Done) في تطبيق METRIX.
+دورك: كتابة معيار إنجاز ملموس، ذكي، ومحدد جداً لهذه المهمة بحيث يعرف المستخدم بالضبط وبدون تردد متى يعتبر المهمة منجزة اليوم.
+
+القواعد الصارمة:
+1. معيار الإنجاز يجب أن يكون واضحاً وقابلاً للقياس (مثال: عدد صفحات، دقائق، ناتج ملموس ككود أو تسجيل صوتي أو حل مسائل).
+2. ابتعد تماماً عن الكليشيهات والعموميات مثل "إكمال المهمة بنجاح" أو "القيام بالواجب".
+3. يجب أن تكون الصياغة موجزة ودقيقة في جملة واحدة واضحة ومباشرة (10 إلى 25 كلمة).
+4. أجب بالنص المباشر فقط لمعيار الإنجاز دون أي مقدمات أو علامات تنصيص أو شروحات إضافية.`
+      : `You are an expert at writing concrete, measurable "Definitions of Done" / Completion Criteria in METRIX.
+Your role: Write a crisp, tangible, measurable completion criteria for this task so the user knows with 100% clarity when the task is done today.
+
+Strict rules:
+1. Must be measurable and concrete (e.g. quantity, specific output, minutes, deliverable).
+2. Avoid vague statements like "finish successfully" or "do the task".
+3. Keep it brief: a single clear, actionable sentence (10-25 words).
+4. Output ONLY the criteria text directly without quotes, introductions, or markdown formatting.`;
+
+    const userPrompt = isArabic
+      ? `الهدف العام: "${goalTitle}"\nنوع المهمة: ${taskType === "main" ? "مسار رئيسي" : "مهمة فرعية"}\nعنوان المهمة: "${taskDescription}"\n\nاكتب معيار الإنجاز المحدد والمباشر:`
+      : `Goal: "${goalTitle}"\nTask Type: ${taskType}\nTask Title: "${taskDescription}"\n\nWrite the concise completion criteria:`;
+
+    try {
+      const response = await GeminiService.callWithRetry(
+        {
+          systemInstruction: { parts: [{ text: systemPrompt }], role: "system" },
+        },
+        { role: "user", parts: [{ text: userPrompt }] },
+      );
+
+      return (response.text || "").trim().replace(/^["'\u201c\u201d]|["'\u201c\u201d]$/g, "");
+    } catch (error) {
+      console.error("Gemini generateCompletionCriteria Error:", error);
       throw error;
     }
   }

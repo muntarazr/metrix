@@ -7,7 +7,7 @@
   --color-background: var(--background);
   --color-canvas: var(--canvas);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-latin, "Plus Jakarta Sans"), var(--font-jawhara), var(--font-ibm-arabic, "IBM Plex Sans Arabic"), var(--font-fallback);
+  --font-sans: "Plus Jakarta Sans", "IBM Plex Sans Arabic", var(--font-fallback);
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -66,31 +66,44 @@
 }
 
 :root {
-  /* `--font-latin`, `--font-jawhara` and `--font-ibm-arabic` are defined by
-     next/font in layout.tsx — do NOT redefine them here, or the class it puts
-     on <html> and this `:root` rule will fight over identical specificity and
-     the winner will come down to stylesheet order.
-     Arabic is MS-jawhara; IBM Plex Sans Arabic sits behind it only to catch
-     glyphs MS-jawhara does not map.
-     Latin is composed first everywhere. Font matching is per-glyph, not
-     first-family-wins, so Arabic characters still fall through to the Arabic
-     family; the previous stack put Arabic first AND ended it in `sans-serif`,
-     a universal match, which made the Latin family unreachable. */
+  /* Font stacks here name "Plus Jakarta Sans" and "IBM Plex Sans Arabic"
+     LITERALLY rather than through next/font's `--font-latin` /
+     `--font-ibm-arabic`. That is not an oversight — the variables are unusable
+     in a stack, because next/font folds an auto-generated companion face into
+     each one: `--font-latin` expands to
+     `"Plus Jakarta Sans", "Plus Jakarta Sans Fallback"`, and that second
+     family is `local("Arial")` with NO `unicode-range`, i.e. U+0-10FFFF.
+
+     Any face without a `unicode-range` matches every codepoint and ends
+     per-glyph matching for EVERY script. Composed as
+     `var(--font-latin), var(--font-ibm-arabic)` the Arial companion sat
+     between the two real families and painted all Arabic in Arial; IBM Plex
+     Sans Arabic never loaded a single face. `adjustFontFallback: false` is
+     the documented off switch and is silently stripped on Next 16.3.2, so
+     naming the families directly is the only reliable fix.
+
+     The @font-face rules are still emitted by layout.tsx — keep the
+     `.variable` classes on <html> or the stylesheet carrying them disappears.
+
+     Latin is composed first everywhere. Matching is per-glyph, not
+     first-family-wins, so Arabic characters fall through to the Arabic family;
+     an earlier stack put Arabic first AND ended it in `sans-serif`, a
+     universal match, which made the Latin family unreachable. Nothing
+     universal may precede "IBM Plex Sans Arabic" in any stack below. */
   --font-fallback: system-ui, -apple-system, "Segoe UI", sans-serif;
   --radius: 0.625rem;
 
-  /* ELEVATION RAMP — the reason the interface reads as flat is contrast between
-     surfaces, not hue. Measured against --card (white):
-       canvas 1.26:1 · border 1.62:1 vs card / 1.29:1 vs canvas · input 1.92:1
-     The canvas has to be genuinely darker than the cards or nothing looks raised. */
-  --canvas: oklch(0.927 0 0);          /* the recessed page ground */
-  --background: oklch(1 0 0);
-  --card: oklch(1 0 0);                /* raised surfaces */
+  /* ELEVATION RAMP — crisp modern contrast: canvas has a subtle grounding
+     so pure white cards (bg-card) pop with natural depth, while recessed
+     tracks (bg-muted) and inset panels (bg-surface) maintain clear structure. */
+  --canvas: oklch(0.982 0.002 240);    /* the page ground — subtle crisp off-white */
+  --background: oklch(0.982 0.002 240);
+  --card: oklch(1 0 0);                /* raised surfaces — pure white */
   --popover: oklch(1 0 0);
-  --surface: oklch(0.968 0 0);         /* inset panels inside a card */
-  --muted: oklch(0.958 0 0);
-  --secondary: oklch(0.958 0 0);
-  --accent: oklch(0.948 0 0);
+  --surface: oklch(0.958 0.002 240);   /* inset panels inside a card */
+  --muted: oklch(0.952 0.002 240);     /* recessed tracks & controls */
+  --secondary: oklch(0.952 0.002 240);
+  --accent: oklch(0.942 0.002 240);
 
   --foreground: oklch(0.145 0 0);
   --card-foreground: oklch(0.145 0 0);
@@ -98,11 +111,11 @@
   --surface-foreground: oklch(0.205 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --accent-foreground: oklch(0.205 0 0);
-  --muted-foreground: oklch(0.505 0 0);   /* 5.7:1 on card — was 4.7:1 */
+  --muted-foreground: oklch(0.48 0 0);
 
-  /* Borders carry the structure now that the fills are close together. */
-  --border: oklch(0.842 0 0);
-  --input: oklch(0.795 0 0);              /* controls read louder than dividers */
+  /* Solid, crisp structural borders */
+  --border: oklch(0.858 0.002 240);
+  --input: oklch(0.795 0.002 240);
 
   /* The brand blue, taken from the logo: #0097b2 is oklch(0.623 0.111 216), so
      the hue is pinned at 216 rather than the 218 it had drifted to.
@@ -232,7 +245,7 @@
 
   body {
     @apply bg-canvas text-foreground;
-    font-family: var(--font-latin, "Plus Jakarta Sans"), var(--font-jawhara), var(--font-ibm-arabic, "IBM Plex Sans Arabic"), var(--font-fallback);
+    font-family: "Plus Jakarta Sans", "IBM Plex Sans Arabic", var(--font-fallback);
     font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
     overscroll-behavior-y: none;
   }
@@ -244,7 +257,7 @@
      Arabic to IBM Plex Sans Arabic; Plus Jakarta Sans carries no Arabic. */
   :lang(ar),
   [dir="rtl"] {
-    font-family: var(--font-latin, "Plus Jakarta Sans"), var(--font-jawhara), var(--font-ibm-arabic, "IBM Plex Sans Arabic"), var(--font-fallback);
+    font-family: "Plus Jakarta Sans", "IBM Plex Sans Arabic", var(--font-fallback);
   }
 
   /* Plus Jakarta Sans refinements for Latin/English text */
@@ -460,7 +473,7 @@ span:has(> select.rdp-years_dropdown) {
 
 /* Arabic / RTL text alignment inside the pill */
 [dir="rtl"] .rdp-dropdown_root > span.text-sm {
-  font-family: var(--font-jawhara), var(--font-ibm-arabic, "IBM Plex Sans Arabic"), var(--font-fallback);
+  font-family: "IBM Plex Sans Arabic", var(--font-fallback);
   letter-spacing: 0;
 }
 
@@ -540,7 +553,7 @@ span:has(> select.rdp-years_dropdown) {
 
 /* Popover that wraps the calendar */
 [data-radix-popper-content-wrapper] .rdp-root {
-  font-family: var(--font-jawhara), var(--font-ibm-arabic, "IBM Plex Sans Arabic"), var(--font-fallback);
+  font-family: "IBM Plex Sans Arabic", var(--font-fallback);
 }
 
 @keyframes reward-pack-float {

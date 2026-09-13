@@ -45,6 +45,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'goalId and reminderTime are required' }, { status: 400 });
     }
 
+    const { data: goal, error: goalError } = await supabase
+      .from('goals')
+      .select('id')
+      .eq('id', goalId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (goalError || !goal) {
+      return NextResponse.json({ error: 'Goal not found' }, { status: 404 });
+    }
+
     const { data, error } = await supabase
       .from('goal_reminders')
       .insert({

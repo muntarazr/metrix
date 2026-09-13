@@ -10,6 +10,7 @@ import {
   Flame,
   MessageSquare,
   Star,
+  Sparkles,
   X,
 } from "lucide-react";
 import {
@@ -42,6 +43,7 @@ interface DayCalendarGridProps {
   dailyCap: number;
   language?: Language;
   loading?: boolean;
+  onViewLogDetails?: (log: Log) => void;
 }
 
 interface CalendarCell {
@@ -74,7 +76,7 @@ type HeatTier = 0 | 1 | 2 | 3 | 4 | 5;
 const HEAT_TIERS: HeatTier[] = [0, 1, 2, 3, 4, 5];
 
 const HEAT_SURFACE: Record<HeatTier, string> = {
-  0: "border-border/70 bg-canvas",
+  0: "border-border/60 bg-muted/40",
   1: "border-primary/25 bg-primary/12",
   2: "border-transparent bg-primary/20",
   3: "border-transparent bg-primary/60",
@@ -140,6 +142,7 @@ export default function DayCalendarGrid({
   dailyCap,
   language = "ar",
   loading = false,
+  onViewLogDetails,
 }: DayCalendarGridProps) {
   const isArabic = language === "ar";
   const labels = {
@@ -847,6 +850,22 @@ export default function DayCalendarGrid({
                             >
                               {log.ai_feedback}
                             </p>
+                          </div>
+                        )}
+
+                        {onViewLogDetails && (
+                          <div className="pt-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedDate(null);
+                                onViewLogDetails(log);
+                              }}
+                              className="w-full py-2 px-3 rounded-lg bg-primary/10 hover:bg-primary/15 text-primary text-xs font-bold transition-all flex items-center justify-center gap-1.5 border border-primary/20 active:scale-95 cursor-pointer"
+                            >
+                              <Sparkles className="w-3.5 h-3.5" />
+                              <span>{isArabic ? "عرض التقييم والتحديثات" : "View Evaluation & Updates"}</span>
+                            </button>
                           </div>
                         )}
                       </div>

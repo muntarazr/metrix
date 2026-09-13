@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import Image from 'next/image';
+import { BrandLockup } from '@/components/brand/Logo';
 import { ArrowLeft, ArrowRight, ListChecks, Sparkles, Swords, TrendingUp } from 'lucide-react';
 import type { Language } from '@/lib/translations';
 
@@ -42,7 +42,7 @@ const SLIDES: Record<Language, Slide[]> = {
   ],
   en: [
     {
-      title: 'Welcome to Metrix',
+      title: 'Welcome to METRIX',
       body: 'This is where any goal — learning a skill, building a habit, finishing a project — becomes a clear plan you can actually follow. Here is a one-minute tour.',
     },
     {
@@ -149,9 +149,8 @@ export default function WelcomeDialog({ language = 'ar' }: WelcomeDialogProps) {
         <div className="flex flex-col items-center text-center">
           {/* Logo on the opening slide, feature icon on the rest */}
           {step === 0 ? (
-            <div className="relative mb-7 h-11 w-40">
-              <Image src="/logo1.svg" alt="Metrix" fill className="object-contain dark:hidden" />
-              <Image src="/logo2.svg" alt="Metrix" fill className="object-contain hidden dark:block" />
+            <div className="mb-7 flex h-11 w-40 items-center justify-center">
+              <BrandLockup className="h-auto w-full text-foreground" />
             </div>
           ) : (
             Icon && (

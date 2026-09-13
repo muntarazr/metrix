@@ -88,10 +88,9 @@ export default function VoiceRecorder({
           });
 
           const data = await response.json();
-          console.log("Transcribe API response:", response.status, data);
 
           if (!response.ok || data.fallback) {
-            console.warn("Mistral transcription failed:", data);
+            console.warn("Mistral transcription failed:", response.status);
             setError(copy.voiceTranscribeFailed);
           } else if (data.text) {
             onTranscript(data.text);

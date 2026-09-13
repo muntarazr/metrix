@@ -3,12 +3,24 @@
 import { MatrixManifestoDialog } from '@/components/login/MatrixManifestoDialog';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-    Sun, Moon, Globe, Target, Flame, Crown, LogOut, User, Camera, Trash2, ScrollText, Download, Loader2
+    Sun, Moon, Globe, Target, Flame, Crown, LogOut, User, Camera, Trash2, ScrollText, Download, Loader2,
+    Trophy, Zap, CalendarCheck, ShieldCheck, Mail, Check, Sparkles, CheckCircle2, Upload, X, Pencil
 } from 'lucide-react';
 import { translations, type Language } from '@/lib/translations';
 import { createClient } from '@/utils/supabase/client';
 import { cn } from '@/lib/utils';
 import { PANEL_SURFACE, WELL_SURFACE } from '@/lib/surfaces';
+
+const PRESET_AVATARS = [
+    { id: 'adventurer-1', label: 'Warrior', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Felix' },
+    { id: 'adventurer-2', label: 'Strategist', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Aneka' },
+    { id: 'adventurer-3', label: 'Navigator', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Leo' },
+    { id: 'adventurer-4', label: 'Architect', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Milo' },
+    { id: 'adventurer-5', label: 'Catalyst', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Zoe' },
+    { id: 'adventurer-6', label: 'Champion', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Jasper' },
+    { id: 'adventurer-7', label: 'Pioneer', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Nova' },
+    { id: 'adventurer-8', label: 'Master', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Sasha' },
+];
 import { getIconComponent } from '@/components/goal/IconPicker';
 import { buildTaskHierarchy, type TaskRow } from '@/lib/task-hierarchy';
 import {
@@ -73,7 +85,10 @@ export default function SettingsPage({ user, language, setLanguage, goals, onPro
     const [displayName, setDisplayName] = useState('');
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
     const [updatingProfile, setUpdatingProfile] = useState(false);
+    const [isSavingName, setIsSavingName] = useState(false);
+    const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
     const [profileMessage, setProfileMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const nameDebounceTimer = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -162,18 +177,54 @@ export default function SettingsPage({ user, language, setLanguage, goals, onPro
     };
 
 
-    const handleDisplayNameSave = async () => {
+    const persistDisplayName = async (name: string) => {
         if (!user) return;
-        setUpdatingProfile(true);
-        setProfileMessage(null);
-        const { error } = await supabase.auth.updateUser({ data: { full_name: displayName.trim() || null } });
-        setUpdatingProfile(false);
+        setIsSavingName(true);
+        const { error } = await supabase.auth.updateUser({ data: { full_name: name.trim() || null } });
+        setIsSavingName(false);
         if (error) {
             setProfileMessage({ type: 'error', text: error.message });
         } else {
-            setProfileMessage({ type: 'success', text: isArabic ? 'تم حفظ الاسم' : 'Name saved' });
-            setTimeout(() => setProfileMessage(null), 2500);
             await onProfileUpdated?.();
+        }
+    };
+
+    const handleDisplayNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value;
+        setDisplayName(val);
+        if (nameDebounceTimer.current) clearTimeout(nameDebounceTimer.current);
+        nameDebounceTimer.current = setTimeout(() => {
+            persistDisplayName(val);
+        }, 1200);
+    };
+
+    const handleDisplayNameBlur = () => {
+        if (nameDebounceTimer.current) {
+            clearTimeout(nameDebounceTimer.current);
+            nameDebounceTimer.current = null;
+        }
+        persistDisplayName(displayName);
+    };
+
+    const handleSelectPresetAvatar = async (url: string) => {
+        if (!user) return;
+        setUpdatingProfile(true);
+        setProfileMessage(null);
+        try {
+            const { error } = await supabase.auth.updateUser({ data: { avatar_url: url } });
+            if (error) {
+                setProfileMessage({ type: 'error', text: error.message });
+            } else {
+                setAvatarUrl(url);
+                setProfileMessage({ type: 'success', text: isArabic ? 'تم تحديث الصورة الشخصية' : 'Avatar updated' });
+                setTimeout(() => setProfileMessage(null), 2500);
+                setIsAvatarModalOpen(false);
+                await onProfileUpdated?.();
+            }
+        } catch (err) {
+            setProfileMessage({ type: 'error', text: (err as Error).message });
+        } finally {
+            setUpdatingProfile(false);
         }
     };
 
@@ -440,7 +491,7 @@ export default function SettingsPage({ user, language, setLanguage, goals, onPro
 
     return (
         <div
-            className="w-full max-w-4xl 2xl:max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-6 duration-500 flex-1 flex flex-col gap-4"
+            className="w-full max-w-4xl 2xl:max-w-5xl mx-auto flex-1 flex flex-col gap-4"
             dir={isArabic ? 'rtl' : 'ltr'}
         >
             <MatrixManifestoDialog
@@ -596,115 +647,162 @@ export default function SettingsPage({ user, language, setLanguage, goals, onPro
                                 </div>
                             )}
 
-                            {/* Profile Picture + Name Row */}
-                            <div className={cn(PANEL_SURFACE, "flex items-center gap-3 rounded-xl px-3 py-3 sm:px-4 sm:py-4 transition-colors hover:border-border")}>
-                                <div className="relative group shrink-0">
-                                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden bg-muted/60 border border-border flex items-center justify-center transition-transform duration-200 group-hover:scale-[1.02]">
+                            {/* Profile Identity Bar — Clean, minimalist, and smart auto-saving */}
+                            <div className={cn(PANEL_SURFACE, "rounded-2xl p-3 sm:p-3.5 border border-border/70 shadow-xs")}>
+                                <div className="flex items-center gap-3">
+                                    {/* Avatar Button — Clicking opens popup to choose presets or upload */}
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsAvatarModalOpen(true)}
+                                        className="relative group shrink-0 w-12 h-12 rounded-full overflow-hidden bg-primary/10 border-2 border-primary/25 flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                        title={isArabic ? "تغيير الصورة الشخصية" : "Change Profile Picture"}
+                                    >
                                         {avatarUrl ? (
                                             <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
                                         ) : (
-                                            <span className="text-lg sm:text-xl font-bold text-muted-foreground">
+                                            <span className="text-lg font-black text-primary">
                                                 {displayName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
                                             </span>
                                         )}
-                                    </div>
-                                    <div className="absolute inset-0 rounded-full bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center justify-center gap-1">
-                                        <input
-                                            ref={fileInputRef}
-                                            type="file"
-                                            accept="image/*"
-                                            className="hidden"
-                                            onChange={handlePhotoUpload}
-                                        />
-                                        <button
-                                            onClick={() => fileInputRef.current?.click()}
-                                            disabled={updatingProfile}
-                                            className="p-1 rounded-full bg-white/90 hover:bg-white text-foreground shadow-sm transition-all hover:scale-110"
-                                            title={t.changePhoto}
-                                        >
-                                            <Camera className="w-3 h-3" />
-                                        </button>
-                                        {avatarUrl && (
-                                            <button
-                                                onClick={handleRemovePhoto}
-                                                disabled={updatingProfile}
-                                                className="p-1 rounded-full bg-destructive/90 hover:bg-destructive text-white shadow-sm transition-all hover:scale-110"
-                                                title={t.removePhoto}
-                                            >
-                                                <Trash2 className="w-3 h-3" />
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                        <input
-                                            type="text"
-                                            value={displayName}
-                                            onChange={(e) => setDisplayName(e.target.value)}
-                                            placeholder={user?.email?.split('@')[0] || ''}
-                                            className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/25 transition-shadow"
-                                        />
-                                        <button
-                                            onClick={handleDisplayNameSave}
-                                            disabled={updatingProfile}
-                                            className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold transition-all disabled:opacity-50 active:scale-[0.97] hover:opacity-90"
-                                        >
-                                            {updatingProfile && (
-                                                <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                        {/* Subtle hover overlay hint */}
+                                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                            <Pencil className="w-3.5 h-3.5 text-white" />
+                                        </div>
+                                    </button>
+
+                                    {/* Hidden File Input for Custom Upload */}
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={handlePhotoUpload}
+                                    />
+
+                                    {/* Inline Display Name with smart auto-save indicator */}
+                                    <div className="flex-1 min-w-0">
+                                        <div className="relative flex items-center">
+                                            <input
+                                                type="text"
+                                                value={displayName}
+                                                onChange={handleDisplayNameChange}
+                                                onBlur={handleDisplayNameBlur}
+                                                placeholder={user?.email?.split('@')[0] || (isArabic ? 'اكتب اسمك...' : 'Enter your name...')}
+                                                className="w-full px-2.5 py-1 rounded-lg border border-transparent hover:border-border/80 focus:border-border/80 bg-transparent hover:bg-card focus:bg-card text-foreground text-sm font-bold focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all"
+                                                title={isArabic ? "اضغط لتعديل الاسم (يُحفظ تلقائياً)" : "Click to edit name (auto-saved)"}
+                                            />
+                                            {isSavingName && (
+                                                <div className="absolute end-2 flex items-center gap-1 text-[11px] text-muted-foreground animate-pulse pointer-events-none">
+                                                    <Loader2 className="w-3 h-3 animate-spin text-primary" />
+                                                </div>
                                             )}
-                                            {t.saveChanges}
-                                        </button>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 px-2.5 mt-0.5 text-[11px] text-muted-foreground/75 truncate">
+                                            <span className="truncate">{user?.email || '—'}</span>
+                                            {user?.created_at && (
+                                                <>
+                                                    <span className="opacity-40">•</span>
+                                                    <span className="shrink-0">
+                                                        {t.memberSince} {new Date(user.created_at).toLocaleDateString(isArabic ? 'ar-EG' : 'en-US', { year: 'numeric', month: 'short' })}
+                                                    </span>
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
-                                    <p className="text-[11px] text-muted-foreground/75 mt-1 truncate">{user?.email || '—'}</p>
                                 </div>
                             </div>
 
-                            {/* Account Stats — Ultra Compact */}
-                            <div className="pt-1">
+                            {/* Account Stats — Tactile Duo-style Cards */}
+                            <div>
                                 <div className="mb-2 flex items-center justify-between">
-                                    <p className="flex items-center gap-1.5 text-sm font-bold text-foreground">
-                                        <Target className="w-3.5 h-3.5 text-primary" />
+                                    <p className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                                        <Sparkles className="w-3.5 h-3.5 text-primary" />
                                         {t.account}
                                     </p>
-                                    <div className="flex gap-1">
-                                        {maxStreak >= 30 && (
-                                            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-foreground/60 to-foreground flex items-center justify-center shadow-sm ring-1 ring-background" title={isArabic ? "تاج الالتزام: 30 يوماً" : "Crown of Commitment: 30 Days"}>
-                                                <Crown className="w-2.5 h-2.5 text-white" />
-                                            </div>
-                                        )}
-                                    </div>
+                                    {maxStreak > 0 && (
+                                        <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                                            <Flame className="w-3 h-3 fill-amber-500 text-amber-500" />
+                                            <span>{maxStreak} {t.days}</span>
+                                            {maxStreak >= 30 && <Crown className="w-3 h-3 ms-0.5" />}
+                                        </div>
+                                    )}
                                 </div>
+
                                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                                     {[
-                                        { label: t.goalsCreated, value: goals.length },
-                                        { label: t.completedGoals, value: completedGoals },
-                                        { label: t.totalPointsEarned, value: totalPointsEarned >= 1000 ? (totalPointsEarned / 1000).toFixed(1) + 'k' : totalPointsEarned },
-                                        { label: t.totalLogsRecorded, value: totalLogs },
-                                    ].map((stat, i) => (
-                                        <div
-                                            key={i}
-                                            className={cn(PANEL_SURFACE, "rounded-xl px-2 py-2.5 text-center transition-colors duration-200 hover:border-border")}
-                                        >
-                                            <p className="text-base font-bold leading-tight text-foreground tabular-nums">{stat.value}</p>
-                                            <p className={cn("text-[10px] leading-tight font-medium text-muted-foreground mt-0.5", !isArabic && "uppercase")}>{stat.label}</p>
-                                        </div>
-                                    ))}
+                                        {
+                                            label: t.goalsCreated,
+                                            value: goals.length,
+                                            icon: Target,
+                                            color: "text-primary",
+                                            bg: "bg-primary/10 border-primary/20",
+                                        },
+                                        {
+                                            label: t.completedGoals,
+                                            value: completedGoals,
+                                            icon: Trophy,
+                                            color: "text-emerald-500",
+                                            bg: "bg-emerald-500/10 border-emerald-500/20",
+                                        },
+                                        {
+                                            label: t.totalPointsEarned,
+                                            value: totalPointsEarned >= 1000 ? (totalPointsEarned / 1000).toFixed(1) + 'k' : totalPointsEarned,
+                                            icon: Zap,
+                                            color: "text-amber-500",
+                                            bg: "bg-amber-500/10 border-amber-500/20",
+                                        },
+                                        {
+                                            label: t.totalLogsRecorded,
+                                            value: totalLogs,
+                                            icon: CalendarCheck,
+                                            color: "text-sky-500",
+                                            bg: "bg-sky-500/10 border-sky-500/20",
+                                        },
+                                    ].map((stat, i) => {
+                                        const StatIcon = stat.icon;
+                                        return (
+                                            <div
+                                                key={i}
+                                                className={cn(
+                                                    PANEL_SURFACE,
+                                                    "rounded-xl p-2.5 flex items-center gap-2.5 border-b-2 border-border/80 transition-all hover:border-primary/30"
+                                                )}
+                                            >
+                                                <div className={cn("w-8 h-8 shrink-0 rounded-xl flex items-center justify-center border", stat.bg)}>
+                                                    <StatIcon className={cn("w-4 h-4", stat.color)} />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="text-base font-black leading-tight text-foreground tabular-nums">
+                                                        {stat.value}
+                                                    </p>
+                                                    <p className="text-[10px] font-semibold text-muted-foreground truncate">
+                                                        {stat.label}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </section>
 
                         <div className="h-px bg-gradient-to-r from-transparent via-border/60 to-transparent" />
 
-                        {/* My Goals — Compact Export Section */}
+                        {/* My Goals — Compact Export & Progress Section */}
                         <section>
-                            <p className="mb-2 flex items-center gap-1.5 text-sm font-bold text-foreground">
-                                <Target className="w-3.5 h-3.5 text-primary" />
-                                {t.myGoalsSection}
-                            </p>
+                            <div className="mb-2.5 flex items-center justify-between">
+                                <p className="flex items-center gap-1.5 text-sm font-bold text-foreground">
+                                    <Target className="w-3.5 h-3.5 text-primary" />
+                                    {t.myGoalsSection}
+                                </p>
+                                <span className="text-xs font-semibold text-muted-foreground">
+                                    {goals.length} {isArabic ? "أهداف" : "Goals"}
+                                </span>
+                            </div>
+
                             {goals.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center gap-2 py-6 text-muted-foreground/75">
-                                    <Target className="w-5 h-5 opacity-50" />
+                                <div className="flex flex-col items-center justify-center gap-2 py-8 text-muted-foreground/75">
+                                    <Target className="w-6 h-6 opacity-40" />
                                     <p className="text-xs font-medium">{t.noGoalsProfileHint}</p>
                                 </div>
                             ) : (
@@ -712,31 +810,48 @@ export default function SettingsPage({ user, language, setLanguage, goals, onPro
                                     {goals.map((goal) => {
                                         const GoalIcon = getIconComponent(goal.icon || 'Target');
                                         const isExporting = exportingGoalId === goal.id;
+                                        const progressPct = goal.target_points > 0 
+                                            ? Math.min(100, Math.round((goal.current_points / goal.target_points) * 100))
+                                            : 0;
 
                                         return (
                                             <div
                                                 key={goal.id}
-                                                className={cn(PANEL_SURFACE, "flex items-center gap-2.5 rounded-xl px-3 py-2.5 transition-colors duration-200 hover:border-border")}
+                                                className={cn(PANEL_SURFACE, "flex items-center gap-3 rounded-xl p-2.5 transition-colors duration-200 hover:border-border")}
                                             >
-                                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-primary/12 border border-primary/15">
-                                                    <GoalIcon className="w-3.5 h-3.5 text-primary" />
+                                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 border border-primary/15 shadow-2xs">
+                                                    <GoalIcon className="w-4 h-4 text-primary" />
                                                 </div>
-                                                <p className="flex-1 min-w-0 text-sm font-semibold text-foreground truncate">{goal.title}</p>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center justify-between gap-2 mb-1">
+                                                        <p className="text-xs font-bold text-foreground truncate">{goal.title}</p>
+                                                        <span className="text-[10px] font-bold text-muted-foreground tabular-nums shrink-0">
+                                                            {progressPct}%
+                                                        </span>
+                                                    </div>
+                                                    {/* Mini Progress Bar */}
+                                                    <div className="h-1.5 w-full rounded-full bg-muted/70 overflow-hidden">
+                                                        <div 
+                                                            className="h-full rounded-full bg-primary transition-all duration-300"
+                                                            style={{ width: `${progressPct}%` }}
+                                                        />
+                                                    </div>
+                                                </div>
                                                 <button
                                                     onClick={() => handleExportGoal(goal)}
                                                     disabled={!!exportingGoalId}
                                                     className={cn(
-                                                        "shrink-0 flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all duration-200",
+                                                        "shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer",
                                                         isExporting
-                                                            ? "bg-primary/8 text-primary cursor-wait"
-                                                            : "bg-muted/20 text-muted-foreground hover:bg-primary/12 hover:text-primary border border-border/70 hover:border-primary/15 active:scale-[0.96]"
+                                                            ? "bg-primary/10 text-primary cursor-wait"
+                                                            : "bg-muted/40 text-muted-foreground hover:bg-primary/10 hover:text-primary border border-border/70 hover:border-primary/20 active:scale-[0.96]"
                                                     )}
                                                     title={t.exportGoal}
                                                 >
                                                     {isExporting ? (
-                                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
                                                     ) : (
-                                                        <Download className="w-3 h-3" />
+                                                        <Download className="w-3.5 h-3.5" />
                                                     )}
                                                     <span className="hidden sm:inline">{isExporting ? t.exportingGoal : t.exportGoal}</span>
                                                 </button>
@@ -754,10 +869,10 @@ export default function SettingsPage({ user, language, setLanguage, goals, onPro
                             onClick={handleSignOut}
                             disabled={signingOut}
                             className={cn(
-                                "w-full flex items-center justify-center gap-2 p-2.5 rounded-xl border transition-all duration-200 font-semibold text-xs shrink-0",
+                                "w-full flex items-center justify-center gap-2 p-2.5 rounded-xl border transition-all duration-200 font-semibold text-xs shrink-0 cursor-pointer",
                                 signingOut
                                     ? "bg-muted/20 border-border/45 text-muted-foreground cursor-not-allowed"
-                                    : "border-destructive/25 text-destructive/75 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive active:scale-[0.98] shadow-sm hover:shadow-md"
+                                    : "border-destructive/25 text-destructive hover:bg-destructive hover:text-destructive-foreground hover:border-destructive active:scale-[0.98] shadow-xs"
                             )}
                         >
                             {signingOut ? (
@@ -776,6 +891,86 @@ export default function SettingsPage({ user, language, setLanguage, goals, onPro
                 )}
                 </ScrollArea>
             </div>
+
+            {/* Avatar Selector Dialog (Presets + Custom Upload) */}
+            <Dialog open={isAvatarModalOpen} onOpenChange={setIsAvatarModalOpen}>
+                <DialogContent className="max-w-sm p-5 rounded-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-base font-bold text-foreground">
+                            {isArabic ? "اختر صورة للملف الشخصي" : "Choose Profile Avatar"}
+                        </DialogTitle>
+                        <DialogDescription className="text-xs text-muted-foreground">
+                            {isArabic ? "اختر شخصية تعبر عنك أو ارفع صورة خاصة من جهازك" : "Pick an avatar or upload your own custom photo"}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {/* Preset Avatars Grid */}
+                    <div className="py-3">
+                        <p className="text-xs font-semibold text-muted-foreground mb-2">
+                            {isArabic ? "الشخصيات الجاهزة" : "Preset Characters"}
+                        </p>
+                        <div className="grid grid-cols-4 gap-2.5">
+                            {PRESET_AVATARS.map((preset) => {
+                                const isSelected = avatarUrl === preset.url;
+                                return (
+                                    <button
+                                        key={preset.id}
+                                        type="button"
+                                        onClick={() => handleSelectPresetAvatar(preset.url)}
+                                        disabled={updatingProfile}
+                                        className={cn(
+                                            "relative aspect-square rounded-2xl p-1 border-2 transition-all hover:scale-105 active:scale-95 bg-muted/40 cursor-pointer overflow-hidden flex items-center justify-center",
+                                            isSelected
+                                                ? "border-primary bg-primary/10 ring-2 ring-primary/30"
+                                                : "border-border/70 hover:border-primary/40"
+                                        )}
+                                        title={preset.label}
+                                    >
+                                        <img src={preset.url} alt={preset.label} className="w-full h-full object-contain" />
+                                        {isSelected && (
+                                            <div className="absolute top-1 end-1 w-4 h-4 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-xs">
+                                                <Check className="w-2.5 h-2.5" />
+                                            </div>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="h-px bg-border/60 my-1" />
+
+                    {/* Action buttons: Upload Custom or Remove */}
+                    <div className="flex items-center gap-2 pt-1">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={updatingProfile}
+                            className="flex-1 flex items-center justify-center gap-2 text-xs font-bold rounded-xl h-10 border-b-2 active:translate-y-0.5 cursor-pointer"
+                        >
+                            <Upload className="w-3.5 h-3.5" />
+                            <span>{isArabic ? "رفع صورة خاصة" : "Upload Custom"}</span>
+                        </Button>
+
+                        {avatarUrl && (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={() => {
+                                    handleRemovePhoto();
+                                    setIsAvatarModalOpen(false);
+                                }}
+                                disabled={updatingProfile}
+                                className="text-xs font-bold text-destructive hover:bg-destructive/10 rounded-xl h-10 px-3 cursor-pointer"
+                                title={t.removePhoto}
+                            >
+                                <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

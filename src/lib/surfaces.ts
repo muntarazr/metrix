@@ -47,14 +47,13 @@ export const PANEL_BASE = "bg-card shadow-xs";
  * of smaller panels, and which one won would come down to Tailwind's output
  * order rather than anything intentional.
  */
-export const PANEL_SURFACE = `border border-border/50 ${PANEL_BASE}`;
+export const PANEL_SURFACE = `border border-border/70 ${PANEL_BASE}`;
 
 /**
- * A recessed slot inside a panel. Reuses the page-canvas token, so it is always
- * exactly one step below the panel it sits in — lighter in light mode, darker in
- * dark mode — instead of being white-on-white.
+ * A recessed slot inside a panel. Uses the bg-surface token so it is genuinely
+ * recessed below the raised pure white card in light mode, and darker in dark mode.
  */
-export const WELL_SURFACE = "border border-border/50 bg-canvas";
+export const WELL_SURFACE = "border border-border/70 bg-surface";
 
 /** Same recess without its own border, for slots that are separated by spacing alone. */
-export const WELL_SURFACE_BARE = "bg-canvas";
+export const WELL_SURFACE_BARE = "bg-surface";

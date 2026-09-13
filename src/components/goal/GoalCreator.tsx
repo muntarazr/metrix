@@ -21,6 +21,7 @@ import GoalInput from './GoalInput';
 import { createClient } from '@/utils/supabase/client';
 
 import { Button } from '@/components/ui/button';
+import { MatrixOrb } from '@/components/ui/matrix-orb';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -231,12 +232,11 @@ export default function GoalCreator({
 
                     const response = await fetch(apiUrl('/api/transcribe'), { method: 'POST', body: formData });
                     const data = await response.json();
-                    console.log('Transcribe response:', response.status, data);
 
                     if (response.ok && !data.fallback && data.text) {
                         setGoalText(prev => prev ? prev + ' ' + data.text : data.text);
-                    } else {
-                        console.warn('Transcription failed or empty:', data);
+                    } else if (!response.ok) {
+                        console.warn('Transcription failed:', response.status);
                     }
                 } catch (err) {
                     console.error('Transcription error:', err);
@@ -542,11 +542,17 @@ export default function GoalCreator({
 
     if (loading && step !== 'INPUT') {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[300px]">
-                <Loader2 className="w-10 h-10 animate-spin text-primary mb-3" />
-                <p className="text-muted-foreground text-sm">
-                    {resolvedLanguage === 'ar' ? 'الذكاء الاصطناعي يجهّز خطتك...' : 'AI is preparing your plan...'}
-                </p>
+            <div className="flex flex-col items-center justify-center min-h-[300px] py-12">
+                <MatrixOrb
+                    state="thinking"
+                    size={160}
+                    color="#0097b2"
+                    labels={{
+                        thinking: resolvedLanguage === 'ar' ? 'الذكاء الاصطناعي يجهّز خطتك...' : 'AI is preparing your plan...',
+                        listening: resolvedLanguage === 'ar' ? 'جارٍ التحليل...' : 'Analyzing...',
+                        idle: resolvedLanguage === 'ar' ? 'جارٍ التحضير...' : 'Preparing...',
+                    }}
+                />
             </div>
         );
     }

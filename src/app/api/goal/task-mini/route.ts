@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireUser } from "@/lib/api-auth";
 import { GeminiQuotaError, GeminiService } from "@/lib/gemini";
+import { requireAiQuota } from "@/lib/ai-quota";
 
 /**
  * Returns the two-minute version of a task, generating it once and caching it
@@ -46,6 +47,9 @@ export async function POST(req: NextRequest) {
       .select("title")
       .eq("id", task.goal_id)
       .maybeSingle();
+
+    const quotaResponse = await requireAiQuota(auth.supabase, "gemini", "task_mini");
+    if (quotaResponse) return quotaResponse;
 
     const miniVersion = await GeminiService.generateMiniVersion(
       task.task_description,

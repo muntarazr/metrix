@@ -20,6 +20,7 @@ import { getLocalDateKey, getLocalWeekStartMonday } from "@/lib/task-periods";
 import { useStreakReminder } from "@/hooks/useStreakReminder";
 import { setAccessToken, isNativeApp } from "@/lib/api";
 import { useCapacitorAuth } from "@/hooks/useCapacitorAuth";
+import { cn } from "@/lib/utils";
 import type { User } from "@supabase/supabase-js";
 
 type AppView = "home" | "dashboard" | "settings" | "goals" | "create-goal";
@@ -307,10 +308,10 @@ export default function Home() {
     <OrbitShell user={user}>
       <WelcomeDialog language={language} />
       <div
-        className={`mx-auto flex min-h-0 w-full max-w-7xl 2xl:max-w-[1600px] flex-col items-center px-2 pt-2 transition-all duration-300 min-[400px]:px-3 min-[400px]:pt-3 sm:px-6 sm:pt-6 lg:px-12 lg:pt-8 lg:pl-28 rtl:lg:pl-12 rtl:lg:pr-28
+        className={`mx-auto flex min-h-0 w-full max-w-7xl 2xl:max-w-[1600px] flex-col items-center px-2 pt-2 min-[400px]:px-3 min-[400px]:pt-3 sm:px-6 sm:pt-6 lg:px-12 lg:pt-8 lg:pl-28 rtl:lg:pl-12 rtl:lg:pr-28
           ${
             currentView === "home"
-              ? "h-[100dvh] shrink-0 overflow-hidden pb-[calc(5rem+env(safe-area-inset-bottom))] sm:pb-24 lg:pb-12"
+              ? "min-h-[100dvh] flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:pb-24 lg:pb-12"
               : isDashboardView
                 ? "h-[calc(100dvh_-_5rem_-_env(safe-area-inset-bottom))] shrink-0 overflow-hidden pb-0 sm:h-[calc(100dvh_-_6rem)] lg:h-[100dvh] lg:pb-12"
                 : "flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:pb-24 lg:pb-12"
@@ -324,110 +325,123 @@ export default function Home() {
               {t.loadingOrbit}
             </p>
           </div>
-        ) : currentView === "home" ? (
-          <HomePage
-            goals={goals}
-            taskStatsMap={taskStatsMap}
-            onSelectGoal={(id) => {
-              setSelectedGoalId(id);
-              setCurrentView("dashboard");
-            }}
-            onNavigateToCreate={(goalText, mode) => {
-              setPendingNavigation(null);
-              setIsAiGoalCreationGuardActive(false);
-              setCreateGoalText(goalText);
-              setCreateGoalMode(mode);
-              setCurrentView("create-goal");
-            }}
-            language={language}
-          />
-        ) : currentView === "create-goal" ? (
-          <div
-            className={`w-full ${createGoalMode === "manual" ? "max-w-4xl" : "max-w-2xl"} mx-auto animate-in fade-in slide-in-from-bottom-8 duration-500`}
-          >
-            {createGoalMode === "manual" ? (
-              <ManualGoalCreator
-                initialData={{ title: createGoalText }}
-                language={language}
-                onComplete={() => {
-                  fetchGoals();
-                  setCreateGoalText("");
-                  setCreateGoalMode("ai");
-                  setTimeout(async () => {
-                    const { data } = await supabase
-                      .from("goals")
-                      .select("*")
-                      .order("created_at", { ascending: false })
-                      .limit(1);
-                    if (data && data[0]) {
-                      setSelectedGoalId(data[0].id);
-                      setCurrentView("dashboard");
-                    } else {
-                      setCurrentView("home");
-                    }
-                  }, 500);
+        ) : (
+          <>
+            {/* Persistent Home View (Kept mounted to eliminate remount delay and flicker) */}
+            <div
+              className={cn(
+                "w-full flex-1 min-h-0",
+                currentView === "home" ? "flex flex-col" : "hidden"
+              )}
+            >
+              <HomePage
+                goals={goals}
+                taskStatsMap={taskStatsMap}
+                onSelectGoal={(id) => {
+                  setSelectedGoalId(id);
+                  setCurrentView("dashboard");
                 }}
-                onCancel={() => {
-                  setCreateGoalText("");
-                  setCreateGoalMode("ai");
+                onNavigateToCreate={(goalText, mode) => {
+                  setPendingNavigation(null);
                   setIsAiGoalCreationGuardActive(false);
+                  setCreateGoalText(goalText);
+                  setCreateGoalMode(mode);
+                  setCurrentView("create-goal");
+                }}
+                language={language}
+              />
+            </div>
+
+            {/* Other Views (Rendered on demand) */}
+            {currentView === "create-goal" ? (
+              <div
+                className={`w-full ${createGoalMode === "manual" ? "max-w-4xl" : "max-w-2xl"} mx-auto`}
+              >
+                {createGoalMode === "manual" ? (
+                  <ManualGoalCreator
+                    initialData={{ title: createGoalText }}
+                    language={language}
+                    onComplete={() => {
+                      fetchGoals();
+                      setCreateGoalText("");
+                      setCreateGoalMode("ai");
+                      setTimeout(async () => {
+                        const { data } = await supabase
+                          .from("goals")
+                          .select("*")
+                          .order("created_at", { ascending: false })
+                          .limit(1);
+                        if (data && data[0]) {
+                          setSelectedGoalId(data[0].id);
+                          setCurrentView("dashboard");
+                        } else {
+                          setCurrentView("home");
+                        }
+                      }, 500);
+                    }}
+                    onCancel={() => {
+                      setCreateGoalText("");
+                      setCreateGoalMode("ai");
+                      setIsAiGoalCreationGuardActive(false);
+                      setCurrentView("home");
+                    }}
+                  />
+                ) : (
+                  <GoalCreatorPage
+                    initialGoalText={createGoalText}
+                    language={language}
+                    onGuardStateChange={setIsAiGoalCreationGuardActive}
+                    onComplete={handleGoalCreationComplete}
+                    onCancel={() => requestNavigation({ view: "home" })}
+                  />
+                )}
+              </div>
+            ) : currentView === "goals" ? (
+              <GoalsList
+                goals={goals}
+                taskStatsMap={taskStatsMap}
+                selectedGoalId={selectedGoalId}
+                onSelectGoal={(id) => {
+                  setSelectedGoalId(id);
+                  setCurrentView("dashboard");
+                }}
+                onGoalChanged={() => {
+                  fetchGoals();
+                  if (
+                    selectedGoalId &&
+                    !goals.find((g) => g.id === selectedGoalId)
+                  ) {
+                    setSelectedGoalId(null);
+                    setCurrentView("home");
+                  }
+                }}
+                language={language}
+              />
+            ) : currentView === "settings" ? (
+              <SettingsPage
+                user={user}
+                language={language}
+                setLanguage={setLanguage}
+                goals={goals}
+                onProfileUpdated={refetchUser}
+                onGoalsDeleted={() => {
+                  fetchGoals();
+                  setSelectedGoalId(null);
                   setCurrentView("home");
                 }}
               />
-            ) : (
-              <GoalCreatorPage
-                initialGoalText={createGoalText}
-                language={language}
-                onGuardStateChange={setIsAiGoalCreationGuardActive}
-                onComplete={handleGoalCreationComplete}
-                onCancel={() => requestNavigation({ view: "home" })}
-              />
-            )}
-          </div>
-        ) : currentView === "goals" ? (
-          <GoalsList
-            goals={goals}
-            taskStatsMap={taskStatsMap}
-            selectedGoalId={selectedGoalId}
-            onSelectGoal={(id) => {
-              setSelectedGoalId(id);
-              setCurrentView("dashboard");
-            }}
-            onGoalChanged={() => {
-              fetchGoals();
-              if (
-                selectedGoalId &&
-                !goals.find((g) => g.id === selectedGoalId)
-              ) {
-                setSelectedGoalId(null);
-                setCurrentView("home");
-              }
-            }}
-            language={language}
-          />
-        ) : currentView === "settings" ? (
-          <SettingsPage
-            user={user}
-            language={language}
-            setLanguage={setLanguage}
-            goals={goals}
-            onProfileUpdated={refetchUser}
-            onGoalsDeleted={() => {
-              fetchGoals();
-              setSelectedGoalId(null);
-              setCurrentView("home");
-            }}
-          />
-        ) : currentView === "dashboard" && selectedGoal ? (
-          <div className="flex min-h-0 w-full flex-1 animate-in fade-in slide-in-from-bottom-8 duration-700">
-            <Dashboard
-              goal={selectedGoal}
-              language={language}
-              onGoalUpdated={fetchGoals}
-              onLogModalChange={setIsProgressLogOpen}
-            />
-          </div>
-        ) : null}
+            ) : currentView === "dashboard" && selectedGoal ? (
+              <div className="flex min-h-0 w-full flex-1">
+                <Dashboard
+                  goal={selectedGoal}
+                  language={language}
+                  onGoalUpdated={fetchGoals}
+                  onLogModalChange={setIsProgressLogOpen}
+                />
+              </div>
+            ) : null}
+          </>
+        )}
       </div>
 
       {!isProgressLogOpen && (

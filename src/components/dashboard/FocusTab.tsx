@@ -19,6 +19,9 @@ import {
   SlidersHorizontal,
   ChevronDown,
   ChevronRight,
+  Sparkles,
+  HelpCircle,
+  Loader2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -28,6 +31,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { WELL_SURFACE } from "@/lib/surfaces";
 import { translations, type Language } from "@/lib/translations";
 import { getTaskAccent, type TaskColorKey } from "@/lib/task-colors";
 import { type MainTask } from "@/lib/task-hierarchy";
@@ -108,6 +112,8 @@ interface FocusTabProps {
   onSetNewSubFreq: (freq: "daily" | "weekly") => void;
   onSetNewSubWeight: (weight: number) => void;
   onSetEditingText: (text: string) => void;
+  goalTitle?: string;
+  onRefreshTasks?: () => Promise<void>;
 }
 
 function hexToRgbChannels(hex: string) {
@@ -185,69 +191,155 @@ export default function FocusTab({
   onSetNewSubFreq,
   onSetNewSubWeight,
   onSetEditingText,
+  goalTitle = "",
+  onRefreshTasks,
 }: FocusTabProps) {
   const t = translations[language];
-  const [focusSection, setFocusSection] = useState<"tasks" | "suggestions">(
-    "tasks",
-  );
+  const [focusSection, setFocusSection] = useState<
+    "tasks" | "suggestions" | "questions"
+  >("tasks");
+  const [generatingCriteriaTaskId, setGeneratingCriteriaTaskId] = useState<
+    string | null
+  >(null);
+
+  const handleGenerateCriteriaForTask = async (
+    taskId: string,
+    description: string,
+    taskType: "main" | "sub",
+  ) => {
+    setGeneratingCriteriaTaskId(taskId);
+    try {
+      const res = await fetch("/api/goal/task-criteria", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskId,
+          taskDescription: description,
+          goalTitle: goalTitle || undefined,
+          taskType,
+          language,
+          force: true,
+        }),
+      });
+      const data = await res.json();
+      if (data.criteria && onRefreshTasks) {
+        await onRefreshTasks();
+      }
+    } catch (err) {
+      console.error("Failed to generate criteria for task:", err);
+    } finally {
+      setGeneratingCriteriaTaskId(null);
+    }
+  };
 
   const sectionTabs = [
     { key: "tasks" as const, label: t.focusTasksTab },
     { key: "suggestions" as const, label: t.focusSuggestionsTab },
+    { key: "questions" as const, label: t.focusQuestionsTab },
   ];
+
+  // Finished work sinks to the bottom, open work stays on top. The partition is
+  // stable, so the order the user arranged is preserved inside each group, and
+  // the original array is returned untouched when there is nothing to move.
+  const sinkCompleted = <T,>(items: T[], isDone: (item: T) => boolean): T[] => {
+    const open: T[] = [];
+    const done: T[] = [];
+    for (const item of items) (isDone(item) ? done : open).push(item);
+    return open.length > 0 && done.length > 0 ? [...open, ...done] : items;
+  };
+
+  // A main track counts as finished only once every subtask under it is checked.
+  const isMainDone = (main: MainTask) =>
+    main.subtasks.length > 0 &&
+    main.subtasks.every((sub) => isChecked(sub.id, sub.frequency));
+
+  const orderedHierarchy = sinkCompleted(filteredHierarchy, isMainDone);
 
   return (
     <div className="flex h-full min-h-0 flex-col pb-0">
-      <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-canvas shadow-sm shadow-black/[0.02]">
-        {/* Filter bar */}
-        <div className="shrink-0 border-b border-border/70 bg-muted/12 px-4 py-3 sm:px-5">
-          <div className="scrollbar-thin flex items-center gap-2.5 overflow-x-auto whitespace-nowrap">
-            {sectionTabs.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setFocusSection(tab.key)}
-                className={cn(
-                  "inline-flex h-9 shrink-0 items-center gap-2 rounded-xl border px-4 text-xs font-bold transition-all duration-200 active:scale-95",
-                  focusSection === tab.key
-                    ? "border-primary/25 bg-primary/12 text-foreground shadow-sm shadow-primary/12 ring-1 ring-primary/15 dark:bg-primary/20"
-                    : "border-transparent bg-transparent text-muted-foreground hover:bg-card hover:text-foreground hover:border-border/70 hover:shadow-sm",
-                )}
-              >
-                <span>{tab.label}</span>
-              </button>
-            ))}
-            <span className="ms-1 inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-primary/25 bg-primary/12 px-3.5 text-[11px] font-bold text-primary shadow-sm shadow-primary/12">
-              <CheckSquare className="h-4 w-4" />
-              {focusStats.completedSubtasks}/{focusStats.totalSubtasks}
-            </span>
-            {focusSection === "tasks" ? (
-              <button
-                onClick={
-                  addingMain ? onCloseNewMainComposer : onOpenNewMainComposer
-                }
-                className={cn(
-                  "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold transition-all duration-200 active:scale-95 hover:shadow-md",
-                  addingMain
-                    ? "border border-primary/25 bg-primary/12 text-primary hover:bg-primary/12 hover:border-primary/25"
-                    : "bg-primary text-primary-foreground shadow-sm shadow-primary/12 hover:opacity-90 hover:-translate-y-px",
-                )}
-                aria-label={
-                  addingMain
-                    ? isArabic
-                      ? "إلغاء"
-                      : "Cancel"
-                    : isArabic
-                      ? "إضافة مهمة رئيسية"
-                      : "Add main task"
-                }
-              >
-                {addingMain ? (
-                  <X className="h-4 w-4" />
-                ) : (
-                  <Plus className="h-4 w-4" />
-                )}
-              </button>
-            ) : null}
+      <section className={cn(WELL_SURFACE, "flex h-full min-h-0 flex-col overflow-hidden rounded-2xl")}>
+        {/* Filter bar — seamlessly integrated with the container */}
+        <div className="shrink-0 px-3 pt-3 pb-1.5 sm:px-4 sm:pt-4 sm:pb-2">
+          <div className="flex items-center justify-between gap-2 sm:gap-3">
+            {/* Sub-navigation Switcher: Tasks & Suggestions */}
+            <div className="inline-flex items-center rounded-xl border border-border/70 bg-muted/60 p-0.5 sm:p-1">
+              {sectionTabs.map((tab) => {
+                const isActive = focusSection === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => setFocusSection(tab.key)}
+                    className={cn(
+                      "inline-flex h-7 sm:h-8 items-center justify-center gap-1.5 sm:gap-2 rounded-lg px-3 sm:px-4 min-w-[82px] sm:min-w-[100px] text-xs font-bold transition-all duration-200 active:scale-95",
+                      isActive
+                        ? "bg-card text-foreground shadow-xs ring-1 ring-border/70"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/40",
+                    )}
+                  >
+                    {tab.key === "tasks" ? (
+                      <ListTodo className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 opacity-80" />
+                    ) : tab.key === "suggestions" ? (
+                      <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 opacity-80" />
+                    ) : (
+                      <HelpCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 opacity-80" />
+                    )}
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Actions & Status (Left side in RTL) */}
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="inline-flex h-7 sm:h-8 shrink-0 items-center gap-1.5 sm:gap-2 rounded-xl border border-border/70 bg-muted/60 px-2.5 sm:px-3 text-xs font-semibold text-muted-foreground">
+                <CheckSquare className="h-3.5 w-3.5 text-primary shrink-0" />
+                <span className="tabular-nums font-bold text-foreground">
+                  {focusStats.completedSubtasks} / {focusStats.totalSubtasks}
+                </span>
+                <span className="hidden md:inline text-[11px] text-muted-foreground/80 font-medium">
+                  {isArabic ? "مكتمل" : "done"}
+                </span>
+              </div>
+
+              {focusSection === "tasks" ? (
+                <button
+                  onClick={
+                    addingMain ? onCloseNewMainComposer : onOpenNewMainComposer
+                  }
+                  className={cn(
+                    "inline-flex h-7 sm:h-8 shrink-0 items-center justify-center gap-1.5 rounded-xl px-2.5 sm:px-3.5 text-xs font-bold transition-all duration-200 active:scale-95",
+                    addingMain
+                      ? "border border-border/70 bg-muted/60 text-foreground hover:bg-muted"
+                      : "bg-primary text-primary-foreground shadow-xs hover:opacity-90 hover:-translate-y-px",
+                  )}
+                  aria-label={
+                    addingMain
+                      ? isArabic
+                        ? "إلغاء"
+                        : "Cancel"
+                      : isArabic
+                        ? "إضافة مهمة رئيسية"
+                        : "Add main task"
+                  }
+                >
+                  {addingMain ? (
+                    <>
+                      <X className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                      <span className="hidden sm:inline">
+                        {isArabic ? "إلغاء" : "Cancel"}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                      <span className="hidden sm:inline">
+                        {isArabic ? "إضافة مهمة" : "Add Task"}
+                      </span>
+                    </>
+                  )}
+                </button>
+              ) : null}
+            </div>
           </div>
         </div>
 
@@ -256,6 +348,27 @@ export default function FocusTab({
           {focusSection === "suggestions" ? (
             <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto overscroll-contain">
               <DailyFocusPanel
+                mode="suggestions"
+                language={language}
+                isArabic={isArabic}
+                dailyFocus={dailyFocus}
+                dailyFocusHistory={dailyFocusHistory}
+                missedDailyFocusHistory={missedDailyFocusHistory}
+                loading={dailyFocusLoading}
+                submitting={dailyFocusSubmitting}
+                addingSuggestionId={dailyFocusAddingSuggestionId}
+                error={dailyFocusError}
+                answer={dailyFocusAnswer}
+                onAnswerChange={onSetDailyFocusAnswer}
+                onAnswerSubmit={onSubmitDailyFocusAnswer}
+                onAppendTranscript={onAppendDailyFocusTranscript}
+                onAddSuggestion={onAddDailyFocusSuggestion}
+              />
+            </div>
+          ) : focusSection === "questions" ? (
+            <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              <DailyFocusPanel
+                mode="questions"
                 language={language}
                 isArabic={isArabic}
                 dailyFocus={dailyFocus}
@@ -321,7 +434,7 @@ export default function FocusTab({
                 isArabic ? "pl-1" : "pr-1",
               )}
             >
-              {filteredHierarchy.map((main) => {
+              {orderedHierarchy.map((main) => {
                 const isExpanded = expandedMains.has(main.id);
                 const completedSubs = main.subtasks.filter((sub) =>
                   isChecked(sub.id, sub.frequency),
@@ -331,6 +444,10 @@ export default function FocusTab({
                   totalSubs > 0
                     ? Math.round((completedSubs / totalSubs) * 100)
                     : 0;
+                const mainDone = totalSubs > 0 && completedSubs === totalSubs;
+                const orderedSubtasks = sinkCompleted(main.subtasks, (sub) =>
+                  isChecked(sub.id, sub.frequency),
+                );
                 const mainAccent = getTaskAccent(main.id, main.accent_color);
                 const composerVisible = addingSubFor === main.id;
                 const accentRgb = hexToRgbChannels(mainAccent.fill);
@@ -458,6 +575,8 @@ export default function FocusTab({
                                       "line-clamp-2 min-w-0 flex-1 break-words text-xs font-extrabold leading-snug text-foreground sm:text-sm",
                                       mainCompletedToday &&
                                         "text-foreground/75",
+                                      mainDone &&
+                                        "line-through text-muted-foreground/75",
                                     )}
                                   >
                                     {main.task_description}
@@ -478,8 +597,8 @@ export default function FocusTab({
                                           }}
                                         />
                                       </div>
-                                      {/* Detailed pills — appear on hover (desktop only) */}
-                                      <div className="hidden items-center gap-1.5 overflow-hidden opacity-0 transition-opacity duration-200 group-hover/main:opacity-100 [@media(hover:hover)]:flex">
+                                      {/* Detailed pills — appear on hover (desktop only), or stay visible while the task is expanded */}
+                                      <div className={cn("hidden items-center gap-1.5 overflow-hidden opacity-0 transition-opacity duration-200 group-hover/main:opacity-100 [@media(hover:hover)]:flex", isExpanded && "opacity-100")}>
                                         <span className="inline-flex h-7 shrink-0 items-center gap-1 rounded-full bg-muted/60 px-2.5 text-[11px] font-bold text-muted-foreground border border-border/45">
                                           {completedSubs}/{totalSubs}
                                         </span>
@@ -507,8 +626,11 @@ export default function FocusTab({
                               <button
                                 onClick={() => onToggleExpand(main.id)}
                                 className={cn(
-                                  "hidden h-8 w-8 items-center justify-center rounded-lg border border-border/70 bg-card text-muted-foreground transition-all duration-200 hover:text-foreground hover:bg-muted/60 hover:border-border active:scale-95 dark:bg-card/20 sm:inline-flex shadow-sm",
-                                  isExpanded && "text-foreground bg-muted/60 border-border",
+                                  "hidden h-8 w-8 items-center justify-center rounded-lg border border-border/70 bg-card text-muted-foreground shadow-sm transition-all duration-200 hover:text-foreground hover:bg-muted/60 hover:border-border active:scale-95 dark:bg-card/20 sm:inline-flex",
+                                  // Reveal on hover (desktop) — stays visible while expanded.
+                                  "opacity-0 group-hover/main:opacity-100",
+                                  isExpanded &&
+                                    "opacity-100 text-foreground bg-muted/60 border-border",
                                 )}
                                 title={
                                   isExpanded
@@ -531,8 +653,10 @@ export default function FocusTab({
                                 <DropdownMenuTrigger asChild>
                                   <button
                                     className={cn(
-                                      "inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/70 bg-card text-muted-foreground transition-all duration-200 hover:text-foreground hover:bg-muted/60 hover:border-border active:scale-95 dark:bg-card/20 shadow-sm",
-                                      "opacity-100 pointer-events-auto",
+                                      "inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/70 bg-card text-muted-foreground shadow-sm transition-all duration-200 hover:text-foreground hover:bg-muted/60 hover:border-border active:scale-95 dark:bg-card/20",
+                                      // Reveal on hover (desktop) — stays visible while the menu is open or the task is expanded.
+                                      "pointer-events-none opacity-0 group-hover/main:pointer-events-auto group-hover/main:opacity-100 data-[state=open]:pointer-events-auto data-[state=open]:opacity-100",
+                                      isExpanded && "pointer-events-auto opacity-100",
                                     )}
                                     title={isArabic ? "المزيد" : "More"}
                                   >
@@ -654,10 +778,56 @@ export default function FocusTab({
                         >
                           <div className="overflow-hidden">
                             <div className="pt-3">
-                              <div className="rounded-2xl border border-border/70 bg-muted/12 p-3 dark:bg-background/12 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]">
+                              <div className="rounded-2xl border border-border/70 bg-muted/40 p-3 dark:bg-background/20 shadow-[inset_0_1px_2px_rgba(0,0,0,0.03)]">
+                                {main.completion_criteria && main.completion_criteria.trim().length > 0 ? (
+                                  <div className="mb-3 flex items-start gap-2.5 rounded-xl border border-border/70 bg-card/80 p-2.5 shadow-2xs">
+                                    <span className="text-xs shrink-0 mt-0.5">🎯</span>
+                                    <div className="min-w-0 flex-1 text-start">
+                                      <span className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-wider block">
+                                        {isArabic
+                                          ? "معيار إنجاز المسار الرئيسي:"
+                                          : "Main Track Criteria:"}
+                                      </span>
+                                      <p className="text-xs font-semibold text-foreground/90 leading-relaxed mt-0.5">
+                                        {main.completion_criteria}
+                                      </p>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-dashed border-border/70 bg-card/40 px-3 py-1.5">
+                                    <span className="text-[11px] text-muted-foreground font-medium">
+                                      {isArabic
+                                        ? "لم يُحدد معيار إنجاز لهذا المسار"
+                                        : "No criteria set for this track"}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleGenerateCriteriaForTask(
+                                          main.id,
+                                          main.task_description,
+                                          "main",
+                                        )
+                                      }
+                                      disabled={generatingCriteriaTaskId === main.id}
+                                      className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] font-bold text-primary hover:bg-primary hover:text-primary-foreground transition-all duration-200 active:scale-95 disabled:opacity-50"
+                                    >
+                                      {generatingCriteriaTaskId === main.id ? (
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                      ) : (
+                                        <Sparkles className="h-3 w-3" />
+                                      )}
+                                      <span>
+                                        {isArabic
+                                          ? "توليد بالذكاء"
+                                          : "Generate with AI"}
+                                      </span>
+                                    </button>
+                                  </div>
+                                )}
                             {main.subtasks.length > 0 ? (
                               <div className="space-y-2">
-                                {main.subtasks.map((sub) => {
+                                {orderedSubtasks.map((sub) => {
                                   const checked = isChecked(
                                     sub.id,
                                     sub.frequency,
@@ -685,7 +855,7 @@ export default function FocusTab({
                                               mainAccent.borderClass,
                                               "shadow-sm",
                                             )
-                                          : "border-border/70 bg-canvas hover:border-border",
+                                          : "border-border/70 bg-card hover:border-border shadow-xs",
                                         completedToday &&
                                           "focus-task-completed-today",
                                       )}
@@ -754,7 +924,7 @@ export default function FocusTab({
                                             </div>
                                           </div>
                                         ) : (
-                                          <div className="flex min-w-0 items-center gap-2">
+                                          <div className="flex min-w-0 items-start gap-2">
                                             <FullEmojiPicker
                                               value={sub.icon}
                                               language={language}
@@ -763,7 +933,7 @@ export default function FocusTab({
                                               }
                                             >
                                               <button
-                                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-sm transition-all duration-200 hover:bg-muted/60 hover:scale-110 active:scale-90"
+                                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-sm transition-all duration-200 hover:bg-muted/60 hover:scale-110 active:scale-90 mt-0.5"
                                                 title={
                                                   isArabic
                                                     ? "تغيير الأيقونة"
@@ -773,16 +943,72 @@ export default function FocusTab({
                                                 {sub.icon || "🔹"}
                                               </button>
                                             </FullEmojiPicker>
-                                            <span
-                                              className={cn(
-                                                "line-clamp-2 min-w-0 flex-1 break-words text-xs font-semibold leading-snug text-foreground sm:text-sm",
-                                                checked &&
-                                                  "line-through text-muted-foreground/75",
+                                            <div className="min-w-0 flex-1 flex flex-col text-start">
+                                              <span
+                                                className={cn(
+                                                  "min-w-0 break-words text-xs font-semibold leading-snug text-foreground sm:text-sm",
+                                                  checked &&
+                                                    "line-through text-muted-foreground/75",
+                                                )}
+                                                title={sub.task_description}
+                                              >
+                                                {sub.task_description}
+                                              </span>
+
+                                              {/* Completion Criteria (Definition of Done) */}
+                                              {sub.completion_criteria &&
+                                              sub.completion_criteria.trim().length > 0 ? (
+                                                <div className="mt-1 flex items-start gap-1 text-[11px] leading-relaxed text-muted-foreground/90">
+                                                  <span className="shrink-0 text-primary font-bold">
+                                                    🎯
+                                                  </span>
+                                                  <span className="font-normal text-muted-foreground">
+                                                    <span className="font-bold text-foreground/80 me-1">
+                                                      {isArabic
+                                                        ? "المعيار:"
+                                                        : "Criteria:"}
+                                                    </span>
+                                                    {sub.completion_criteria}
+                                                  </span>
+                                                </div>
+                                              ) : (
+                                                <div className="mt-1">
+                                                  <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      handleGenerateCriteriaForTask(
+                                                        sub.id,
+                                                        sub.task_description,
+                                                        "sub",
+                                                      );
+                                                    }}
+                                                    disabled={
+                                                      generatingCriteriaTaskId ===
+                                                      sub.id
+                                                    }
+                                                    className="inline-flex items-center gap-1 rounded-md bg-primary/8 px-1.5 py-0.5 text-[10px] font-bold text-primary transition-colors hover:bg-primary/15 active:scale-95 disabled:opacity-50"
+                                                    title={
+                                                      isArabic
+                                                        ? "توليد معيار إنجاز بالذكاء الاصطناعي"
+                                                        : "Generate criteria with AI"
+                                                    }
+                                                  >
+                                                    {generatingCriteriaTaskId ===
+                                                    sub.id ? (
+                                                      <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                                                    ) : (
+                                                      <Sparkles className="h-2.5 w-2.5" />
+                                                    )}
+                                                    <span>
+                                                      {isArabic
+                                                        ? "توليد معيار الإنجاز بالذكاء"
+                                                        : "Generate criteria with AI"}
+                                                    </span>
+                                                  </button>
+                                                </div>
                                               )}
-                                              title={sub.task_description}
-                                            >
-                                              {sub.task_description}
-                                            </span>
+                                            </div>
                                           </div>
                                         )}
                                       </div>

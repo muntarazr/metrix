@@ -1,6 +1,5 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans_Arabic, Plus_Jakarta_Sans } from "next/font/google";
-import localFont from "next/font/local";
 import "./globals.css";
 
 /*
@@ -11,43 +10,40 @@ import "./globals.css";
  * preloads them, and emits a size-adjusted local fallback so the swap does not
  * reflow.
  *
- * The fonts declared here own `--font-jawhara`, `--font-ibm-arabic` and
- * `--font-latin`; globals.css composes them into `--font-sans` and must not
- * redefine them. Order in that stack is Latin, then Arabic — font matching is
- * per-glyph, so each script reaches its own family.
- */
-/*
- * MS-jawhara carries all Arabic text. It is a single 700-weight file, so the
- * `weight` range below is deliberate: declaring "100 900" tells the browser this
- * one face covers every weight, which stops it synthesising a faux-bold on top
- * of outlines that are already bold. Without it, the 52 `font-extrabold` /
- * `font-black` sites in the app would smear.
+ * These two calls exist to REGISTER the @font-face rules and preload the
+ * files. globals.css does not consume `--font-latin` / `--font-ibm-arabic` in
+ * its font stacks, and that is deliberate — see below. The `.variable` classes
+ * stay on <html> because dropping them would drop the stylesheet that carries
+ * the @font-face rules along with them.
  *
- * The consequence to know: Arabic has exactly one weight now. `font-normal`
- * through `font-black` all render identically in Arabic, so weight cannot carry
- * hierarchy there — size, colour and spacing have to.
+ * Why the variables are unusable in a stack:
+ *
+ * next/font appends a companion face per family — `"Plus Jakarta Sans
+ * Fallback"`, `src: local("Arial")`, `size-adjust: 104.98%` — and folds it
+ * INTO the variable, so `--font-latin` expands to TWO families, not one. That
+ * companion carries no `unicode-range`, so it defaults to U+0-10FFFF and
+ * matches every codepoint in existence. Composed as
+ * `var(--font-latin), var(--font-ibm-arabic)` it lands between the two real
+ * families and terminates per-glyph matching on the first Arabic character:
+ * every Arabic glyph rendered in Arial, which macOS does ship with Arabic
+ * coverage, and all sixteen IBM Plex Sans Arabic faces sat at
+ * `status: "unloaded"` while the page looked finished.
+ *
+ * `adjustFontFallback: false` is the documented off switch and does NOT work
+ * here: on Next 16.3.2 the option is absent from next/font's types and the
+ * validator strips it before the loader sees it, so the emitted CSS still
+ * reads `--font-latin:"Plus Jakarta Sans", "Plus Jakarta Sans Fallback"`.
+ * globals.css therefore names both families literally instead.
+ *
+ * Arabic tops out at weight 700 (Google ships no 800/900 for this family), so
+ * `font-extrabold`/`font-black` on Arabic render at 700 — nearest declared
+ * weight, not a synthesised faux-bold.
  */
-const fontJawhara = localFont({
-  src: "./fonts/MSjawhara-Bold.ttf",
-  variable: "--font-jawhara",
-  display: "swap",
-  weight: "100 900",
-  style: "normal",
-});
-
-/*
- * Demoted to a fallback: MS-jawhara maps 404 codepoints and covers the Arabic
- * this UI actually uses (letters, tashkeel, both digit sets), but not the
- * Persian/Urdu extensions پ چ ژ گ. Anything it lacks lands here instead of on a
- * random system font. Trimmed to three weights and not preloaded, since it now
- * paints only the rare glyph.
- */
-const fontArabicFallback = IBM_Plex_Sans_Arabic({
+const fontArabic = IBM_Plex_Sans_Arabic({
   subsets: ["arabic", "latin"],
-  weight: ["400", "600", "700"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-ibm-arabic",
   display: "swap",
-  preload: false,
 });
 
 const fontLatin = Plus_Jakarta_Sans({
@@ -56,9 +52,58 @@ const fontLatin = Plus_Jakarta_Sans({
   display: "swap",
 });
 
+/*
+ * Brand assets live in `public/brand/` and are generated, not hand-drawn — see
+ * BRAND.md. The wordmark is Latin only: METRIX, always all-caps. The UI copy is
+ * still Arabic-first; only the identity is English.
+ */
 export const metadata: Metadata = {
-  title: "Metrix - Goal Orbit",
-  description: "Track your life goals with AI",
+  metadataBase: new URL("https://metrix-beryl-zeta.vercel.app"),
+  title: {
+    default: "METRIX",
+    template: "%s — METRIX",
+  },
+  description: "Turn any goal into a plan you can actually follow.",
+  applicationName: "METRIX",
+  icons: {
+    // No .ico here: `src/app/favicon.ico` is picked up by Next's file
+    // convention and already emits one, so listing it again duplicates the tag.
+    // That file is a copy of public/brand/favicon.ico — regenerate both together.
+    icon: [
+      { url: "/brand/favicon.svg", type: "image/svg+xml" },
+      { url: "/brand/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/brand/icon-512.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: [{ url: "/brand/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  // manifest is generated by src/app/manifest.ts; Next links it automatically
+  openGraph: {
+    type: "website",
+    siteName: "METRIX",
+    title: "METRIX",
+    description: "Turn any goal into a plan you can actually follow.",
+    locale: "ar_IQ",
+    alternateLocale: ["en_US"],
+    images: [{ url: "/brand/og.png", width: 1200, height: 630, alt: "METRIX" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "METRIX",
+    description: "Turn any goal into a plan you can actually follow.",
+    images: ["/brand/og.png"],
+  },
+};
+
+/*
+ * Both values are `--canvas`, the ground `body` actually paints (bg-canvas),
+ * not `--background`. Using #fff/#000 here makes the browser chrome disagree
+ * with the page on both themes.
+ */
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#060606" },
+  ],
 };
 
 export default function RootLayout({
@@ -70,7 +115,7 @@ export default function RootLayout({
     <html
       lang="ar"
       dir="rtl"
-      className={`${fontJawhara.variable} ${fontArabicFallback.variable} ${fontLatin.variable}`}
+      className={`${fontArabic.variable} ${fontLatin.variable}`}
       suppressHydrationWarning
     >
       <body

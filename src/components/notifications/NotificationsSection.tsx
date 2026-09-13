@@ -36,6 +36,7 @@ interface NotificationsSectionProps {
   notifError: string | null;
   contextReady: boolean;
   onRefresh: () => void;
+  onNotificationClick?: () => void;
 }
 
 /* ------------------------------------------------------------------ */
@@ -158,6 +159,7 @@ export default function NotificationsSection({
   notifError,
   contextReady,
   onRefresh,
+  onNotificationClick,
 }: NotificationsSectionProps) {
   const [visibleNotifications, setVisibleNotifications] =
     useState<NotificationItem[]>(notifications);
@@ -228,10 +230,7 @@ export default function NotificationsSection({
               type={n.type}
               message={n.message}
               isArabic={isArabic}
-              onClick={() => {
-                // TODO: Open modal or navigate to relevant tab
-                console.log("Notification clicked:", n.type);
-              }}
+              onClick={onNotificationClick}
             />
           ))}
           {notifError && (

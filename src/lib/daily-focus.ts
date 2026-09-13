@@ -49,6 +49,7 @@ export interface DailyFocusSuggestion {
   id: string;
   title: string;
   reason: string;
+  completion_criteria?: string;
   emoji: string;
   frequency: 'daily' | 'weekly';
   impact_weight: number;

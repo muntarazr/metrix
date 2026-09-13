@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Calendar, Star, MessageSquare, Clock, MoreVertical, Eye, Trash2, EyeOff, Plus } from 'lucide-react';
+import { Calendar, Star, MessageSquare, Clock, MoreVertical, Eye, Trash2, EyeOff, Plus, Sparkles } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { translations, type Language } from '@/lib/translations';
 import { getDailyPerformanceLabel, parseDailyLogBreakdown } from '@/lib/daily-log-feedback';
@@ -30,10 +30,11 @@ interface ActivityHistoryProps {
     language?: Language;
     onLogDeleted?: () => void;
     onLogProgress?: () => void;
+    onViewLogDetails?: (log: Log) => void;
     embedded?: boolean;
 }
 
-export default function ActivityHistory({ logs, language = 'ar', onLogDeleted, onLogProgress, embedded = false }: ActivityHistoryProps) {
+export default function ActivityHistory({ logs, language = 'ar', onLogDeleted, onLogProgress, onViewLogDetails, embedded = false }: ActivityHistoryProps) {
     const t = translations[language];
     const isArabic = language === 'ar';
     const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
@@ -157,7 +158,13 @@ export default function ActivityHistory({ logs, language = 'ar', onLogDeleted, o
                                                 <MoreVertical className="w-4 h-4" />
                                             </button>
                                         </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" className="w-48">
+                                        <DropdownMenuContent align="end" className="w-52">
+                                            {onViewLogDetails && (
+                                                <DropdownMenuItem onClick={() => onViewLogDetails(log)}>
+                                                    <Sparkles className="w-4 h-4 text-primary" />
+                                                    <span>{t.viewEvaluationSummary || (isArabic ? 'عرض التقييم والتحديثات' : 'View Evaluation & Updates')}</span>
+                                                </DropdownMenuItem>
+                                            )}
                                             <DropdownMenuItem onClick={() => setExpandedLogId(isExpanded ? null : log.id)}>
                                                 {isExpanded ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                                 {isExpanded ? t.hideDetails : t.viewDetails}

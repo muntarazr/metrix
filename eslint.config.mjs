@@ -14,6 +14,9 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Capacitor mobile app (generated/minified files)
     "mobile/**",
+    // Node build scripts — CommonJS, run outside the bundler, so the
+    // browser/Next rules here flag `require` and friends as undefined.
+    "scripts/**",
   ]),
 ]);
 

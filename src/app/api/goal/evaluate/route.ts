@@ -1,11 +1,20 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { requireUser } from '@/lib/api-auth';
 import { GeminiService, GeminiQuotaError } from '@/lib/gemini';
+import { requireAiQuota } from '@/lib/ai-quota';
+import { rejectIfContentLengthTooLarge, rejectIfJsonBodyTooLarge } from '@/lib/request-limits';
 
 export async function POST(req: NextRequest) {
     try {
         const auth = await requireUser(req);
         if (auth.error) return auth.error;
+
+        const sizeGuard = rejectIfContentLengthTooLarge(req);
+        if (sizeGuard) return sizeGuard;
+
+        const body = await req.json();
+        const bodyGuard = rejectIfJsonBodyTooLarge(body);
+        if (bodyGuard) return bodyGuard;
 
         const {
             tasks,
@@ -14,7 +23,10 @@ export async function POST(req: NextRequest) {
             previousLogs = [],
             goalContext = {},
             calculateTimeBonus = false,
-        } = await req.json();
+        } = body;
+        const quotaResponse = await requireAiQuota(auth.supabase, 'gemini', 'evaluate');
+        if (quotaResponse) return quotaResponse;
+
         const result = await GeminiService.evaluateDailyLog(
             tasks,
             log,

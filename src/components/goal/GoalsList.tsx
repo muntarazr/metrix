@@ -97,7 +97,7 @@ export default function GoalsList({ goals, taskStatsMap = {}, selectedGoalId, on
     };
 
     return (
-        <div className="w-full max-w-4xl 2xl:max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-6 duration-500 flex-1 flex flex-col gap-4">
+        <div className="w-full max-w-4xl 2xl:max-w-5xl mx-auto flex-1 flex flex-col gap-4">
             <div className={cn(WELL_SURFACE, "p-3 sm:p-4 rounded-2xl sm:rounded-[22px] flex-1 flex flex-col min-h-0")}>
                 <div className="flex gap-1 mb-3 p-1 rounded-xl bg-muted/60 border border-border/70 h-11">
                     <button
@@ -196,32 +196,40 @@ export default function GoalsList({ goals, taskStatsMap = {}, selectedGoalId, on
 
                                                         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                                                             {goal.is_pinned && (
-                                                                <span className="flex items-center gap-1 rounded-full bg-primary/12 px-2 py-0.5 text-[10px] font-semibold text-primary border border-primary/15">
+                                                                <span className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary border border-primary/20 shadow-2xs">
                                                                     <Pin className="h-2.5 w-2.5" />
-                                                                    {isArabic ? 'مثبت' : 'Pinned'}
+                                                                    <span>{isArabic ? 'مثبت' : 'Pinned'}</span>
                                                                 </span>
                                                             )}
                                                             {daysChip && (
                                                                 <span
                                                                     className={cn(
-                                                                        'flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums border',
-                                                                        daysChip.tone === 'soon' && 'bg-primary/12 text-primary border-primary/15',
-                                                                        daysChip.tone === 'today' && 'bg-foreground/12 text-foreground border-foreground/15',
-                                                                        daysChip.tone === 'late' && 'bg-destructive/12 text-destructive border-destructive/15',
+                                                                        'flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums border shadow-2xs transition-colors',
+                                                                        daysChip.tone === 'soon' && 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25',
+                                                                        daysChip.tone === 'today' && 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25 animate-pulse',
+                                                                        daysChip.tone === 'late' && 'bg-destructive/10 text-destructive border-destructive/25',
                                                                     )}
                                                                     title={daysChip.title}
                                                                 >
                                                                     <Clock className="h-2.5 w-2.5 shrink-0" aria-hidden />
-                                                                    {daysChip.text}
+                                                                    <span>{daysChip.text}</span>
                                                                 </span>
                                                             )}
                                                             {stats && stats.total > 0 && (
                                                                 <span
-                                                                    className="flex items-center gap-1 rounded-full bg-primary/12 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-primary border border-primary/15"
+                                                                    className={cn(
+                                                                        "flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums border shadow-2xs transition-colors",
+                                                                        stats.completed >= stats.total
+                                                                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25"
+                                                                            : "bg-muted/60 text-muted-foreground border-border/70"
+                                                                    )}
                                                                     title={isArabic ? `${stats.completed} من ${stats.total} مهمة منجزة` : `${stats.completed} of ${stats.total} tasks done`}
                                                                 >
                                                                     <ListChecks className="h-2.5 w-2.5 shrink-0" aria-hidden />
                                                                     <span dir="ltr">{stats.completed}/{stats.total}</span>
+                                                                    {stats.completed >= stats.total && (
+                                                                        <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400">✓</span>
+                                                                    )}
                                                                 </span>
                                                             )}
                                                         </div>

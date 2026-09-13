@@ -44,6 +44,8 @@ import GoalEditDialog from "../goal/GoalEditDialog";
 import TaskInsights from "./TaskInsights";
 import DashboardHeader from "./DashboardHeader";
 import FocusTab from "./FocusTab";
+import ActivityHistory from "./ActivityHistory";
+import LogEvaluationModal, { type LogItem } from "../progress/LogEvaluationModal";
 import TaskEditDialog, {
   type EditableTask,
   type TaskPatch,
@@ -235,6 +237,7 @@ export default function Dashboard({
   const [showDailyFocusPrompt, setShowDailyFocusPrompt] = useState(false);
   const [dailyFocusPromptDismissed, setDailyFocusPromptDismissed] =
     useState(false);
+  const [viewingLog, setViewingLog] = useState<LogItem | null>(null);
 
   const isChecked = useCallback(
     (taskId: string, frequency: string): boolean => {
@@ -1517,7 +1520,8 @@ export default function Dashboard({
             parent_task_id: preferredParentId,
             sort_order: siblingsCount,
             time_required_minutes: 0,
-            completion_criteria: suggestion.reason || null,
+            completion_criteria:
+              suggestion.completion_criteria || suggestion.reason || null,
           });
 
           if (error) throw error;
@@ -1541,7 +1545,8 @@ export default function Dashboard({
             parent_task_id: null,
             sort_order: mainCount,
             time_required_minutes: 0,
-            completion_criteria: suggestion.reason || null,
+            completion_criteria:
+              suggestion.completion_criteria || suggestion.reason || null,
           });
 
           if (error) throw error;
@@ -1690,10 +1695,10 @@ export default function Dashboard({
       </button>
 
       {/* ===== Tabs ===== */}
-      <div className="relative flex shrink-0 gap-1 overflow-x-auto rounded-xl border border-border/70 bg-muted/12 p-1 h-12">
+      <div className="relative flex shrink-0 gap-1 overflow-x-auto rounded-xl border border-border/70 bg-muted/60 p-1 h-12">
         {/* Sliding active background indicator */}
         <div 
-          className="absolute top-1 bottom-1 rounded-[10px] bg-card shadow-sm shadow-black/[0.03] ring-1 ring-border/45"
+          className="absolute top-1 bottom-1 rounded-[10px] bg-card shadow-xs ring-1 ring-border/70"
           style={{
             width: 'calc((100% - 16px) / 3)',
             left: isArabic 
@@ -1713,7 +1718,7 @@ export default function Dashboard({
               "relative z-10 flex-1 min-w-0 flex items-center justify-center gap-2 py-2 px-2 rounded-[10px] text-xs sm:text-sm font-bold transition-all duration-200 whitespace-nowrap active:scale-95",
               activeTab === tab.key
                 ? "text-foreground font-bold"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/12",
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/40",
             )}
           >
             <span className="[&_svg]:h-4 [&_svg]:w-4 opacity-80">{tab.icon}</span>
@@ -1748,12 +1753,12 @@ export default function Dashboard({
       {/* ===== Tab Content ===== */}
       <div
         className={cn(
-          // Holds the panels, so it recedes — a lighter wrapper would put white on white.
-          "min-h-0 flex-1 rounded-2xl p-3.5 sm:p-5",
-          WELL_SURFACE,
+          "min-h-0 flex-1",
           activeTab === "chart"
-            ? "scrollbar-hide relative z-0 touch-pan-y overflow-y-scroll overscroll-contain pb-24 [-webkit-overflow-scrolling:touch] sm:pb-4"
-            : "overflow-hidden",
+            ? cn("rounded-2xl p-3 sm:p-4 scrollbar-hide relative z-0 touch-pan-y overflow-y-scroll overscroll-contain pb-24 [-webkit-overflow-scrolling:touch] sm:pb-4", WELL_SURFACE)
+            : activeTab === "challenge"
+              ? cn("rounded-2xl p-3 sm:p-4 overflow-hidden", WELL_SURFACE)
+              : "overflow-hidden",
         )}
       >
         {activeTab === "focus" && (
@@ -1822,6 +1827,8 @@ export default function Dashboard({
               onSetNewSubFreq={setNewSubFreq}
               onSetNewSubWeight={setNewSubWeight}
               onSetEditingText={setEditingText}
+              goalTitle={goal.title}
+              onRefreshTasks={fetchTasks}
             />
           </div>
         )}
@@ -1845,11 +1852,26 @@ export default function Dashboard({
                     dailyCap={calculateDailyCap(tasks)}
                     language={language}
                     loading={!logsLoaded}
+                    onViewLogDetails={(log) => setViewingLog(log as LogItem)}
                   />
                 </div>
               </div>
               <WeeklyReviewCard goalId={goal.id} language={language} />
               <TaskInsights goalId={goal.id} tasks={tasks} language={language} />
+              <div className="pt-1">
+                <ActivityHistory
+                  logs={logs}
+                  language={language}
+                  onLogDeleted={() => {
+                    fetchLogs();
+                    fetchChartData();
+                    fetchStreak();
+                    if (onGoalUpdated) onGoalUpdated();
+                  }}
+                  onLogProgress={() => setShowLogModal(true)}
+                  onViewLogDetails={(log) => setViewingLog(log as LogItem)}
+                />
+              </div>
             </div>
           </div>
         )}
@@ -1892,6 +1914,7 @@ export default function Dashboard({
         onOpenChange={setTaskEditorOpen}
         onSave={handleUpdateTask}
         language={language}
+        goalTitle={goal.title}
       />
 
       {/* ===== Confirm Modal ===== */}
@@ -1903,6 +1926,22 @@ export default function Dashboard({
         onCancel={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
         language={language}
       />
+
+      {/* ===== Log Evaluation Modal (Re-view evaluation & updates) ===== */}
+      {viewingLog && (
+        <LogEvaluationModal
+          log={viewingLog}
+          goal={{
+            id: goal.id,
+            title: goal.title,
+            current_points: goal.current_points,
+            target_points: goal.target_points,
+          }}
+          streak={streak}
+          language={language}
+          onClose={() => setViewingLog(null)}
+        />
+      )}
 
       {/* ===== Toast Notification ===== */}
       <ToastNotification visible={showToast} message={toastMessage} />

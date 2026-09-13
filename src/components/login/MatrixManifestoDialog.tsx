@@ -15,8 +15,8 @@ const copy = {
   },
   en: {
     badge: 'The founding statement',
-    title: 'Why I built Metrix',
-    body: '\u201CI am not after \u2018success\u2019 in the abstract. I have one enormous goal that defines my existence \u2014 a goal I would never forgive myself for dying without reaching, to the point that if I were offered heaven without it I would take hell instead. Metrix is not an ordinary to-do list for jotting down your day. It is a strict tracking system. I built it for myself, to watch my goal without mercy, and to know exactly what I accomplished each day in data and numbers. There is no room here for excuses or procrastination.\u201D',
+    title: 'Why I built METRIX',
+    body: '\u201CI am not after \u2018success\u2019 in the abstract. I have one enormous goal that defines my existence \u2014 a goal I would never forgive myself for dying without reaching, to the point that if I were offered heaven without it I would take hell instead. METRIX is not an ordinary to-do list for jotting down your day. It is a strict tracking system. I built it for myself, to watch my goal without mercy, and to know exactly what I accomplished each day in data and numbers. There is no room here for excuses or procrastination.\u201D',
     close: "I'm ready",
   },
 } as const;
