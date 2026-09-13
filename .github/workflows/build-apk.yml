@@ -37,6 +37,9 @@ jobs:
           npm install
 
       - name: Build Web App & Sync Capacitor
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: "https://jxrfniuqoazeegiehfob.supabase.co"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "sb_publishable_kRy7MtrtUTnjf6M7G18iwA_JjmpTpmo"
         run: |
           chmod +x scripts/build-mobile.sh
           bash scripts/build-mobile.sh
