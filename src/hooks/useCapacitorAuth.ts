@@ -16,7 +16,7 @@ export function useCapacitorAuth(onAuthSuccess?: () => void) {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: "https://metrix-beryl-zeta.vercel.app/auth/callback?native=1",
+          redirectTo: "https://metrix-ruddy.vercel.app/auth/callback?native=1",
           skipBrowserRedirect: true,
         },
       });

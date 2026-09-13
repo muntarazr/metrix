@@ -1,4 +1,4 @@
-const SERVER_URL = "https://metrix-beryl-zeta.vercel.app";
+const SERVER_URL = "https://metrix-ruddy.vercel.app";
 
 export function isNativeApp(): boolean {
   if (typeof window === "undefined") return false;

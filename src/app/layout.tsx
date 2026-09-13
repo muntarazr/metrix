@@ -58,7 +58,7 @@ const fontLatin = Plus_Jakarta_Sans({
  * still Arabic-first; only the identity is English.
  */
 export const metadata: Metadata = {
-  metadataBase: new URL("https://metrix-beryl-zeta.vercel.app"),
+  metadataBase: new URL("https://metrix-ruddy.vercel.app"),
   title: {
     default: "METRIX",
     template: "%s — METRIX",
