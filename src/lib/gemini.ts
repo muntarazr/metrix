@@ -16,10 +16,17 @@ import type {
   DailyFocusResult,
 } from "@/lib/daily-focus";
 import { DAILY_FOCUS_REQUIRED_DAYS } from "@/lib/daily-focus";
-
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY!,
-});
+let _ai: GoogleGenAI | null = null;
+function getAi(): GoogleGenAI {
+  if (!_ai) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("GEMINI_API_KEY is not configured.");
+    }
+    _ai = new GoogleGenAI({ apiKey });
+  }
+  return _ai;
+}
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -380,7 +387,7 @@ export class GeminiService {
 
     for (const model of MODEL_FALLBACK_CHAIN) {
       try {
-        const response = await ai.models.generateContent({
+        const response = await getAi().models.generateContent({
           model,
           config,
           contents,
@@ -402,7 +409,7 @@ export class GeminiService {
           console.warn(`Model ${model} returned 503, retrying once in 3s...`);
           await delay(3000);
           try {
-            const retryResponse = await ai.models.generateContent({
+            const retryResponse = await getAi().models.generateContent({
               model,
               config,
               contents,
@@ -1535,7 +1542,7 @@ Strict content rules: ABSOLUTELY NO humans, NO people, NO faces, NO bodies, NO h
       console.log(
         `Generating milestone image with imagen-4.0-generate-001, aspect ${aspectRatio}, style ${style}`,
       );
-      const response = await ai.models.generateImages({
+      const response = await getAi().models.generateImages({
         model: "imagen-4.0-generate-001",
         prompt,
         config: {
@@ -1562,7 +1569,7 @@ Strict content rules: ABSOLUTELY NO humans, NO people, NO faces, NO bodies, NO h
       );
 
       try {
-        const response = await ai.models.generateContent({
+        const response = await getAi().models.generateContent({
           model: "gemini-2.5-flash-image",
           contents: prompt,
           config: {
