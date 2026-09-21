@@ -21,6 +21,7 @@ import { useStreakReminder } from "@/hooks/useStreakReminder";
 import { setAccessToken, isNativeApp } from "@/lib/api";
 import { useCapacitorAuth } from "@/hooks/useCapacitorAuth";
 import { cn } from "@/lib/utils";
+import { getCachedItem, setCachedItem, STORAGE_KEYS } from "@/lib/storage-cache";
 import type { User } from "@supabase/supabase-js";
 
 type AppView = "home" | "dashboard" | "settings" | "goals" | "create-goal";
@@ -56,14 +57,25 @@ export default function Home() {
   const [currentView, setCurrentView] = useState<AppView>("home");
   const [createGoalMode, setCreateGoalMode] = useState<"ai" | "manual">("ai");
   const [createGoalText, setCreateGoalText] = useState("");
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [goals, setGoals] = useState<Goal[]>(() => {
+    return getCachedItem<Goal[]>(STORAGE_KEYS.GOALS) || [];
+  });
+  const [taskStatsMap, setTaskStatsMap] = useState<
+    Record<string, GoalTaskStats>
+  >(() => {
+    return getCachedItem<Record<string, GoalTaskStats>>(STORAGE_KEYS.TASK_STATS) || {};
+  });
+  const [loading, setLoading] = useState(() => {
+    // If we have cached goals, don't show full-page blocking loader
+    if (typeof window !== 'undefined') {
+      const cached = getCachedItem<Goal[]>(STORAGE_KEYS.GOALS);
+      if (cached && cached.length > 0) return false;
+    }
+    return true;
+  });
   const [language, setLanguage] = useState<Language>("ar");
   const [user, setUser] = useState<User | null>(null);
   const [supabase] = useState(() => createClient());
-  const [taskStatsMap, setTaskStatsMap] = useState<
-    Record<string, GoalTaskStats>
-  >({});
   const [isAiGoalCreationGuardActive, setIsAiGoalCreationGuardActive] =
     useState(false);
   const [isProgressLogOpen, setIsProgressLogOpen] = useState(false);
@@ -121,6 +133,7 @@ export default function Home() {
       }
 
       setTaskStatsMap(statsMap);
+      setCachedItem(STORAGE_KEYS.TASK_STATS, statsMap);
     },
     [supabase],
   );
@@ -147,12 +160,14 @@ export default function Home() {
       if (error) {
         console.error(error);
       } else {
-        setGoals(data || []);
+        const goalsList = data || [];
+        setGoals(goalsList);
+        setCachedItem(STORAGE_KEYS.GOALS, goalsList);
         setSelectedGoalId(
           (currentGoalId) =>
-            currentGoalId ?? (data && data.length > 0 ? data[0].id : null),
+            currentGoalId ?? (goalsList.length > 0 ? goalsList[0].id : null),
         );
-        fetchTaskStats((data || []).map((g) => g.id));
+        fetchTaskStats(goalsList.map((g) => g.id));
       }
 
       setLoading(false);
@@ -308,7 +323,7 @@ export default function Home() {
     <OrbitShell user={user}>
       <WelcomeDialog language={language} />
       <div
-        className={`mx-auto flex min-h-0 w-full max-w-7xl 2xl:max-w-[1600px] flex-col items-center px-2 pt-2 min-[400px]:px-3 min-[400px]:pt-3 sm:px-6 sm:pt-6 lg:px-12 lg:pt-8 lg:pl-28 rtl:lg:pl-12 rtl:lg:pr-28
+        className={`mx-auto flex min-h-0 w-full max-w-7xl 2xl:max-w-[1600px] flex-col items-center px-2 min-[400px]:px-3 sm:px-6 lg:px-12 pt-[max(0.75rem,env(safe-area-inset-top))] sm:pt-6 lg:pt-8 lg:pl-28 rtl:lg:pl-12 rtl:lg:pr-28
           ${
             currentView === "home"
               ? "min-h-[100dvh] flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:pb-24 lg:pb-12"
@@ -348,6 +363,7 @@ export default function Home() {
                   setCreateGoalMode(mode);
                   setCurrentView("create-goal");
                 }}
+                onGoalUpdated={fetchGoals}
                 language={language}
               />
             </div>
@@ -414,6 +430,13 @@ export default function Home() {
                     setSelectedGoalId(null);
                     setCurrentView("home");
                   }
+                }}
+                onNavigateToCreate={() => {
+                  setPendingNavigation(null);
+                  setIsAiGoalCreationGuardActive(false);
+                  setCreateGoalText("");
+                  setCreateGoalMode("ai");
+                  setCurrentView("create-goal");
                 }}
                 language={language}
               />

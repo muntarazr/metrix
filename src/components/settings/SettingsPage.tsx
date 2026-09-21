@@ -4,12 +4,19 @@ import { MatrixManifestoDialog } from '@/components/login/MatrixManifestoDialog'
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
     Sun, Moon, Globe, Target, Flame, Crown, LogOut, User, Camera, Trash2, ScrollText, Download, Loader2,
-    Trophy, Zap, CalendarCheck, ShieldCheck, Mail, Check, Sparkles, CheckCircle2, Upload, X, Pencil
+    Trophy, Zap, CalendarCheck, ShieldCheck, Mail, Check, Sparkles, CheckCircle2, Upload, X, Pencil,
+    Bell, Clock
 } from 'lucide-react';
 import { translations, type Language } from '@/lib/translations';
 import { createClient } from '@/utils/supabase/client';
 import { cn } from '@/lib/utils';
 import { PANEL_SURFACE, WELL_SURFACE } from '@/lib/surfaces';
+import {
+    isNotificationsEnabled,
+    setNotificationsEnabled,
+    getNotificationTime,
+    setNotificationTime
+} from '@/hooks/useStreakReminder';
 
 const PRESET_AVATARS = [
     { id: 'adventurer-1', label: 'Warrior', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Felix' },
@@ -88,12 +95,16 @@ export default function SettingsPage({ user, language, setLanguage, goals, onPro
     const [isSavingName, setIsSavingName] = useState(false);
     const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
     const [profileMessage, setProfileMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [streakNotifsEnabled, setStreakNotifsEnabled] = useState(false);
+    const [streakNotifTime, setStreakNotifTimeState] = useState('21:00');
     const nameDebounceTimer = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
         const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
         if (savedTheme) setTheme(savedTheme);
+        setStreakNotifsEnabled(isNotificationsEnabled());
+        setStreakNotifTimeState(getNotificationTime());
         fetchStats();
     }, []);
 
@@ -168,6 +179,17 @@ export default function SettingsPage({ user, language, setLanguage, goals, onPro
         localStorage.setItem('language', lang);
         document.documentElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
         document.documentElement.setAttribute('lang', lang);
+    };
+
+    const handleToggleStreakNotifs = async () => {
+        const next = !streakNotifsEnabled;
+        const granted = await setNotificationsEnabled(next);
+        setStreakNotifsEnabled(granted);
+    };
+
+    const handleTimeChange = (time: string) => {
+        setNotificationTime(time);
+        setStreakNotifTimeState(time);
     };
 
     const handleSignOut = async () => {
@@ -612,6 +634,78 @@ export default function SettingsPage({ user, language, setLanguage, goals, onPro
                                     <span className="hidden sm:inline">{t.arabic}</span>
                                 </button>
                             </div>
+                        </div>
+
+                        {/* Daily Streak Reminder */}
+                        <div className="p-3 sm:p-4 flex flex-col gap-3 hover:bg-muted/12 transition-colors">
+                            <div className="flex flex-row items-center justify-between gap-3">
+                                <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                                    <div className="shrink-0 w-8 h-8 rounded-[10px] bg-primary/12 border border-primary/15 flex items-center justify-center">
+                                        <Bell className="w-3.5 h-3.5 text-primary" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="font-bold text-foreground text-sm">
+                                            {isArabic ? "تنبيه السلسلة اليومي" : "Daily Streak Reminder"}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {isArabic
+                                                ? "إشعار خفيف على جهازك إذا لم تسجل نشاطك قبل نهاية اليوم"
+                                                : "A gentle notification on your device if you haven't logged today"}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={handleToggleStreakNotifs}
+                                    type="button"
+                                    className={cn(
+                                        "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                                        streakNotifsEnabled ? "bg-primary" : "bg-muted-foreground/30"
+                                    )}
+                                    role="switch"
+                                    aria-checked={streakNotifsEnabled}
+                                >
+                                    <span
+                                        className={cn(
+                                            "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out",
+                                            streakNotifsEnabled ? (isArabic ? "-translate-x-5" : "translate-x-5") : "translate-x-0"
+                                        )}
+                                    />
+                                </button>
+                            </div>
+
+                            {streakNotifsEnabled && (
+                                <div className="mt-1 pt-3 border-t border-border/40 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                                    <div>
+                                        <label className="block font-semibold text-foreground/80 mb-1.5 flex items-center gap-1.5">
+                                            <Clock className="w-3.5 h-3.5 text-primary" />
+                                            <span>{isArabic ? "وقت التنبيه المفضل:" : "Preferred Alert Time:"}</span>
+                                        </label>
+                                        <select
+                                            value={streakNotifTime}
+                                            onChange={(e) => handleTimeChange(e.target.value)}
+                                            className="w-full bg-card border border-border/70 rounded-xl px-3 py-2 text-xs text-foreground focus:ring-1 focus:ring-primary focus:outline-none"
+                                        >
+                                            <option value="20:00">{isArabic ? "8:00 مساءً (قبل النهاية بـ 4 ساعات)" : "8:00 PM (4h before midnight)"}</option>
+                                            <option value="21:00">{isArabic ? "9:00 مساءً (الموصى به)" : "9:00 PM (Recommended)"}</option>
+                                            <option value="22:00">{isArabic ? "10:00 مساءً (تنبيه متأخر)" : "10:00 PM (Late Reminder)"}</option>
+                                            <option value="23:00">{isArabic ? "11:00 مساءً (الفرصة الأخيرة)" : "11:00 PM (Last Chance)"}</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block font-semibold text-foreground/80 mb-1.5 flex items-center gap-1.5">
+                                            <Flame className="w-3.5 h-3.5 text-amber-500" />
+                                            <span>{isArabic ? "نهاية يوم التسجيل:" : "Daily Cutoff Time:"}</span>
+                                        </label>
+                                        <div className="bg-muted/30 border border-border/60 rounded-xl px-3 py-2 text-xs text-muted-foreground flex items-center justify-between">
+                                            <span>{isArabic ? "منتصف الليل (12:00 ص)" : "Midnight (12:00 AM)"}</span>
+                                            <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md">
+                                                {isArabic ? "موعد الإغلاق" : "Day Reset"}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 

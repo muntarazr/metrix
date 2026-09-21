@@ -5,6 +5,7 @@ import {
   getLocalWeekStartMonday,
   getPeriodStart,
   getPeriodTypeFromFrequency,
+  getLocalDayWindow,
 } from "../task-periods.ts";
 
 test("getLocalDateKey formats a local date as YYYY-MM-DD", () => {
@@ -46,4 +47,33 @@ test("getPeriodTypeFromFrequency defaults unknown values to daily", () => {
   assert.equal(getPeriodTypeFromFrequency("weekly"), "weekly");
   assert.equal(getPeriodTypeFromFrequency("daily"), "daily");
   assert.equal(getPeriodTypeFromFrequency("nonsense"), "daily");
+});
+
+test("getLocalDayWindow returns start at 00:00:00 and end at 00:00:00 next day", () => {
+  const ref = new Date(2026, 8, 17, 15, 30, 0); // 3:30 PM on Sept 17, 2026
+  const { start, end } = getLocalDayWindow(ref);
+
+  assert.equal(start.getFullYear(), 2026);
+  assert.equal(start.getMonth(), 8);
+  assert.equal(start.getDate(), 17);
+  assert.equal(start.getHours(), 0);
+  assert.equal(start.getMinutes(), 0);
+  assert.equal(start.getSeconds(), 0);
+  assert.equal(start.getMilliseconds(), 0);
+
+  assert.equal(end.getFullYear(), 2026);
+  assert.equal(end.getMonth(), 8);
+  assert.equal(end.getDate(), 18);
+  assert.equal(end.getHours(), 0);
+  assert.equal(end.getMinutes(), 0);
+  assert.equal(end.getSeconds(), 0);
+  assert.equal(end.getMilliseconds(), 0);
+
+  // A log from yesterday (Sept 16 23:59:59) is strictly before start
+  const yesterdayLog = new Date(2026, 8, 16, 23, 59, 59);
+  assert.equal(yesterdayLog < start, true);
+
+  // A log from today (Sept 17 10:00:00) is within [start, end)
+  const todayLog = new Date(2026, 8, 17, 10, 0, 0);
+  assert.equal(todayLog >= start && todayLog < end, true);
 });

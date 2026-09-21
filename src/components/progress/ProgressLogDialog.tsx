@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import AnalyzingScreen from "./AnalyzingScreen";
 import {
   X,
@@ -29,7 +29,12 @@ import {
   type MainBreakdownItem,
   type TaskRow,
 } from "@/lib/task-hierarchy";
-import { getPeriodStart, getPeriodTypeFromFrequency } from "@/lib/task-periods";
+import {
+  getLocalDayWindow,
+  getLocalDateKey,
+  getPeriodStart,
+  getPeriodTypeFromFrequency,
+} from "@/lib/task-periods";
 import {
   analyzeDailyPerformance,
   buildDailyLogBreakdown,
@@ -43,7 +48,6 @@ import GoalCompletionCelebration from "../goal/GoalCompletionCelebration";
 import ProgressUpdatesStep, { type ProgressUpdatesData } from "./ProgressUpdatesStep";
 import { computeStreak, parseStreakFreezes } from "@/lib/streak";
 import { calendarDaysUntilGoalEnd } from "@/lib/goal-dates";
-import { getLocalDateKey } from "@/lib/task-periods";
 import {
   Collapsible,
   CollapsibleContent,
@@ -139,12 +143,6 @@ interface TodaySessionLogRow {
   user_input: string;
   ai_score: number | null;
   breakdown: unknown;
-}
-
-function getTodayStartIso() {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  return start.toISOString();
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -269,6 +267,9 @@ export default function ProgressLogDialog({
   const [selectedTasks, setSelectedTasks] = useState<Map<string, SelectedTask>>(
     new Map(),
   );
+  const [loggedTodayTaskIds, setLoggedTodayTaskIds] = useState<Set<string>>(
+    new Set(),
+  );
   const submittedRef = useRef(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [showTaskDetails, setShowTaskDetails] = useState(false);
@@ -289,6 +290,85 @@ export default function ProgressLogDialog({
   // the evaluation already makes — it costs nothing extra. Null until it lands,
   // so the screen shows a neutral line instead of guessing.
   const [historyDays, setHistoryDays] = useState<number | null>(null);
+
+  // Tasks already logged today (from task_checkins or today's daily_logs
+  // breakdown). The dialog must reflect what was already recorded today,
+  // without carrying over check-ins from yesterday or earlier in the week.
+  useEffect(() => {
+    let cancelled = false;
+    const { start, end } = getLocalDayWindow();
+    const todayKey = getLocalDateKey();
+
+    async function loadLoggedToday() {
+      try {
+        const [{ data: logs }, { data: checkins }] = await Promise.all([
+          supabase
+            .from("daily_logs")
+            .select("created_at, breakdown")
+            .eq("goal_id", goal.id)
+            .gte("created_at", start.toISOString())
+            .lt("created_at", end.toISOString())
+            .not("breakdown", "is", null)
+            .order("created_at", { ascending: false }),
+          supabase
+            .from("task_checkins")
+            .select("task_id, completed, completed_at, period_start")
+            .eq("goal_id", goal.id)
+            .eq("completed", true),
+        ]);
+
+        if (cancelled) return;
+
+        const ids = new Set<string>();
+
+        (logs as Array<{ breakdown: unknown }> | null | undefined)?.forEach(
+          (log) => {
+            parseDailyLogBreakdown(log.breakdown).items.forEach((item) => {
+              if (
+                (Number(item.points) || 0) > 0 ||
+                item.status === "done" ||
+                item.status === "partial"
+              ) {
+                ids.add(item.task_id);
+              }
+            });
+          },
+        );
+
+        (
+          checkins as
+            | Array<{
+                task_id: string;
+                completed_at: string | null;
+                period_start: string;
+              }>
+            | null
+            | undefined
+        )?.forEach((row) => {
+          // A check-in only counts as logged today if it was completed within today's local day window
+          if (row.completed_at) {
+            const completedDate = new Date(row.completed_at);
+            if (completedDate >= start && completedDate < end) {
+              ids.add(row.task_id);
+            }
+          } else if (row.period_start === todayKey) {
+            ids.add(row.task_id);
+          }
+        });
+
+        setLoggedTodayTaskIds(ids);
+      } catch (err) {
+        // Non-fatal: the manual list just starts unmarked.
+        console.error("Failed to load today's logged tasks:", err);
+      }
+    }
+
+    loadLoggedToday();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [goal.id, supabase]);
 
   const mainTasks = buildTaskHierarchy(tasks);
   const scorableTasks = getScorableTasks(tasks);
@@ -336,11 +416,12 @@ export default function ProgressLogDialog({
   }, []);
 
   const fetchPreviousLogsForAnalysis = useCallback(async () => {
+    const { start } = getLocalDayWindow();
     const { data, error } = await supabase
       .from("daily_logs")
       .select("created_at, ai_score, user_input")
       .eq("goal_id", goal.id)
-      .lt("created_at", getTodayStartIso())
+      .lt("created_at", start.toISOString())
       .order("created_at", { ascending: false })
       .limit(21);
 
@@ -349,11 +430,13 @@ export default function ProgressLogDialog({
   }, [goal.id, supabase]);
 
   const fetchTodaySessionLog = useCallback(async () => {
+    const { start, end } = getLocalDayWindow();
     const { data, error } = await supabase
       .from("daily_logs")
       .select("id, created_at, user_input, ai_score, breakdown")
       .eq("goal_id", goal.id)
-      .gte("created_at", getTodayStartIso())
+      .gte("created_at", start.toISOString())
+      .lt("created_at", end.toISOString())
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -1205,6 +1288,24 @@ export default function ProgressLogDialog({
     }
   };
 
+  // Updates Screen (Animated metrics: tube progress, streak flame, days remaining, completed tasks)
+  if (showUpdatesScreen && updatesStepData) {
+    return (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[80] flex items-center justify-center p-4">
+        <div className="bg-card rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-5 sm:p-6 border border-border shadow-2xl animate-in zoom-in-95 duration-300">
+          <ProgressUpdatesStep
+            updates={updatesStepData}
+            language={language}
+            onDone={() => {
+              onSuccess();
+              onClose();
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   // Results screen
   if (evaluation) {
     const isArabic = language === "ar";
@@ -1374,6 +1475,18 @@ export default function ProgressLogDialog({
                   </p>
                 )}
               </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onSuccess();
+                  onClose();
+                }}
+                className="p-1.5 text-muted-foreground/70 hover:text-foreground hover:bg-muted rounded-full transition-colors shrink-0 -mt-1"
+                aria-label={isArabic ? "إغلاق" : "Close"}
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
             <div
@@ -1683,24 +1796,6 @@ export default function ProgressLogDialog({
               />
             )}
           </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Updates Screen (Animated metrics: tube progress, streak flame, days remaining, completed tasks)
-  if (showUpdatesScreen && updatesStepData) {
-    return (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[80] flex items-center justify-center p-4">
-        <div className="bg-card rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-5 sm:p-6 border border-border shadow-2xl animate-in zoom-in-95 duration-300">
-          <ProgressUpdatesStep
-            updates={updatesStepData}
-            language={language}
-            onDone={() => {
-              onSuccess();
-              onClose();
-            }}
-          />
         </div>
       </div>
     );
@@ -2048,7 +2143,11 @@ export default function ProgressLogDialog({
 
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           <p className="text-sm text-muted-foreground font-medium">
-            {t.selectCompletedTasks}
+            {loggedTodayTaskIds.size > 0
+              ? language === "ar"
+                ? `المسجّلة مسبقًا (${loggedTodayTaskIds.size}) معلّمة — اختر ما تبقى`
+                : `Already logged (${loggedTodayTaskIds.size}) are marked — select the rest`
+              : t.selectCompletedTasks}
           </p>
 
           {mainTasks.length === 0 ? (
@@ -2071,22 +2170,42 @@ export default function ProgressLogDialog({
                     {main.subtasks.map((sub) => {
                       const isSelected = selectedTasks.has(sub.id);
                       const selectedData = selectedTasks.get(sub.id);
+                      const alreadyLogged = loggedTodayTaskIds.has(sub.id);
 
                       return (
                         <div
                           key={sub.id}
-                          className={`rounded-2xl p-4 space-y-3 transition-all duration-200 cursor-pointer select-none active:scale-[0.99] ${isSelected ? "bg-primary/12 border-2 border-primary/25 shadow-md shadow-primary/12" : "bg-muted/12 border-2 border-border/45 hover:border-primary/25 hover:bg-muted/12 hover:shadow-sm"}`}
-                          onClick={() => toggleTaskSelection(sub.id)}
+                          className={`rounded-2xl p-4 space-y-3 transition-all duration-200 select-none ${
+                            alreadyLogged
+                              ? "bg-chart-2/[0.06] border-2 border-chart-2/30 opacity-90"
+                              : isSelected
+                                ? "bg-primary/12 border-2 border-primary/25 shadow-md shadow-primary/12 cursor-pointer active:scale-[0.99]"
+                                : "bg-muted/12 border-2 border-border/45 hover:border-primary/25 hover:bg-muted/12 hover:shadow-sm cursor-pointer"
+                          }`}
+                          onClick={() => {
+                            if (alreadyLogged) return;
+                            toggleTaskSelection(sub.id);
+                          }}
                         >
                           <div
                             className="w-full flex items-center gap-3"
                             dir={language === "ar" ? "rtl" : "ltr"}
                           >
                             <div
-                              className={`w-8 h-8 rounded-xl border-2 flex items-center justify-center transition-all duration-200 shrink-0 shadow-sm ${isSelected ? "bg-primary border-primary scale-105 shadow-primary/20" : "border-border bg-card hover:border-primary/45"}`}
+                              className={`w-8 h-8 rounded-xl border-2 flex items-center justify-center transition-all duration-200 shrink-0 shadow-sm ${
+                                alreadyLogged
+                                  ? "bg-chart-2 border-chart-2"
+                                  : isSelected
+                                    ? "bg-primary border-primary scale-105 shadow-primary/20"
+                                    : "border-border bg-card hover:border-primary/45"
+                              }`}
                             >
-                              {isSelected && (
-                                <Check className="w-5 h-5 text-primary-foreground stroke-[2.5]" />
+                              {alreadyLogged ? (
+                                <Check className="w-5 h-5 text-background stroke-[2.5]" />
+                              ) : (
+                                isSelected && (
+                                  <Check className="w-5 h-5 text-primary-foreground stroke-[2.5]" />
+                                )
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -2097,6 +2216,14 @@ export default function ProgressLogDialog({
                                 {sub.task_description}
                               </p>
                               <div className="flex items-center gap-2 mt-1">
+                                {alreadyLogged && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-chart-2/12 px-2 py-0.5 text-[11px] font-bold text-chart-2 border border-chart-2/25">
+                                    <Check className="w-2.5 h-2.5" />
+                                    {language === "ar"
+                                      ? "مسجّل اليوم"
+                                      : "Logged today"}
+                                  </span>
+                                )}
                                 <span className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-2 py-0.5 text-[11px] font-bold text-muted-foreground/75 border border-border/45">
                                   {t.weight}: {sub.impact_weight}
                                 </span>
@@ -2163,22 +2290,42 @@ export default function ProgressLogDialog({
               // If no subtasks, show the main task itself as selectable
               const isSelected = selectedTasks.has(main.id);
               const selectedData = selectedTasks.get(main.id);
+              const alreadyLogged = loggedTodayTaskIds.has(main.id);
 
               return (
                 <div
                   key={main.id}
-                  className={`rounded-2xl p-4 space-y-3 transition-all duration-200 cursor-pointer select-none active:scale-[0.99] ${isSelected ? "bg-primary/12 border-2 border-primary/25 shadow-md shadow-primary/12" : "bg-muted/12 border-2 border-border/45 hover:border-primary/25 hover:bg-muted/12 hover:shadow-sm"}`}
-                  onClick={() => toggleTaskSelection(main.id)}
+                  className={`rounded-2xl p-4 space-y-3 transition-all duration-200 select-none ${
+                    alreadyLogged
+                      ? "bg-chart-2/[0.06] border-2 border-chart-2/30 opacity-90"
+                      : isSelected
+                        ? "bg-primary/12 border-2 border-primary/25 shadow-md shadow-primary/12 cursor-pointer active:scale-[0.99]"
+                        : "bg-muted/12 border-2 border-border/45 hover:border-primary/25 hover:bg-muted/12 hover:shadow-sm cursor-pointer"
+                  }`}
+                  onClick={() => {
+                    if (alreadyLogged) return;
+                    toggleTaskSelection(main.id);
+                  }}
                 >
                   <div
                     className="w-full flex items-center gap-3"
                     dir={language === "ar" ? "rtl" : "ltr"}
                   >
                     <div
-                      className={`w-8 h-8 rounded-xl border-2 flex items-center justify-center transition-all duration-200 shrink-0 shadow-sm ${isSelected ? "bg-primary border-primary scale-105 shadow-primary/20" : "border-border bg-card hover:border-primary/45"}`}
+                      className={`w-8 h-8 rounded-xl border-2 flex items-center justify-center transition-all duration-200 shrink-0 shadow-sm ${
+                        alreadyLogged
+                          ? "bg-chart-2 border-chart-2"
+                          : isSelected
+                            ? "bg-primary border-primary scale-105 shadow-primary/20"
+                            : "border-border bg-card hover:border-primary/45"
+                      }`}
                     >
-                      {isSelected && (
-                        <Check className="w-5 h-5 text-primary-foreground stroke-[2.5]" />
+                      {alreadyLogged ? (
+                        <Check className="w-5 h-5 text-background stroke-[2.5]" />
+                      ) : (
+                        isSelected && (
+                          <Check className="w-5 h-5 text-primary-foreground stroke-[2.5]" />
+                        )
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -2189,6 +2336,14 @@ export default function ProgressLogDialog({
                         {main.task_description}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
+                        {alreadyLogged && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-chart-2/12 px-2 py-0.5 text-[11px] font-bold text-chart-2 border border-chart-2/25">
+                            <Check className="w-2.5 h-2.5" />
+                            {language === "ar"
+                              ? "مسجّل اليوم"
+                              : "Logged today"}
+                          </span>
+                        )}
                         <span className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-2 py-0.5 text-[11px] font-bold text-muted-foreground/75 border border-border/45">
                           {t.weight}: {main.impact_weight}
                         </span>

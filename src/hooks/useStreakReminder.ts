@@ -4,8 +4,9 @@ import { useEffect, useRef, useCallback } from 'react';
 import { createClient } from '@/utils/supabase/client';
 
 const NOTIFICATION_STORAGE_KEY = 'streak_notifications_enabled';
+const NOTIFICATION_TIME_KEY = 'streak_notification_time'; // e.g. "21:00"
 const LAST_NOTIFIED_KEY = 'streak_last_notified_date';
-const CHECK_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+const CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 interface Goal {
     id: string;
@@ -18,6 +19,22 @@ interface Goal {
 export function isNotificationsEnabled(): boolean {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem(NOTIFICATION_STORAGE_KEY) === 'true';
+}
+
+/**
+ * Returns the preferred notification time (e.g. "21:00"). Defaults to "21:00" (9:00 PM).
+ */
+export function getNotificationTime(): string {
+    if (typeof window === 'undefined') return '21:00';
+    return localStorage.getItem(NOTIFICATION_TIME_KEY) || '21:00';
+}
+
+/**
+ * Sets the preferred notification time in 24-hour format (e.g. "20:00", "21:00").
+ */
+export function setNotificationTime(time: string): void {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(NOTIFICATION_TIME_KEY, time);
 }
 
 /**
@@ -77,16 +94,28 @@ export function useStreakReminder(language: 'en' | 'ar' = 'en') {
         if (typeof window === 'undefined' || !('Notification' in window)) return;
         if (Notification.permission !== 'granted') return;
 
-        // 2. Guard: only notify once per calendar day
-        const today = toLocalDateStr(new Date());
+        // 2. Guard: check if current time has reached the user's preferred notification time
+        const now = new Date();
+        const preferredTime = getNotificationTime(); // e.g. "21:00"
+        const [targetHour, targetMinute] = preferredTime.split(':').map(Number);
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+
+        // If it's earlier in the day than preferred time, don't notify yet
+        if (currentHour < targetHour || (currentHour === targetHour && currentMinute < targetMinute)) {
+            return;
+        }
+
+        // 3. Guard: only notify once per calendar day
+        const today = toLocalDateStr(now);
         const lastNotified = localStorage.getItem(LAST_NOTIFIED_KEY);
         if (lastNotified === today) return;
 
-        // 3. Get user
+        // 4. Get user
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        // 4. Get all active goals
+        // 5. Get all active goals
         const { data: goals, error: goalsError } = await supabase
             .from('goals')
             .select('id, title')
@@ -94,9 +123,8 @@ export function useStreakReminder(language: 'en' | 'ar' = 'en') {
 
         if (goalsError || !goals || goals.length === 0) return;
 
-        // 5. For each goal, check if there's a streak at risk
+        // 6. For each goal, check if there's a streak at risk
         //    "At risk" = logged yesterday but NOT today
-        const now = new Date();
         const yesterday = new Date(now);
         yesterday.setDate(yesterday.getDate() - 1);
 
@@ -129,7 +157,7 @@ export function useStreakReminder(language: 'en' | 'ar' = 'en') {
             }
         }
 
-        // 6. Fire notification if any goals are at risk
+        // 7. Fire notification if any goals are at risk
         if (atRiskGoals.length > 0) {
             const isArabic = language === 'ar';
 

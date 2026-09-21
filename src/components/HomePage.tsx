@@ -15,6 +15,12 @@ import {
   Clock,
   Plus,
   Zap,
+  CheckCheck,
+  Flame,
+  Trophy,
+  Calendar,
+  Snowflake,
+  BarChart3,
 } from "lucide-react";
 import { translations, type Language } from "@/lib/translations";
 import type { GoalTaskStats } from "@/app/page";
@@ -31,8 +37,6 @@ import { getLocalDateKey } from "@/lib/task-periods";
 import {
   useSmartNotifications,
 } from "@/hooks/useSmartNotifications";
-import NotificationBellPopover from "@/components/notifications/NotificationBellPopover";
-import AICoachBanner from "@/components/notifications/AICoachBanner";
 import ProgressLogDialog from "./progress/ProgressLogDialog";
 import type { TaskRow } from "@/lib/task-hierarchy";
 import { apiUrl } from "@/lib/api";
@@ -45,6 +49,7 @@ interface Goal {
   status: string;
   created_at: string;
   estimated_completion_date?: string | null;
+  total_days?: number | null;
   icon?: string;
   is_pinned?: boolean;
   ai_summary?: string;
@@ -55,6 +60,7 @@ interface HomePageProps {
   taskStatsMap?: Record<string, GoalTaskStats>;
   onSelectGoal: (id: string) => void;
   onNavigateToCreate?: (goalText: string, mode: "ai" | "manual") => void;
+  onGoalUpdated?: () => void;
   language?: Language;
   recentGoalsLimit?: number;
 }
@@ -68,6 +74,7 @@ export default function HomePage({
   taskStatsMap = {},
   onSelectGoal,
   onNavigateToCreate,
+  onGoalUpdated,
   language = "ar",
   recentGoalsLimit = 6,
 }: HomePageProps) {
@@ -123,13 +130,14 @@ export default function HomePage({
     notifications,
     unreadNotifications,
     highPriorityCount,
-    coachInsight,
     refresh: handleRefreshNotifs,
     markAllAsRead: handleMarkAllNotifsRead,
   } = useSmartNotifications({
     goals,
     language: isArabic ? "ar" : "en",
   });
+
+  const [bottomTab, setBottomTab] = useState<"goals" | "notifications">("goals");
 
   /* ---- RTL helper ---- */
   const isRTLText = (text: string) => {
@@ -325,14 +333,18 @@ export default function HomePage({
   };
 
   /* ---- Log mode: fetch tasks and open progress dialog ---- */
-  const handleLogSubmit = useCallback(async () => {
-      if (!selectedLogGoalId) return;
+  const handleLogSubmit = useCallback(async (customGoalId?: string) => {
+      const targetGoalId = customGoalId || selectedLogGoalId;
+      if (!targetGoalId) return;
+      if (customGoalId && customGoalId !== selectedLogGoalId) {
+        setSelectedLogGoalId(customGoalId);
+      }
       setLogTasksLoading(true);
       try {
         const { data, error } = await supabase
           .from("sub_layers")
           .select("*")
-          .eq("goal_id", selectedLogGoalId)
+          .eq("goal_id", targetGoalId)
           .order("sort_order", { ascending: true });
 
         if (error) {
@@ -358,7 +370,10 @@ export default function HomePage({
 
   const handleProgressDialogSuccess = useCallback(() => {
     handleProgressDialogClose();
-  }, [handleProgressDialogClose]);
+    if (onGoalUpdated) {
+      onGoalUpdated();
+    }
+  }, [handleProgressDialogClose, onGoalUpdated]);
 
   const resizeGoalTextarea = (textarea: HTMLTextAreaElement) => {
     textarea.style.height = "0px";
@@ -384,38 +399,19 @@ export default function HomePage({
     >
       {/* Upper Main Focus Group (Logo, Notification Bell, Coach Quote, Action Box) */}
       <div className="flex shrink-0 flex-col gap-3.5 sm:gap-4">
-        {/* Header with Logo & Notification Bell */}
-        <div className="flex shrink-0 items-center justify-between px-1">
-          <div className="w-9 sm:w-10" /> {/* Spacer for symmetry */}
-          <div className="flex flex-col items-center justify-center gap-2 text-center">
-            <BrandLockup className="h-auto w-[165px] text-foreground transition-transform duration-300 hover:scale-[1.02] sm:w-[205px] md:w-[230px]" />
-            <p
-              className="max-w-[18rem] text-xs font-semibold leading-relaxed text-muted-foreground/75 tracking-tight sm:max-w-[26rem] sm:text-sm"
-              dir={isArabic ? "rtl" : "ltr"}
-              lang={isArabic ? "ar" : "en"}
-            >
-              {isArabic
-                ? "اذا ما استمرت بهدفك راح تفشل يا غبي"
-                : "If you don't stick to your goal, you'll fail, stupid"}
-            </p>
-          </div>
-          <div className="shrink-0">
-            <NotificationBellPopover
-              notifications={notifications}
-              unreadCount={unreadNotifications.length}
-              highPriorityCount={highPriorityCount}
-              isArabic={isArabic}
-              onSelectGoal={onSelectGoal}
-              onMarkAllAsRead={handleMarkAllNotifsRead}
-            />
-          </div>
+        {/* Header with Logo */}
+        <div className="flex shrink-0 flex-col items-center justify-center gap-2 text-center px-1">
+          <BrandLockup className="h-auto w-[165px] text-foreground transition-transform duration-300 hover:scale-[1.02] sm:w-[205px] md:w-[230px]" />
+          <p
+            className="max-w-[18rem] text-xs font-semibold leading-relaxed text-muted-foreground/75 tracking-tight sm:max-w-[26rem] sm:text-sm"
+            dir={isArabic ? "rtl" : "ltr"}
+            lang={isArabic ? "ar" : "en"}
+          >
+            {isArabic
+              ? "الالتزام بالمسار اليومي هو سر الوصول إلى غايتك"
+              : "Daily consistency is the secret to reaching your ambition"}
+          </p>
         </div>
-
-        {/* AI Coach Banner (Personalized behavioral quote/guidance) */}
-        <AICoachBanner
-          insight={coachInsight}
-          isArabic={isArabic}
-        />
 
         {/* Dual-mode box: vertical toggle + content */}
         <div
@@ -679,27 +675,66 @@ export default function HomePage({
         </div>
       </div>
 
-      {/* Lower Section: Recent Goals Container (Sized for ~3.5 card rows) */}
+      {/* Lower Section: Tabs Container (Recent Goals & Notifications) */}
       <div
         className="shrink-0 flex flex-col overflow-hidden"
         dir={isArabic ? "rtl" : "ltr"}
       >
-        <div className="flex shrink-0 items-center justify-between mb-2 px-1">
-          <div className="flex items-center gap-2">
-            <Target className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary opacity-80" />
-            <h2 className="text-xs sm:text-sm font-bold text-foreground">
-              {isArabic ? "الأهداف الأخيرة" : "Recent Goals"}
-            </h2>
-            <span className="inline-flex h-4 sm:h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary/10 px-1.5 text-[10px] sm:text-[11px] font-bold text-primary tabular-nums">
-              {recentGoals.length}
-            </span>
+        <div className="flex shrink-0 items-center justify-between mb-2.5 px-1">
+          <div className="flex items-center gap-1.5 bg-muted/30 p-1 rounded-xl border border-border/50">
+            <button
+              onClick={() => setBottomTab("goals")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer",
+                bottomTab === "goals"
+                  ? "bg-card text-foreground shadow-xs border border-border/70"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+              )}
+            >
+              <Target className="h-3.5 w-3.5 text-primary opacity-80" />
+              <span>{isArabic ? "الأهداف الأخيرة" : "Recent Goals"}</span>
+              <span className="inline-flex h-4 min-w-[1.1rem] items-center justify-center rounded-full bg-primary/10 px-1.5 text-[10px] font-bold text-primary tabular-nums">
+                {recentGoals.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setBottomTab("notifications")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer",
+                bottomTab === "notifications"
+                  ? "bg-card text-foreground shadow-xs border border-border/70"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+              )}
+            >
+              <Bell className="h-3.5 w-3.5 text-amber-500" />
+              <span>{isArabic ? "الإشعارات" : "Notifications"}</span>
+              {unreadNotifications.length > 0 && (
+                <span className="inline-flex h-4 min-w-[1.1rem] items-center justify-center rounded-full bg-destructive text-white px-1.5 text-[10px] font-bold tabular-nums">
+                  {unreadNotifications.length}
+                </span>
+              )}
+            </button>
           </div>
+
+          {bottomTab === "notifications" && notifications.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleMarkAllNotifsRead}
+              className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground gap-1 rounded-lg"
+            >
+              <CheckCheck className="h-3.5 w-3.5 text-emerald-500" />
+              <span>{isArabic ? "تحديد كمقروء" : "Mark all read"}</span>
+            </Button>
+          )}
         </div>
 
         <div className="overflow-hidden flex flex-col">
           <div className={cn("h-[430px] overflow-y-auto overscroll-contain rounded-[18px] p-[10px] scrollbar-thin", WELL_SURFACE)}>
-            {recentGoals.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5">
+            {bottomTab === "goals" ? (
+              recentGoals.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5">
                   {recentGoals.map((goal) => {
                     const currentPoints = goal.current_points ?? 0;
                     const targetPoints = goal.target_points ?? 0;
@@ -714,68 +749,87 @@ export default function HomePage({
                     return (
                       <div
                         key={goal.id}
-                        className="group relative w-full rounded-xl border border-border bg-card p-3 sm:p-3.5 shadow-xs transition-all duration-200 ease-out hover:border-primary/25 hover:shadow-md hover:-translate-y-px active:translate-y-0 dark:bg-card"
+                        className="group relative w-full min-h-[112px] sm:min-h-[120px] rounded-2xl border-2 border-border/80 bg-card p-3 sm:p-3.5 shadow-sm transition-all duration-200 ease-out hover:border-primary/60 hover:shadow-md active:translate-y-[2px] active:shadow-xs flex flex-col justify-between gap-2.5"
                       >
                         <button
                           onClick={() => onSelectGoal(goal.id)}
-                          className="flex w-full cursor-pointer flex-col gap-2.5 rounded-xl text-start outline-none focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-1"
+                          className="flex h-full w-full cursor-pointer flex-col justify-between gap-2 text-start outline-none focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-1"
                           dir={goalIsRTL ? "rtl" : "ltr"}
                         >
-                          <div className="flex w-full items-start justify-between gap-2 sm:gap-3">
-                            <div className="flex min-w-0 flex-1 items-center gap-2.5 sm:gap-3">
-                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary shadow-xs transition-colors duration-200 group-hover:border-primary/30 group-hover:bg-primary/15 sm:h-10 sm:w-10">
-                                <Icon className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
+                          {/* Top: Icon + Title */}
+                          <div className="flex w-full items-center justify-between gap-2">
+                            <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                              <div className="flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl border-2 border-primary/30 bg-primary/10 text-primary shadow-xs transition-all duration-200 group-hover:bg-primary group-hover:text-primary-foreground">
+                                <Icon className="h-4 w-4" />
                               </div>
                               <div className="min-w-0 flex-1">
                                 <span className="block truncate text-sm sm:text-[15px] font-bold text-foreground transition-colors group-hover:text-primary">
                                   {goal.title}
                                 </span>
-                                {hasGoalBadges && (
-                                  <div className="mt-1 flex flex-wrap items-center gap-1 sm:gap-1.5">
-                                    {goal.is_pinned && (
-                                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-1.5 py-0.2 text-[9px] sm:text-[10px] font-semibold text-primary">
-                                        <Pin className="h-2.5 w-2.5" />
-                                        {isArabic ? "مثبت" : "Pinned"}
-                                      </span>
-                                    )}
-                                    {daysChip && (
-                                      <span
-                                        className={cn(
-                                          "inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.2 text-[9px] sm:text-[10px] font-semibold",
-                                          daysChip.tone === "late"
-                                            ? "border-destructive/35 bg-destructive/10 text-destructive font-bold"
-                                            : "border-border/70 bg-muted/60 text-muted-foreground/85"
-                                        )}
-                                      >
-                                        <Clock className="h-2.5 w-2.5" />
-                                        {daysChip.text}
-                                      </span>
-                                    )}
-                                    {hasStatsBadge && (
-                                      <span
-                                        className={cn(
-                                          "inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.2 text-[9px] sm:text-[10px] font-semibold tabular-nums",
-                                          stats.completed >= stats.total
-                                            ? "border-primary/25 bg-primary/10 text-primary font-bold"
-                                            : "border-border/70 bg-muted/60 text-muted-foreground/85"
-                                        )}
-                                      >
-                                        <ListChecks className="h-2.5 w-2.5" />
-                                        <span dir="ltr">{stats.completed}/{stats.total}</span>
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
                               </div>
                             </div>
                           </div>
+
+                          {/* Middle: Badges row */}
+                          <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 py-0.5">
+                            {goal.is_pinned && (
+                              <span className="inline-flex h-5 shrink-0 items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-2 text-[9.5px] sm:text-[10px] font-semibold text-primary">
+                                <Pin className="h-2.5 w-2.5" />
+                                {isArabic ? "مثبت" : "Pinned"}
+                              </span>
+                            )}
+                            {daysChip && (
+                              <span
+                                className={cn(
+                                  "inline-flex h-5 shrink-0 items-center gap-1 rounded-full border px-2 text-[9.5px] sm:text-[10px] font-semibold tabular-nums shadow-2xs transition-colors",
+                                  daysChip.tone === "soon" && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25",
+                                  daysChip.tone === "today" && "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25 animate-pulse",
+                                  daysChip.tone === "late" && "border-destructive/35 bg-destructive/10 text-destructive font-bold",
+                                  !daysChip.tone && "border-border/70 bg-muted/60 text-muted-foreground/85"
+                                )}
+                                title={daysChip.title}
+                              >
+                                <Clock className="h-2.5 w-2.5" />
+                                {daysChip.text}
+                              </span>
+                            )}
+                            {goal.total_days && goal.total_days > 0 ? (
+                              <span
+                                className="inline-flex h-5 shrink-0 items-center gap-1 rounded-full border border-border/70 bg-muted/60 px-2 text-[9.5px] sm:text-[10px] font-semibold text-muted-foreground/85"
+                                title={isArabic ? `إجمالي مدة الهدف ${goal.total_days} يوم` : `Total duration: ${goal.total_days} days`}
+                              >
+                                <Calendar className="h-2.5 w-2.5" />
+                                <span>{goal.total_days} {isArabic ? "يوم" : "d"}</span>
+                              </span>
+                            ) : null}
+                            {hasStatsBadge && (
+                              <span
+                                className={cn(
+                                  "inline-flex h-5 shrink-0 items-center gap-1 rounded-full border px-2 text-[9.5px] sm:text-[10px] font-semibold tabular-nums",
+                                  stats.completed >= stats.total
+                                    ? "border-primary/25 bg-primary/10 text-primary font-bold"
+                                    : "border-border/70 bg-muted/60 text-muted-foreground/85"
+                                )}
+                                title={isArabic ? `${stats.completed} من ${stats.total} مهمة منجزة` : `${stats.completed} of ${stats.total} tasks done`}
+                              >
+                                <ListChecks className="h-2.5 w-2.5" />
+                                <span dir="ltr">{stats.completed}/{stats.total}</span>
+                                {stats.completed >= stats.total && (
+                                  <span className="text-[9px] font-black text-primary">✓</span>
+                                )}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Bottom: Progress Bar */}
                           <GoalProgressBar
                             currentPoints={currentPoints}
                             targetPoints={targetPoints}
                             progress={progress}
-                            className="h-8 sm:h-9"
-                            labelClassName="px-2.5 sm:px-3 text-[10px] sm:text-xs"
-                            percentClassName="text-xs sm:text-sm"
+                            className="h-7 shrink-0 w-full rounded-full"
+                            labelClassName="px-2.5 text-xs sm:text-sm font-bold"
+                            percentClassName="text-sm sm:text-base font-black text-foreground"
+                            targetClassName="text-foreground"
                           />
                         </button>
                       </div>
@@ -783,8 +837,8 @@ export default function HomePage({
                   })}
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/12 p-8 sm:p-12 text-center">
-                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-primary/15 bg-primary/12 text-primary/75">
+                <div className="flex h-full min-h-[360px] flex-col items-center justify-center p-6 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border/70 bg-card text-muted-foreground/50 shadow-xs mb-3">
                     <Target className="h-6 w-6" />
                   </div>
                   <h2 className="text-base sm:text-lg font-bold text-foreground tracking-tight">
@@ -794,10 +848,129 @@ export default function HomePage({
                     {isArabic ? "ابدأ بإضافة هدفك الأول وسيظهر تقدمه هنا." : "Create your first goal and its progress will appear here."}
                   </p>
                 </div>
-              )}
-            </div>
+              )
+            ) : (
+              /* Notifications View */
+              notifications.length === 0 ? (
+                <div className="flex h-full min-h-[360px] flex-col items-center justify-center p-6 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border/70 bg-card text-emerald-500 shadow-xs mb-3">
+                    <CheckCheck className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-sm sm:text-base font-bold text-foreground">
+                    {isArabic ? "أنت مواكب لكل شيء!" : "You're all caught up!"}
+                  </h3>
+                  <p className="mt-1 text-xs sm:text-sm text-muted-foreground max-w-[240px]">
+                    {isArabic
+                      ? "لا توجد تنبيهات طارئة حالياً، استمر في الحفاظ على زخمك اليومي."
+                      : "No urgent alerts right now. Keep up your daily momentum."}
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2.5">
+                  {notifications.map((n) => {
+                    const isHigh = n.priority === "high";
+                    return (
+                      <div
+                        key={n.id}
+                        className={cn(
+                          "group flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 sm:p-3.5 rounded-xl border bg-card shadow-xs transition-all duration-200 hover:shadow-sm",
+                          isHigh
+                            ? "border-destructive/30 bg-destructive/5"
+                            : "border-border hover:border-primary/25"
+                        )}
+                      >
+                        <div className="flex items-start gap-3 min-w-0 flex-1">
+                          <div
+                            className={cn(
+                              "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border mt-0.5 shadow-2xs",
+                              isHigh
+                                ? "border-destructive/30 bg-destructive/15 text-destructive"
+                                : n.type === "streak_freeze"
+                                  ? "border-cyan-500/30 bg-cyan-500/15 text-cyan-600 dark:text-cyan-400"
+                                  : n.type === "deadline_alert"
+                                    ? "border-amber-500/30 bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                                    : n.type === "weekly_review"
+                                      ? "border-blue-500/30 bg-blue-500/15 text-blue-600 dark:text-blue-400"
+                                      : n.type === "dormant_goal"
+                                        ? "border-purple-500/30 bg-purple-500/15 text-purple-600 dark:text-purple-400"
+                                        : "border-primary/20 bg-primary/10 text-primary"
+                            )}
+                          >
+                            {n.type === "streak_rescue" ? (
+                              <Flame className="h-4 w-4" />
+                            ) : n.type === "streak_freeze" ? (
+                              <Snowflake className="h-4 w-4" />
+                            ) : n.type === "deadline_alert" ? (
+                              <Clock className="h-4 w-4" />
+                            ) : n.type === "record_streak" || n.type === "milestone_celebration" ? (
+                              <Trophy className="h-4 w-4" />
+                            ) : n.type === "weekly_review" ? (
+                              <BarChart3 className="h-4 w-4" />
+                            ) : n.type === "dormant_goal" ? (
+                              <Sparkles className="h-4 w-4" />
+                            ) : (
+                              <Bell className="h-4 w-4" />
+                            )}
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span
+                                className={cn(
+                                  "text-xs sm:text-sm font-bold truncate",
+                                  isHigh ? "text-destructive" : "text-foreground"
+                                )}
+                              >
+                                {n.title}
+                              </span>
+                              {n.goalTitle && (
+                                <span className="text-[10px] text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-full border border-border/60 shrink-0 font-medium truncate max-w-[130px]">
+                                  {n.goalTitle}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                              {n.message}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                          {n.goalId && (
+                            <Button
+                              size="sm"
+                              variant={isHigh ? "destructive" : "outline"}
+                              onClick={() => {
+                                if (n.goalId) {
+                                  handleLogSubmit(n.goalId);
+                                }
+                              }}
+                              className="h-8 rounded-lg px-3 text-xs font-bold shadow-xs gap-1.5"
+                            >
+                              <Zap className="h-3.5 w-3.5" />
+                              <span>{isArabic ? "تسجيل سريع" : "Quick Log"}</span>
+                            </Button>
+                          )}
+                          {n.goalId && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => onSelectGoal(n.goalId!)}
+                              className="h-8 rounded-lg px-2.5 text-xs text-muted-foreground hover:text-foreground"
+                            >
+                              <span>{isArabic ? "عرض الهدف" : "View"}</span>
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            )}
           </div>
         </div>
+      </div>
       </div>
 
       {/* Progress Log Dialog (opened from daily-log mode) */}

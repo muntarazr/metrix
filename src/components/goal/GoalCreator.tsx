@@ -81,7 +81,7 @@ const createEmptySubtask = (): StructuredSubtaskInput => ({
 const createEmptyMainTask = (): StructuredMainTaskInput => ({
     id: makeId('main'),
     task: '',
-    frequency: 'weekly',
+    frequency: 'daily',
     impact_weight: 6,
     completion_criteria: '',
     subtasks: [createEmptySubtask()],

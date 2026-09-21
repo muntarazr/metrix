@@ -29,3 +29,13 @@ export function getPeriodStart(frequency: string, date = new Date()): string {
 export function getPeriodTypeFromFrequency(frequency: string): PeriodType {
   return frequency === 'weekly' ? 'weekly' : 'daily';
 }
+
+export function getLocalDayWindow(referenceDate = new Date()): { start: Date; end: Date } {
+  const start = new Date(referenceDate);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+
+  return { start, end };
+}

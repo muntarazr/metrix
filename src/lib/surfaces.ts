@@ -39,21 +39,18 @@
  * not merely unnecessary — it was overriding a theme-aware value with a
  * hardcoded black one.
  */
-export const PANEL_BASE = "bg-card shadow-xs";
+export const PANEL_BASE = "bg-card shadow-sm transition-shadow";
 
 /**
- * Chrome for a panel: border, surface, elevation. Radius, layout and padding
- * belong to the call site — a radius here would collide with the `rounded-xl`
- * of smaller panels, and which one won would come down to Tailwind's output
- * order rather than anything intentional.
+ * Chrome for a panel: border, surface, elevation in Duolingo style (border-2, clean shadow).
  */
-export const PANEL_SURFACE = `border border-border/70 ${PANEL_BASE}`;
+export const PANEL_SURFACE = "border-2 border-border/80 bg-card shadow-sm transition-shadow";
 
 /**
  * A recessed slot inside a panel. Uses the bg-surface token so it is genuinely
  * recessed below the raised pure white card in light mode, and darker in dark mode.
  */
-export const WELL_SURFACE = "border border-border/70 bg-surface";
+export const WELL_SURFACE = "border-2 border-border/70 bg-surface";
 
 /** Same recess without its own border, for slots that are separated by spacing alone. */
 export const WELL_SURFACE_BARE = "bg-surface";

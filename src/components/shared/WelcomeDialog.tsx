@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useSyncExternalStore } from 'react';
+import { createClient } from '@/utils/supabase/client';
 import { BrandLockup } from '@/components/brand/Logo';
 import { ArrowLeft, ArrowRight, ListChecks, Sparkles, Swords, TrendingUp } from 'lucide-react';
 import type { Language } from '@/lib/translations';
@@ -95,8 +96,38 @@ function useTourSeen() {
 export default function WelcomeDialog({ language = 'ar' }: WelcomeDialogProps) {
   const seen = useTourSeen();
   const [dismissed, setDismissed] = useState(false);
+  const [accountChecked, setAccountChecked] = useState(seen);
+  const [accountSeen, setAccountSeen] = useState(false);
   const [step, setStep] = useState(0);
-  const isVisible = !seen && !dismissed;
+  const isVisible = accountChecked && !accountSeen && !seen && !dismissed;
+
+  // Completion is tied to the account, not just this device: a returning
+  // user on a new browser should never see the onboarding tour again.
+  useEffect(() => {
+    if (seen) return;
+
+    let cancelled = false;
+    const supabase = createClient();
+
+    supabase.auth
+      .getUser()
+      .then(({ data }) => {
+        if (cancelled) return;
+        const user = data.user;
+        setAccountSeen(Boolean(user?.user_metadata?.onboarding_seen));
+        setAccountChecked(true);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAccountSeen(false);
+          setAccountChecked(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [seen]);
 
   const slides = SLIDES[language] ?? SLIDES.ar;
   const copy = COPY[language] ?? COPY.ar;
@@ -117,6 +148,20 @@ export default function WelcomeDialog({ language = 'ar' }: WelcomeDialogProps) {
   const dismiss = () => {
     localStorage.setItem(STORAGE_KEY, 'true');
     setDismissed(true);
+
+    const supabase = createClient();
+    supabase.auth
+      .getUser()
+      .then(({ data }) => {
+        if (!data.user) return;
+        return supabase.auth.updateUser({
+          data: { onboarding_seen: true },
+        });
+      })
+      .catch(() => {
+        // Keep the device-level fallback; the account flag can be retried on
+        // a future visit without blocking dismissal.
+      });
   };
 
   const current = slides[step];

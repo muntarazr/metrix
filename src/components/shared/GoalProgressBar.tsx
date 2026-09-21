@@ -30,7 +30,7 @@ export default function GoalProgressBar({
   return (
     <div
       className={cn(
-        'relative h-9 sm:h-10 w-full overflow-hidden rounded-xl border border-border/70 bg-muted/20 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)]',
+        'relative h-9 sm:h-10 w-full overflow-hidden rounded-full border-2 border-border/80 bg-muted/50 shadow-inner',
         className
       )}
       role="progressbar"
@@ -41,10 +41,10 @@ export default function GoalProgressBar({
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 z-10 h-[45%] bg-gradient-to-b from-white/[0.08] to-transparent dark:from-white/[0.04]"
+        className="pointer-events-none absolute inset-x-0 top-0 z-10 h-[40%] bg-gradient-to-b from-white/20 to-transparent"
       />
       <div
-        className="relative h-full bg-gradient-to-r from-primary/60 via-primary to-primary/90 transition-all duration-700 ease-out"
+        className="relative h-full rounded-full bg-gradient-to-r from-primary/80 via-primary to-primary transition-all duration-700 ease-out shadow-[0_2px_0_0_rgba(255,255,255,0.2)_inset]"
         style={{ width: `${fillWidth}%` }}
       >
         <div
@@ -70,7 +70,7 @@ export default function GoalProgressBar({
       >
         <span
           className={cn(
-            'text-foreground/75 tabular-nums flex min-w-0 max-w-[32%] items-center gap-1',
+            'text-foreground/90 tabular-nums flex min-w-0 max-w-[32%] items-center gap-1 text-xs sm:text-sm',
             currentClassName
           )}
         >
@@ -81,7 +81,7 @@ export default function GoalProgressBar({
         </span>
         <span
           className={cn(
-            'shrink-0 font-bold text-foreground/75 tabular-nums',
+            'shrink-0 font-bold text-foreground/90 tabular-nums',
             percentClassName
           )}
         >
@@ -89,11 +89,10 @@ export default function GoalProgressBar({
         </span>
         <span
           className={cn(
-            'text-muted-foreground/75 tabular-nums flex min-w-0 max-w-[32%] items-center gap-0.5',
+            'text-foreground/90 tabular-nums flex min-w-0 max-w-[32%] items-center justify-end text-xs sm:text-sm',
             targetClassName
           )}
         >
-          <span className="shrink-0 text-[9px] sm:text-[10px] opacity-50">/</span>
           <span className="truncate">{formatNumberEn(targetPoints)}</span>
         </span>
       </div>

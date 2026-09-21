@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Clock, Target, Trash2, MoreVertical, Pin, PinOff, Edit2, ListChecks, BarChart3 } from 'lucide-react';
+import { Clock, Target, Trash2, MoreVertical, Pin, PinOff, Edit2, ListChecks, BarChart3, Plus } from 'lucide-react';
 import { translations, type Language } from '@/lib/translations';
 import {
     DropdownMenu,
@@ -41,10 +41,11 @@ interface GoalsListProps {
     selectedGoalId: string | null;
     onSelectGoal: (id: string) => void;
     onGoalChanged?: () => void;
+    onNavigateToCreate?: () => void;
     language?: Language;
 }
 
-export default function GoalsList({ goals, taskStatsMap = {}, selectedGoalId, onSelectGoal, onGoalChanged, language = 'ar' }: GoalsListProps) {
+export default function GoalsList({ goals, taskStatsMap = {}, selectedGoalId, onSelectGoal, onGoalChanged, onNavigateToCreate, language = 'ar' }: GoalsListProps) {
     const t = translations[language];
     const isArabic = language === 'ar';
     const supabase = createClient();
@@ -99,31 +100,43 @@ export default function GoalsList({ goals, taskStatsMap = {}, selectedGoalId, on
     return (
         <div className="w-full max-w-4xl 2xl:max-w-5xl mx-auto flex-1 flex flex-col gap-4">
             <div className={cn(WELL_SURFACE, "p-3 sm:p-4 rounded-2xl sm:rounded-[22px] flex-1 flex flex-col min-h-0")}>
-                <div className="flex gap-1 mb-3 p-1 rounded-xl bg-muted/60 border border-border/70 h-11">
-                    <button
-                        onClick={() => setActiveTab('goals')}
-                        className={cn(
-                            "flex flex-1 items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200",
-                            activeTab === 'goals'
-                                ? "bg-card text-foreground shadow-sm ring-1 ring-border/45"
-                                : "text-muted-foreground hover:text-foreground hover:bg-muted/20"
-                        )}
-                    >
-                        <Target className="w-4 h-4 opacity-80" />
-                        {t.myGoals}
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('statistics')}
-                        className={cn(
-                            "flex flex-1 items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200",
-                            activeTab === 'statistics'
-                                ? "bg-card text-foreground shadow-sm ring-1 ring-border/45"
-                                : "text-muted-foreground hover:text-foreground hover:bg-muted/20"
-                        )}
-                    >
-                        <BarChart3 className="w-4 h-4 opacity-80" />
-                        {t.goalsStatistics}
-                    </button>
+                <div className="flex items-center gap-2 mb-3">
+                    <div className="flex flex-1 gap-1 p-1 rounded-xl bg-muted/60 border border-border/70 h-11">
+                        <button
+                            onClick={() => setActiveTab('goals')}
+                            className={cn(
+                                "flex flex-1 items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200",
+                                activeTab === 'goals'
+                                    ? "bg-card text-foreground shadow-sm ring-1 ring-border/45"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/20"
+                            )}
+                        >
+                            <Target className="w-4 h-4 opacity-80" />
+                            {t.myGoals}
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('statistics')}
+                            className={cn(
+                                "flex flex-1 items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200",
+                                activeTab === 'statistics'
+                                    ? "bg-card text-foreground shadow-sm ring-1 ring-border/45"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/20"
+                            )}
+                        >
+                            <BarChart3 className="w-4 h-4 opacity-80" />
+                            {t.goalsStatistics}
+                        </button>
+                    </div>
+
+                    {onNavigateToCreate && (
+                        <button
+                            onClick={onNavigateToCreate}
+                            className="flex h-11 items-center gap-1.5 px-3 sm:px-4 rounded-xl border border-primary/20 bg-primary/10 text-primary hover:bg-primary/15 active:scale-95 text-xs sm:text-sm font-bold transition-all shrink-0 shadow-2xs"
+                        >
+                            <Plus className="w-4 h-4" />
+                            <span>{isArabic ? "هدف جديد" : "New Goal"}</span>
+                        </button>
+                    )}
                 </div>
 
                 {goals.length === 0 && activeTab === 'goals' ? (
@@ -239,12 +252,12 @@ export default function GoalsList({ goals, taskStatsMap = {}, selectedGoalId, on
                                                 <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild>
-                                                            <button
-                                                                className="rounded-lg border border-transparent p-2 text-muted-foreground/75 transition-all hover:border-border/70 hover:bg-muted/60 hover:text-foreground"
-                                                                aria-label={language === 'ar' ? 'خيارات الهدف' : 'Goal options'}
-                                                            >
-                                                                <MoreVertical className="h-4 w-4" />
-                                                            </button>
+                                                             <button
+                                                                 className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-transparent text-muted-foreground/75 transition-all hover:border-border/70 hover:bg-muted/60 hover:text-foreground active:scale-95 after:absolute after:-inset-1"
+                                                                 aria-label={language === 'ar' ? 'خيارات الهدف' : 'Goal options'}
+                                                             >
+                                                                 <MoreVertical className="h-4 w-4" />
+                                                             </button>
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent align={isArabic ? 'start' : 'end'} className="w-52">
                                                             <DropdownMenuItem

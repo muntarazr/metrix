@@ -541,8 +541,8 @@ export default function TaskInsights({ goalId, tasks, language = 'ar' }: TaskIns
                   }
                 }}
                 className={cn(
-                  "group relative flex flex-col justify-between rounded-xl border border-border/70 bg-card p-3 text-start transition-all duration-200 hover:border-primary/45 hover:shadow-xs cursor-pointer active:scale-[0.99]",
-                  isTopRank && "border-primary/30 ring-1 ring-primary/20 bg-primary/[0.02]"
+                  "group relative flex flex-col justify-between rounded-2xl border-2 border-border/80 bg-card p-3.5 text-start transition-all duration-200 hover:border-primary/60 hover:shadow-md cursor-pointer active:translate-y-[1px] shadow-xs",
+                  isTopRank && "border-primary/40 ring-2 ring-primary/20 bg-primary/[0.03]"
                 )}
               >
                 {/* Top Row: Rank + Icon + Full Name + Multiplier */}
@@ -550,16 +550,16 @@ export default function TaskInsights({ goalId, tasks, language = 'ar' }: TaskIns
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <span
                       className={cn(
-                        "inline-flex h-5 min-w-5 items-center justify-center rounded px-1.5 text-[10px] font-black shrink-0 tabular-nums",
+                        "inline-flex h-6 min-w-6 items-center justify-center rounded-xl px-2 text-[10px] font-black shrink-0 tabular-nums border-2",
                         isTopRank
-                          ? "bg-primary text-primary-foreground shadow-xs"
-                          : "bg-muted text-muted-foreground font-bold"
+                          ? "bg-primary text-primary-foreground border-primary/40 shadow-xs"
+                          : "bg-muted text-muted-foreground border-border/80 font-bold"
                       )}
                     >
                       #{index + 1}
                     </span>
 
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-surface border border-border/60 text-sm shadow-xs">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-surface border-2 border-border/70 text-sm shadow-xs">
                       {item.icon}
                     </span>
 

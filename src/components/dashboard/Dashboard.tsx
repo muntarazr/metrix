@@ -9,6 +9,7 @@ import {
   getPeriodStart,
   getPeriodTypeFromFrequency,
   getLocalDateKey,
+  getLocalDayWindow,
 } from "@/lib/task-periods";
 import {
   computeStreak,
@@ -44,7 +45,6 @@ import GoalEditDialog from "../goal/GoalEditDialog";
 import TaskInsights from "./TaskInsights";
 import DashboardHeader from "./DashboardHeader";
 import FocusTab from "./FocusTab";
-import ActivityHistory from "./ActivityHistory";
 import LogEvaluationModal, { type LogItem } from "../progress/LogEvaluationModal";
 import TaskEditDialog, {
   type EditableTask,
@@ -117,16 +117,6 @@ interface DashboardProps {
 
 type DashboardTab = "focus" | "chart" | "challenge";
 
-function getLocalDayWindow(referenceDate = new Date()) {
-  const start = new Date(referenceDate);
-  start.setHours(0, 0, 0, 0);
-
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
-
-  return { start, end };
-}
-
 function normalizeBreakdown(value: unknown): BreakdownRow[] {
   return parseDailyLogBreakdown(value).items.map((item) => ({
     task_id: item.task_id,
@@ -184,10 +174,12 @@ export default function Dashboard({
   const [editingText, setEditingText] = useState("");
   const [addingSubFor, setAddingSubFor] = useState<string | null>(null);
   const [newSubText, setNewSubText] = useState("");
+  const [newSubCriteria, setNewSubCriteria] = useState("");
   const [newSubFreq, setNewSubFreq] = useState<"daily" | "weekly">("daily");
   const [newSubWeight, setNewSubWeight] = useState(3);
   const [addingMain, setAddingMain] = useState(false);
   const [newMainText, setNewMainText] = useState("");
+  const [newMainCriteria, setNewMainCriteria] = useState("");
   const [newMainFreq, setNewMainFreq] = useState<"daily" | "weekly">("weekly");
   const [newMainWeight, setNewMainWeight] = useState(6);
   const [newMainColor, setNewMainColor] = useState<TaskColorKey | null>(null);
@@ -282,7 +274,35 @@ export default function Dashboard({
     [freshlyCompletedTaskIds],
   );
 
-  const todayDateKey = getLocalDateKey();
+  const [activeDateKey, setActiveDateKey] = useState(() => getLocalDateKey());
+  const todayDateKey = activeDateKey;
+
+  // Detect day rollover (e.g. crossing midnight while app is open, or resuming on a new day)
+  useEffect(() => {
+    const checkDayRollover = () => {
+      const latestDateKey = getLocalDateKey();
+      if (latestDateKey !== activeDateKey) {
+        setActiveDateKey(latestDateKey);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        checkDayRollover();
+      }
+    };
+
+    window.addEventListener("focus", checkDayRollover);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    const interval = window.setInterval(checkDayRollover, 30_000);
+
+    return () => {
+      window.removeEventListener("focus", checkDayRollover);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.clearInterval(interval);
+    };
+  }, [activeDateKey]);
+
   const dailyFocusPromptStorageKey = `metrix:daily-focus-prompt:${goal.id}:${todayDateKey}`;
   const dailyFocusGoal = useMemo<DailyFocusGoalContext>(
     () => ({
@@ -772,6 +792,7 @@ export default function Dashboard({
     fetchLogs();
     fetchDailyFocusRows();
   }, [
+    activeDateKey,
     fetchTasks,
     fetchCheckins,
     fetchTodayLoggedTasks,
@@ -907,6 +928,7 @@ export default function Dashboard({
         );
         showSuccessToast(isArabic ? "✓ تم إنجاز المهمة" : "✓ Task completed");
       }
+      if (onGoalUpdated) onGoalUpdated();
     } else {
       // Create new checkin
       const { data, error } = await supabase
@@ -931,6 +953,7 @@ export default function Dashboard({
 
       setCheckins((prev) => [...prev, data]);
       showSuccessToast(isArabic ? "✓ تم إنجاز المهمة" : "✓ Task completed");
+      if (onGoalUpdated) onGoalUpdated();
     }
   };
 
@@ -1160,7 +1183,7 @@ export default function Dashboard({
       parent_task_id: null,
       sort_order: maxSort,
       time_required_minutes: 0,
-      completion_criteria: null,
+      completion_criteria: newMainCriteria.trim() || null,
       ...(newMainColor ? { accent_color: newMainColor } : {}),
     };
     const { data, error } = await supabase
@@ -1186,6 +1209,7 @@ export default function Dashboard({
     if (!error && data) {
       await fetchTasks();
       setNewMainText("");
+      setNewMainCriteria("");
       setNewMainWeight(6);
       setNewMainColor(null);
       setAddingMain(false);
@@ -1206,12 +1230,13 @@ export default function Dashboard({
       parent_task_id: parentId,
       sort_order: siblingsCount,
       time_required_minutes: 0,
-      completion_criteria: null,
+      completion_criteria: newSubCriteria.trim() || null,
     });
 
     if (!error) {
       await fetchTasks();
       setNewSubText("");
+      setNewSubCriteria("");
       setNewSubWeight(3);
       setAddingSubFor(null);
     }
@@ -1403,6 +1428,7 @@ export default function Dashboard({
   const closeNewMainComposer = () => {
     setAddingMain(false);
     setNewMainText("");
+    setNewMainCriteria("");
     setNewMainWeight(6);
     setNewMainFreq("weekly");
     setNewMainColor(null);
@@ -1677,6 +1703,7 @@ export default function Dashboard({
         dailyFocus={dailyFocus}
         loading={dailyFocusLoading}
         submitting={dailyFocusSubmitting}
+        error={dailyFocusError}
         answer={dailyFocusAnswer}
         onAnswerChange={handleDailyFocusAnswerChange}
         onAppendTranscript={handleAppendDailyFocusTranscript}
@@ -1686,19 +1713,19 @@ export default function Dashboard({
       {/* ===== Log Progress Button ===== */}
       <button
         onClick={() => setShowLogModal(true)}
-        className="flex w-full shrink-0 items-center justify-center gap-2.5 rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/12 transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5 hover:shadow-primary/20 active:translate-y-0 active:scale-[0.98]"
+        className="flex w-full shrink-0 items-center justify-center gap-2.5 rounded-2xl bg-primary py-3.5 text-sm font-extrabold tracking-wide text-primary-foreground shadow-[0_4px_0_0_color-mix(in_oklch,var(--primary)_70%,black)] hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_0_color-mix(in_oklch,var(--primary)_70%,black)] transition-all cursor-pointer select-none"
       >
-        <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary-foreground/15">
-          <Flame className="w-3.5 h-3.5" />
+        <span className="flex h-6 w-6 items-center justify-center rounded-xl bg-primary-foreground/20">
+          <Flame className="w-3.5 h-3.5 fill-current" />
         </span>
         {t.logProgressButton}
       </button>
 
       {/* ===== Tabs ===== */}
-      <div className="relative flex shrink-0 gap-1 overflow-x-auto rounded-xl border border-border/70 bg-muted/60 p-1 h-12">
+      <div className="relative flex shrink-0 gap-1 overflow-x-auto rounded-2xl border-2 border-border/80 bg-muted/70 p-1.5 h-13 shadow-xs">
         {/* Sliding active background indicator */}
         <div 
-          className="absolute top-1 bottom-1 rounded-[10px] bg-card shadow-xs ring-1 ring-border/70"
+          className="absolute top-1.5 bottom-1.5 rounded-xl bg-card border-2 border-border/80 shadow-[0_2px_0_0_var(--border)]"
           style={{
             width: 'calc((100% - 16px) / 3)',
             left: isArabic 
@@ -1715,13 +1742,13 @@ export default function Dashboard({
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
             className={cn(
-              "relative z-10 flex-1 min-w-0 flex items-center justify-center gap-2 py-2 px-2 rounded-[10px] text-xs sm:text-sm font-bold transition-all duration-200 whitespace-nowrap active:scale-95",
+              "relative z-10 flex-1 min-w-0 flex items-center justify-center gap-2 py-2 px-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all duration-150 whitespace-nowrap cursor-pointer active:translate-y-[1px]",
               activeTab === tab.key
-                ? "text-foreground font-bold"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/40",
+                ? "text-foreground font-black"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
-            <span className="[&_svg]:h-4 [&_svg]:w-4 opacity-80">{tab.icon}</span>
+            <span className="[&_svg]:h-4 [&_svg]:w-4 opacity-90">{tab.icon}</span>
             <span className="truncate">{tab.label}</span>
           </button>
         ))}
@@ -1782,11 +1809,13 @@ export default function Dashboard({
               addingMain={addingMain}
               addingSubFor={addingSubFor}
               newMainText={newMainText}
+              newMainCriteria={newMainCriteria}
               newMainFreq={newMainFreq}
               newMainWeight={newMainWeight}
               newMainColor={newMainColor}
               newMainAccent={newMainAccent}
               newSubText={newSubText}
+              newSubCriteria={newSubCriteria}
               newSubFreq={newSubFreq}
               newSubWeight={newSubWeight}
               editingTaskId={editingTaskId}
@@ -1805,7 +1834,11 @@ export default function Dashboard({
               onCloseNewMainComposer={closeNewMainComposer}
               onAddMain={handleAddMain}
               onStartAddingSub={handleStartAddingSub}
-              onCancelAddingSub={() => setAddingSubFor(null)}
+              onCancelAddingSub={() => {
+                setAddingSubFor(null);
+                setNewSubText("");
+                setNewSubCriteria("");
+              }}
               onAddSub={handleAddSub}
               onStartEditingTask={handleStartEditingTask}
               onCancelEditingTask={() => setEditingTaskId(null)}
@@ -1820,10 +1853,12 @@ export default function Dashboard({
               onSubmitDailyFocusAnswer={handleSubmitDailyFocusAnswer}
               onAddDailyFocusSuggestion={handleAddDailyFocusSuggestion}
               onSetNewMainText={setNewMainText}
+              onSetNewMainCriteria={setNewMainCriteria}
               onSetNewMainFreq={setNewMainFreq}
               onSetNewMainWeight={setNewMainWeight}
               onSetNewMainColor={setNewMainColor}
               onSetNewSubText={setNewSubText}
+              onSetNewSubCriteria={setNewSubCriteria}
               onSetNewSubFreq={setNewSubFreq}
               onSetNewSubWeight={setNewSubWeight}
               onSetEditingText={setEditingText}
@@ -1858,20 +1893,6 @@ export default function Dashboard({
               </div>
               <WeeklyReviewCard goalId={goal.id} language={language} />
               <TaskInsights goalId={goal.id} tasks={tasks} language={language} />
-              <div className="pt-1">
-                <ActivityHistory
-                  logs={logs}
-                  language={language}
-                  onLogDeleted={() => {
-                    fetchLogs();
-                    fetchChartData();
-                    fetchStreak();
-                    if (onGoalUpdated) onGoalUpdated();
-                  }}
-                  onLogProgress={() => setShowLogModal(true)}
-                  onViewLogDetails={(log) => setViewingLog(log as LogItem)}
-                />
-              </div>
             </div>
           </div>
         )}

@@ -59,6 +59,7 @@ next-env.d.ts
 /.agents/
 /.claude/skills/
 /.impeccable/
+/.freebuff/
 
 # stray duplicate outside src/, unreferenced by code (the real copy is
 # src/app/fonts/MSjawhara-Bold.ttf, which layout.tsx actually imports)

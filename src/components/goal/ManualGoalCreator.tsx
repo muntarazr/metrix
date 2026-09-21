@@ -76,7 +76,7 @@ const createSubtask = (): ManualSubtask => ({
 const createMainTask = (): ManualMainTask => ({
     id: makeId('main'),
     title: '',
-    frequency: 'weekly',
+    frequency: 'daily',
     impact_weight: 6,
     completion_criteria: '',
     subtasks: [createSubtask()],

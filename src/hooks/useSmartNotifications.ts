@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { getLocalDateKey } from "@/lib/task-periods";
+import { getFreezableDate } from "@/lib/streak";
 
 export type NotificationType =
   | "streak_rescue"
@@ -11,7 +12,12 @@ export type NotificationType =
   | "habit_nudge"
   | "challenge_alert"
   | "daily_focus"
-  | "milestone_celebration";
+  | "milestone_celebration"
+  | "deadline_alert"
+  | "record_streak"
+  | "weekly_review"
+  | "streak_freeze"
+  | "dormant_goal";
 
 export type HabitState = "consistent" | "intermittent" | "comeback" | "at_risk" | "idle";
 
@@ -45,6 +51,7 @@ interface GoalInput {
   estimated_completion_date?: string | null;
   icon?: string;
   is_pinned?: boolean;
+  streak_freezes?: string[] | null;
 }
 
 interface UseSmartNotificationsOptions {
@@ -213,7 +220,7 @@ export function useSmartNotifications({
       fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
       const { data: recentLogs } = await supabase
-        .from("activity_logs")
+        .from("daily_logs")
         .select("id, goal_id, created_at, ai_score")
         .in("goal_id", goalIds)
         .gte("created_at", fourteenDaysAgo.toISOString())
@@ -378,6 +385,112 @@ export function useSmartNotifications({
             : "Great job! You logged your progress today and strengthened your new habits.",
           timestamp: now.toISOString(),
         });
+      }
+
+      // 1. Deadline Alert (Approaching goal target completion date)
+      for (const g of goals) {
+        if (g.estimated_completion_date) {
+          const endDate = new Date(g.estimated_completion_date);
+          endDate.setHours(0, 0, 0, 0);
+          const todayDate = new Date(now);
+          todayDate.setHours(0, 0, 0, 0);
+          const daysLeft = Math.round((endDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
+          const ratio = g.target_points > 0 ? (g.current_points / g.target_points) * 100 : 0;
+
+          if (daysLeft >= 0 && daysLeft <= 7 && ratio < 90) {
+            generatedNotifs.push({
+              id: `deadline-${g.id}-${todayKey}`,
+              type: "deadline_alert",
+              priority: daysLeft <= 3 ? "high" : "medium",
+              title: isArabic
+                ? (daysLeft === 0 ? "اليوم الأخير للهدف! ⏳" : `باقي ${daysLeft} ${daysLeft === 1 ? 'يوم' : 'أيام'} على الموعد النهائي! ⏳`)
+                : (daysLeft === 0 ? "Final day for goal! ⏳" : `${daysLeft} days left before deadline! ⏳`),
+              message: isArabic
+                ? `موعد انتهاء هدفك "${g.title}" اقترب وأنجزت ${Math.round(ratio)}%. كثّف نشاطك للوصول للهدف في الوقت المحدد!`
+                : `Target deadline for "${g.title}" is approaching (${Math.round(ratio)}% done). Step up to finish on time!`,
+              goalId: g.id,
+              goalTitle: g.title,
+              timestamp: now.toISOString(),
+              actionLabel: isArabic ? "تسجيل سريع" : "Quick Log",
+            });
+            break;
+          }
+        }
+      }
+
+      // 2. Personal Streak Record / Full Week Streak
+      if (daysLoggedCount >= 7) {
+        generatedNotifs.push({
+          id: `record-streak-${todayKey}`,
+          type: "record_streak",
+          priority: "medium",
+          title: isArabic ? "أداء قياسي استثنائي! 🏆" : "Personal Record! 🏆",
+          message: isArabic
+            ? `سجلت نشاطاً في جميع أيام هذا الأسبوع الـ 7! هذا الزخم يضعك في نخبة الـ 5% الأكثر التزاماً.`
+            : `You logged on all 7 days this week! Your unstoppable consistency puts you in the top 5%.`,
+          timestamp: now.toISOString(),
+        });
+      }
+
+      // 3. Weekly Review Summary (Weekends: Sunday & Saturday)
+      const dayOfWeek = now.getDay();
+      if ((dayOfWeek === 0 || dayOfWeek === 6) && daysLoggedCount > 0) {
+        generatedNotifs.push({
+          id: `weekly-review-${todayKey}`,
+          type: "weekly_review",
+          priority: "low",
+          title: isArabic ? "ملخص أسبوعك 📊" : "Weekly Summary 📊",
+          message: isArabic
+            ? `أنهيت أسبوعك بـ ${daysLoggedCount} أيام تسجيل نشطة. راجع لوحة تحكم أهدافك لمشاهدة منحنى نموك.`
+            : `You wrapped up the week with ${daysLoggedCount} active log days. Check your dashboard to view your growth curve.`,
+          timestamp: now.toISOString(),
+        });
+      }
+
+      // 4. Streak Freeze Alert (If missed yesterday but can be saved with freeze)
+      for (const g of goals) {
+        const goalLogs = (recentLogs || []).filter((l) => l.goal_id === g.id);
+        const loggedDates = new Set(goalLogs.map((l) => new Date(l.created_at).toLocaleDateString("en-CA")));
+        const freezable = getFreezableDate(loggedDates, (g.streak_freezes || []) as string[]);
+        if (freezable) {
+          generatedNotifs.push({
+            id: `freeze-opportunity-${g.id}-${todayKey}`,
+            type: "streak_freeze",
+            priority: "high",
+            title: isArabic ? "فرصة حماية السلسلة ❄️" : "Streak Freeze Available ❄️",
+            message: isArabic
+              ? `فاتك تسجيل يوم الأمس في "${g.title}". يمكنك استخدام يوم التجميد لحماية تعبك وسلسلتك من الصفر!`
+              : `You missed logging yesterday on "${g.title}". You can activate a freeze to protect your hard-earned streak!`,
+            goalId: g.id,
+            goalTitle: g.title,
+            timestamp: now.toISOString(),
+            actionLabel: isArabic ? "حماية السلسلة" : "Protect Streak",
+          });
+          break;
+        }
+      }
+
+      // 5. Dormant Goal Revival (Inactive for >= 6 days while other goals are active)
+      if (goals.length > 1 && daysLoggedCount >= 2) {
+        for (const g of goals) {
+          const goalLogs = (recentLogs || []).filter((l) => l.goal_id === g.id);
+          if (goalLogs.length === 0) {
+            generatedNotifs.push({
+              id: `dormant-${g.id}-${todayKey}`,
+              type: "dormant_goal",
+              priority: "low",
+              title: isArabic ? "هدف في انتظارك 💤" : "Goal Waiting for You 💤",
+              message: isArabic
+                ? `هدف "${g.title}" لم تسجل فيه منذ أكثر من أسبوع. حتى خطوة صغيرة بدقيقة واحدة كافية لإعادة إحيائه!`
+                : `No activity on "${g.title}" for over a week. Even a 60-second micro-step will bring it back to life!`,
+              goalId: g.id,
+              goalTitle: g.title,
+              timestamp: now.toISOString(),
+              actionLabel: isArabic ? "تسجيل سريع" : "Quick Log",
+            });
+            break;
+          }
+        }
       }
 
       cachedNotifications = generatedNotifs;

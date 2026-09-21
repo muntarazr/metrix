@@ -26,8 +26,7 @@ const copy = {
     termsLink: 'شروط الخدمة',
     termsAnd: 'و',
     privacyLink: 'سياسة الخصوصية',
-    switchLanguage: 'English',
-  },
+      },
   en: {
     google: 'Sign in with Google',
     or: 'or',
@@ -36,8 +35,7 @@ const copy = {
     termsLink: 'Terms of Service',
     termsAnd: 'and',
     privacyLink: 'Privacy Policy',
-    switchLanguage: 'العربية',
-  },
+      },
 } as const;
 
 export default function LoginPage() {
@@ -66,12 +64,7 @@ export default function LoginPage() {
     applyDocumentLanguage(language);
   }, [language]);
 
-  const toggleLanguage = () => {
-    const next: Language = language === 'ar' ? 'en' : 'ar';
-    setLanguage(next);
-    storeLanguage(next);
-  };
-
+  
   useEffect(() => {
     const checkUser = async () => {
       const {
@@ -117,20 +110,9 @@ export default function LoginPage() {
 
       <div className="w-full max-w-md">
         <div className="bg-card border border-border rounded-2xl shadow-2xl p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-          {/* Language toggle — the only way in before the app shell exists */}
-          <div className="-mb-4 flex justify-end">
-            <button
-              type="button"
-              onClick={toggleLanguage}
-              className="rounded-lg px-2 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              {t.switchLanguage}
-            </button>
-          </div>
-
-          {/* Logo — one currentColor lockup, no light/dark asset swap */}
-          <div className="flex justify-center">
-            <BrandLockup className="h-auto w-48 text-foreground sm:w-52" />
+          {/* Header with balanced visual alignment */}
+          <div className="flex items-center justify-center gap-3">
+            <BrandLockup className="h-auto w-48 text-foreground sm:w-52 shrink-0" />
           </div>
 
           {/* Login Button */}

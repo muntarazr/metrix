@@ -416,7 +416,7 @@ export default function DayCalendarGrid({
                 setTooltip(null);
                 setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
               }}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border-2 border-border/80 bg-card text-foreground shadow-[0_2px_0_0_var(--border)] transition-all hover:bg-muted/60 active:translate-y-[1px] active:shadow-none cursor-pointer"
               aria-label={isArabic ? "الشهر السابق" : "Previous month"}
             >
               <ChevronLeft className="h-3.5 w-3.5" />
@@ -503,7 +503,7 @@ export default function DayCalendarGrid({
                 viewDate.getFullYear() === today.getFullYear() &&
                 viewDate.getMonth() === today.getMonth()
               }
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border-2 border-border/80 bg-card text-foreground shadow-[0_2px_0_0_var(--border)] transition-all hover:bg-muted/60 active:translate-y-[1px] active:shadow-none disabled:pointer-events-none disabled:opacity-30 cursor-pointer"
               aria-label={isArabic ? "الشهر التالي" : "Next month"}
             >
               <ChevronRight className="h-3.5 w-3.5" />

@@ -19,6 +19,13 @@
       "skillPath": "skill/SKILL.md",
       "computedHash": "34e59a34b9705187e87039faa5d9585aebe0056ef657f761b905afef276a3362"
     },
+    "playwriter": {
+      "source": "playwriter.dev",
+      "sourceUrl": "https://playwriter.dev",
+      "sourceType": "well-known",
+      "computedHash": "7f21ea41d9c81f3b43fe0f3de6c95d4187594a310c9b1892c11b1f5a26c4b925",
+      "wellKnownDigest": "sha256:264dabeaae53560c8ffb759c80a0f64add58be7ddfbae2dfcab7ad5f5479de1d"
+    },
     "responsive-design": {
       "source": "mindrally/skills",
       "sourceType": "github",

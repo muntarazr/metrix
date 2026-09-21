@@ -56,13 +56,65 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
-  --radius-4xl: calc(var(--radius) + 16px);
+  /* Duolingo Border Radius Scale */
+  --radius-none: 0;
+  --radius-sm: 0.125rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.25rem;
+  --radius-4xl: 1.5rem;
+  --radius-full: 9999px;
+
+  /* Duolingo Color Tokens */
+  --color-primary-50: var(--color-primary-50);
+  --color-primary-100: var(--color-primary-100);
+  --color-primary-200: var(--color-primary-200);
+  --color-primary-300: var(--color-primary-300);
+  --color-primary-400: var(--color-primary-400);
+  --color-primary-500: var(--color-primary-500);
+  --color-primary-600: var(--color-primary-600);
+  --color-primary-700: var(--color-primary-700);
+  --color-primary-800: var(--color-primary-800);
+  --color-primary-900: var(--color-primary-900);
+  --color-primary-950: var(--color-primary-950);
+
+  --color-secondary-50: var(--color-secondary-50);
+  --color-secondary-100: var(--color-secondary-100);
+  --color-secondary-200: var(--color-secondary-200);
+  --color-secondary-300: var(--color-secondary-300);
+  --color-secondary-400: var(--color-secondary-400);
+  --color-secondary-500: var(--color-secondary-500);
+  --color-secondary-600: var(--color-secondary-600);
+  --color-secondary-700: var(--color-secondary-700);
+  --color-secondary-800: var(--color-secondary-800);
+  --color-secondary-900: var(--color-secondary-900);
+  --color-secondary-950: var(--color-secondary-950);
+
+  --color-accent-50: var(--color-accent-50);
+  --color-accent-100: var(--color-accent-100);
+  --color-accent-200: var(--color-accent-200);
+  --color-accent-300: var(--color-accent-300);
+  --color-accent-400: var(--color-accent-400);
+  --color-accent-500: var(--color-accent-500);
+  --color-accent-600: var(--color-accent-600);
+  --color-accent-700: var(--color-accent-700);
+  --color-accent-800: var(--color-accent-800);
+  --color-accent-900: var(--color-accent-900);
+  --color-accent-950: var(--color-accent-950);
+
+  --color-neutral-50: var(--color-neutral-50);
+  --color-neutral-100: var(--color-neutral-100);
+  --color-neutral-200: var(--color-neutral-200);
+  --color-neutral-300: var(--color-neutral-300);
+  --color-neutral-400: var(--color-neutral-400);
+  --color-neutral-500: var(--color-neutral-500);
+  --color-neutral-600: var(--color-neutral-600);
+  --color-neutral-700: var(--color-neutral-700);
+  --color-neutral-800: var(--color-neutral-800);
+  --color-neutral-900: var(--color-neutral-900);
+  --color-neutral-950: var(--color-neutral-950);
 }
 
 :root {
@@ -93,144 +145,184 @@
   --font-fallback: system-ui, -apple-system, "Segoe UI", sans-serif;
   --radius: 0.625rem;
 
-  /* ELEVATION RAMP — crisp modern contrast: canvas has a subtle grounding
-     so pure white cards (bg-card) pop with natural depth, while recessed
-     tracks (bg-muted) and inset panels (bg-surface) maintain clear structure. */
-  --canvas: oklch(0.982 0.002 240);    /* the page ground — subtle crisp off-white */
-  --background: oklch(0.982 0.002 240);
-  --card: oklch(1 0 0);                /* raised surfaces — pure white */
-  --popover: oklch(1 0 0);
-  --surface: oklch(0.958 0.002 240);   /* inset panels inside a card */
-  --muted: oklch(0.952 0.002 240);     /* recessed tracks & controls */
-  --secondary: oklch(0.952 0.002 240);
-  --accent: oklch(0.942 0.002 240);
+  /* Duolingo Base Color Palettes */
+  --color-primary-50: #f5f8f9;
+  --color-primary-100: #ebf1f4;
+  --color-primary-200: #d1dfe5;
+  --color-primary-300: #afc9d5;
+  --color-primary-400: #7fabbe;
+  --color-primary-500: #588fa7;
+  --color-primary-600: #4a788c;
+  --color-primary-700: #3c6171;
+  --color-primary-800: #2e4a57;
+  --color-primary-900: #263840;
+  --color-primary-950: #131f24;
 
-  --foreground: oklch(0.145 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --surface-foreground: oklch(0.205 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --muted-foreground: oklch(0.48 0 0);
+  --color-secondary-50: #f6f8f9;
+  --color-secondary-100: #edf0f2;
+  --color-secondary-200: #d6dde1;
+  --color-secondary-300: #b7c4cd;
+  --color-secondary-400: #8ca2b0;
+  --color-secondary-500: #698596;
+  --color-secondary-600: #58707e;
+  --color-secondary-700: #475a66;
+  --color-secondary-800: #37464f;
+  --color-secondary-900: #2b353b;
+  --color-secondary-950: #1c2226;
 
-  /* Solid, crisp structural borders */
-  --border: oklch(0.858 0.002 240);
-  --input: oklch(0.795 0.002 240);
+  --color-accent-50: #fefbf0;
+  --color-accent-100: #fdf8e2;
+  --color-accent-200: #fbeebb;
+  --color-accent-300: #ffe485;
+  --color-accent-400: #ffd53d;
+  --color-accent-500: #ffc700;
+  --color-accent-600: #d6a800;
+  --color-accent-700: #ad8800;
+  --color-accent-800: #856800;
+  --color-accent-900: #5e4c08;
+  --color-accent-950: #3d3105;
 
-  /* The brand blue, taken from the logo: #0097b2 is oklch(0.623 0.111 216), so
-     the hue is pinned at 216 rather than the 218 it had drifted to.
-     Lightness is 0.49, not 0.525. The old value was justified as "5.24:1", but
-     that was measured against WHITE — and `body` is `bg-canvas` (0.927), not
-     white, so on the surface this text actually sits on it measured 4.00:1 and
-     FAILED AA across ~163 `text-primary` call sites. At 0.49 it measures
-     4.58:1 on canvas and 5.68:1 on card. Re-measure both if you touch this. */
+  --color-neutral-50: #f7f7f7;
+  --color-neutral-100: #f0f0f0;
+  --color-neutral-200: #dbdbdb;
+  --color-neutral-300: #c2c2c2;
+  --color-neutral-400: #9e9e9e;
+  --color-neutral-500: #808080;
+  --color-neutral-600: #6b6b6b;
+  --color-neutral-700: #575757;
+  --color-neutral-800: #424242;
+  --color-neutral-900: #333333;
+  --color-neutral-950: #000000;
+
+  /* Duolingo Elevation Ramp — Light Mode:
+     Clean neutral-50 (#f7f7f7) ground, pure white raised cards with #dbdbdb borders
+     and soft layered Duolingo shadows. */
+  --canvas: #f7f7f7;
+  --background: #f7f7f7;
+  --card: #ffffff;
+  --popover: #ffffff;
+  --surface: #f0f0f0;
+  --muted: #f0f0f0;
+  --secondary: #f0f0f0;
+  --accent: #fdf8e2;
+
+  --foreground: #131f24;
+  --card-foreground: #131f24;
+  --popover-foreground: #131f24;
+  --surface-foreground: #1c2226;
+  --secondary-foreground: #131f24;
+  --accent-foreground: #3d3105;
+  --muted-foreground: #6b6b6b;
+
+  /* Borders & Inputs */
+  --border: #dbdbdb;
+  --input: #c2c2c2;
+
+  /* Main Primary Color (Preserved as requested: hue 216 logo color) */
   --primary: oklch(0.49 0.125 216);
-  --primary-foreground: oklch(1 0 0);
+  --primary-foreground: #ffffff;
   --primary-soft: oklch(0.957 0.014 216);
   --ring: oklch(0.49 0.125 216);
 
-  --destructive: oklch(0.505 0.155 27.5);
-  --destructive-foreground: oklch(1 0 0);
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
   --destructive-soft: oklch(0.958 0.014 27.5);
-  --success: oklch(0.49 0.125 216);
-  --success-foreground: oklch(1 0 0);
+  --success: #22c55e;
+  --success-foreground: #ffffff;
   --success-soft: oklch(0.957 0.014 216);
-  --warning: oklch(0.35 0 0);
-  --warning-foreground: oklch(1 0 0);
-  --warning-soft: oklch(0.948 0 0);
-  --info: oklch(0.42 0 0);
-  --info-foreground: oklch(1 0 0);
-  --info-soft: oklch(0.953 0 0);
+  --warning: #f59e0b;
+  --warning-foreground: #000000;
+  --warning-soft: #fefbf0;
+  --info: #588fa7;
+  --info-foreground: #ffffff;
+  --info-soft: #f5f8f9;
 
   --chart-1: oklch(0.49 0.125 216);
-  --chart-2: oklch(0.42 0 0);
-  --chart-3: oklch(0.66 0 0);
-  --chart-4: oklch(0.80 0 0);
-  --chart-5: oklch(0.68 0.07 216);
+  --chart-2: #ffc700;
+  --chart-3: #588fa7;
+  --chart-4: #698596;
+  --chart-5: #22c55e;
 
-  --sidebar: oklch(0.978 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar: #f7f7f7;
+  --sidebar-foreground: #131f24;
   --sidebar-primary: oklch(0.49 0.125 216);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.948 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.842 0 0);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f0f0f0;
+  --sidebar-accent-foreground: #131f24;
+  --sidebar-border: #dbdbdb;
   --sidebar-ring: oklch(0.49 0.125 216);
 
-  /* Neutral shadow scale. The old values sat at 2% alpha, which paints nothing. */
-  --elev-xs: 0 1px 2px oklch(0 0 0 / 0.06);
-  --elev-sm: 0 1px 3px oklch(0 0 0 / 0.09), 0 1px 2px -1px oklch(0 0 0 / 0.07);
-  --elev-md: 0 4px 10px -2px oklch(0 0 0 / 0.10), 0 2px 4px -2px oklch(0 0 0 / 0.07);
-  --elev-lg: 0 12px 24px -6px oklch(0 0 0 / 0.13), 0 4px 8px -4px oklch(0 0 0 / 0.08);
+  /* Duolingo Shadow Scale */
+  --elev-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --elev-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --elev-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --elev-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  --elev-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1);
 }
 
 .dark {
-  /* Same ramp inverted. Measured against --card:
-       canvas 1.55:1 · muted 1.30:1 · border 1.45:1 vs card · input 1.92:1 */
-  --canvas: oklch(0.125 0 0);
-  --background: oklch(0.125 0 0);
-  /* Recessed surfaces must be DARKER than --card here, exactly as they are
-     lighter than it in the light theme. They used to be lighter than the card,
-     which inverted every "track + raised pill" control in dark mode: the
-     selected tab read as pressed in rather than lifted out. */
-  --muted: oklch(0.185 0 0);
-  --secondary: oklch(0.185 0 0);
-  --surface: oklch(0.205 0 0);
-  --card: oklch(0.238 0 0);
-  --popover: oklch(0.255 0 0);
-  --accent: oklch(0.302 0 0);      /* hover lift, so this one is lighter */
+  /* Duolingo Dark Ramp:
+     Deep neutral-950 ground (#000000), raised dark slate cards (#131f24)
+     recessed tracks (#1c2226 / #263840), crisp borders (#2e4a57). */
+  --canvas: #000000;
+  --background: #000000;
+  --muted: #1c2226;
+  --secondary: #1c2226;
+  --surface: #263840;
+  --card: #131f24;
+  --popover: #131f24;
+  --accent: #2e4a57;
 
-  --foreground: oklch(0.985 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --surface-foreground: oklch(0.985 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --muted-foreground: oklch(0.712 0 0);
+  --foreground: #f7f7f7;
+  --card-foreground: #f7f7f7;
+  --popover-foreground: #f7f7f7;
+  --surface-foreground: #f7f7f7;
+  --secondary-foreground: #f7f7f7;
+  --accent-foreground: #ffffff;
+  --muted-foreground: #9e9e9e;
 
-  /* Solid, not white-at-12% — a translucent border disappears over a dark card. */
-  --border: oklch(0.352 0 0);
-  --input: oklch(0.415 0 0);
+  --border: #2e4a57;
+  --input: #3c6171;
 
-  /* Bright enough to read on the dark card, so its label goes near-black. */
   --primary: oklch(0.725 0.115 216);
-  --primary-foreground: oklch(0.145 0 0);
+  --primary-foreground: #000000;
   --primary-soft: oklch(0.268 0.035 216);
   --ring: oklch(0.725 0.115 216);
 
-  --destructive: oklch(0.665 0.16 25);
-  --destructive-foreground: oklch(0.145 0 0);
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
   --destructive-soft: oklch(0.272 0.04 25);
-  --success: oklch(0.725 0.115 216);
-  --success-foreground: oklch(0.145 0 0);
+  --success: #22c55e;
+  --success-foreground: #000000;
   --success-soft: oklch(0.268 0.035 216);
-  --warning: oklch(0.87 0 0);
-  --warning-foreground: oklch(0.145 0 0);
+  --warning: #f59e0b;
+  --warning-foreground: #000000;
   --warning-soft: oklch(0.272 0 0);
-  --info: oklch(0.79 0 0);
-  --info-foreground: oklch(0.145 0 0);
+  --info: #7fabbe;
+  --info-foreground: #000000;
   --info-soft: oklch(0.258 0 0);
 
   --chart-1: oklch(0.725 0.115 216);
-  --chart-2: oklch(0.80 0 0);
-  --chart-3: oklch(0.60 0 0);
-  --chart-4: oklch(0.42 0 0);
-  --chart-5: oklch(0.58 0.07 216);
+  --chart-2: #ffd53d;
+  --chart-3: #7fabbe;
+  --chart-4: #8ca2b0;
+  --chart-5: #22c55e;
 
-  --sidebar: oklch(0.125 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar: #000000;
+  --sidebar-foreground: #f7f7f7;
   --sidebar-primary: oklch(0.725 0.115 216);
-  --sidebar-primary-foreground: oklch(0.145 0 0);
-  --sidebar-accent: oklch(0.272 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.352 0 0);
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: #1c2226;
+  --sidebar-accent-foreground: #f7f7f7;
+  --sidebar-border: #2e4a57;
   --sidebar-ring: oklch(0.725 0.115 216);
 
-  /* Dark surfaces need deeper shadows plus the border to separate at all. */
-  --elev-xs: 0 1px 2px oklch(0 0 0 / 0.45);
-  --elev-sm: 0 1px 3px oklch(0 0 0 / 0.55), 0 1px 2px -1px oklch(0 0 0 / 0.45);
-  --elev-md: 0 4px 10px -2px oklch(0 0 0 / 0.6), 0 2px 4px -2px oklch(0 0 0 / 0.45);
-  --elev-lg: 0 12px 24px -6px oklch(0 0 0 / 0.7), 0 4px 8px -4px oklch(0 0 0 / 0.5);
+  /* Duolingo Shadow Scale Dark Mode */
+  --elev-xs: 0 1px 2px 0 rgb(0 0 0 / 0.35);
+  --elev-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+  --elev-md: 0 4px 6px -1px rgb(0 0 0 / 0.6);
+  --elev-lg: 0 10px 15px -3px rgb(0 0 0 / 0.75);
+  --elev-xl: 0 20px 25px -5px rgb(0 0 0 / 0.85);
 }
 
 @layer base {

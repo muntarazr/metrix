@@ -199,9 +199,9 @@ export default function TaskEditDialog({
     <Dialog open={open} onOpenChange={(next) => (next ? onOpenChange(true) : handleClose())}>
       <DialogContent
         dir={isArabic ? "rtl" : "ltr"}
-        className="max-w-lg rounded-3xl border border-border bg-card p-0 shadow-2xl shadow-black/25"
+        className="flex max-h-[calc(100dvh-2rem)] sm:max-h-[85dvh] w-[calc(100vw-1.5rem)] max-w-lg flex-col overflow-hidden rounded-3xl border border-border bg-card p-0 shadow-2xl shadow-black/25"
       >
-        <DialogHeader className="space-y-1 px-6 pt-6 text-start rtl:text-right">
+        <DialogHeader className="shrink-0 space-y-1 px-6 pt-6 text-start rtl:text-right">
           <DialogTitle className="text-base font-bold">
             {isSub ? t.titleSub : t.titleMain}
           </DialogTitle>
@@ -210,7 +210,7 @@ export default function TaskEditDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 px-6 py-4">
+        <div className="flex-1 min-h-0 space-y-4 overflow-y-auto px-6 py-4">
           {errorMessage && (
             <div className="rounded-xl border border-destructive/25 bg-destructive/12 px-3 py-2 text-xs font-semibold text-destructive">
               {errorMessage}
@@ -329,7 +329,7 @@ export default function TaskEditDialog({
 
         <DialogFooter
           className={cn(
-            "gap-2 border-t border-border/70 bg-card px-6 py-4",
+            "shrink-0 gap-2 border-t border-border/70 bg-card px-6 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:pb-4",
             isArabic && "sm:flex-row-reverse sm:space-x-reverse",
           )}
         >

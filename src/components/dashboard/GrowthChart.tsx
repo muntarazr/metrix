@@ -627,7 +627,7 @@ export default function GrowthChart({
             role="tablist"
             aria-label={isArabic ? "النطاق الزمني" : "Time range"}
           >
-            <div className="inline-flex max-w-full shrink-0 gap-1 rounded-xl border border-border/70 bg-muted/20 p-0.5">
+            <div className="inline-flex max-w-full shrink-0 gap-1 rounded-2xl border-2 border-border/80 bg-muted/70 p-1 shadow-xs">
               {timeRangeOptions.map((option) => (
                 <button
                   key={option.key}
@@ -636,13 +636,13 @@ export default function GrowthChart({
                   onClick={() => setTimeRange(option.key)}
                   aria-selected={timeRange === option.key}
                   className={cn(
-                    "h-8 whitespace-nowrap rounded-lg px-3 text-[11px] font-bold leading-none transition-all duration-200 active:scale-95 sm:h-7 sm:px-2.5",
+                    "h-8 whitespace-nowrap rounded-xl px-3 text-[11px] font-extrabold leading-none transition-all duration-150 cursor-pointer active:translate-y-[1px] sm:h-7 sm:px-2.5",
                     isArabic
                       ? "min-w-[3rem] tracking-normal"
                       : "min-w-[2.75rem] tabular-nums",
                     timeRange === option.key
-                      ? "bg-card text-foreground shadow-sm ring-1 ring-border/45"
-                      : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                      ? "bg-card text-foreground border-2 border-border/80 shadow-[0_2px_0_0_var(--border)]"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {option.label}
@@ -651,7 +651,7 @@ export default function GrowthChart({
             </div>
           </div>
 
-          <div className="inline-flex shrink-0 rounded-xl border border-border/70 bg-muted/20 p-0.5">
+          <div className="inline-flex shrink-0 rounded-2xl border-2 border-border/80 bg-muted/70 p-1 shadow-xs">
             {chartTypeOptions.map((option) => (
               <button
                 key={option.key}
@@ -660,10 +660,10 @@ export default function GrowthChart({
                 aria-pressed={chartType === option.key}
                 aria-label={option.label}
                 className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200 active:scale-95 sm:h-7 sm:w-7 sm:rounded-[10px]",
+                  "flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-150 cursor-pointer active:translate-y-[1px] sm:h-7 sm:w-7",
                   chartType === option.key
-                    ? "bg-card text-foreground shadow-sm ring-1 ring-border/45"
-                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                    ? "bg-card text-foreground border-2 border-border/80 shadow-[0_2px_0_0_var(--border)]"
+                    : "text-muted-foreground hover:text-foreground",
                 )}
                 title={option.label}
               >

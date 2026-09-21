@@ -126,10 +126,10 @@ export default function WeeklyReviewCard({
           onClick={generate}
           disabled={generating || loading}
           className={cn(
-            "inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-bold transition-all active:scale-95 disabled:opacity-50",
+            "inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-extrabold transition-all duration-150 cursor-pointer active:translate-y-[1px] disabled:opacity-50",
             review
-              ? "border border-border/70 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-              : "bg-primary text-primary-foreground hover:opacity-90",
+              ? "border-2 border-border/80 bg-card text-foreground shadow-[0_2px_0_0_var(--border)] active:shadow-none hover:bg-accent"
+              : "bg-primary text-primary-foreground shadow-[0_2px_0_0_color-mix(in_oklch,var(--primary)_70%,black)] hover:brightness-105 active:shadow-none",
           )}
         >
           {generating ? (
@@ -150,20 +150,20 @@ export default function WeeklyReviewCard({
       </div>
 
       {error && (
-        <p className="mt-2.5 text-[11px] font-semibold leading-snug text-destructive">
+        <p className="mt-2.5 text-[11px] font-bold leading-snug text-destructive">
           {error}
         </p>
       )}
 
       {loading ? (
         <div className="mt-3 space-y-2">
-          <div className="h-3 w-3/4 animate-pulse rounded bg-muted/60" />
-          <div className="h-3 w-1/2 animate-pulse rounded bg-muted/20" />
+          <div className="h-3 w-3/4 animate-pulse rounded-lg bg-muted/60" />
+          <div className="h-3 w-1/2 animate-pulse rounded-lg bg-muted/20" />
         </div>
       ) : review ? (
         <div className="mt-2.5 space-y-2.5">
           {review.summary && (
-            <p className="text-[11px] leading-relaxed text-foreground/90 sm:text-xs">
+            <p className="text-[11px] leading-relaxed text-foreground font-medium sm:text-xs">
               {review.summary}
             </p>
           )}
@@ -173,13 +173,13 @@ export default function WeeklyReviewCard({
               {review.patterns.map((pattern, index) => (
                 <li
                   key={`${pattern.label}-${index}`}
-                  className="rounded-lg border border-border/70 bg-background px-2.5 py-1.5"
+                  className="rounded-xl border-2 border-border/80 bg-muted/30 px-3 py-2 shadow-xs"
                 >
-                  <p className="text-[11px] font-bold text-foreground">
+                  <p className="text-[11px] font-black text-foreground">
                     {pattern.label}
                   </p>
                   {pattern.detail && (
-                    <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground">
+                    <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground font-medium">
                       {pattern.detail}
                     </p>
                   )}
@@ -189,7 +189,7 @@ export default function WeeklyReviewCard({
           )}
 
           {review.suggestion && (
-            <p className="rounded-lg border border-primary/15 bg-primary/12 px-2.5 py-1.5 text-[11px] font-semibold leading-snug text-primary">
+            <p className="rounded-xl border-2 border-primary/30 bg-primary/10 px-3 py-2 text-xs font-bold leading-relaxed text-primary shadow-xs">
               {review.suggestion}
             </p>
           )}
