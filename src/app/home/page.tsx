@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { BrandLockup } from "@/components/brand/Logo";
 import { Button } from "@/components/ui/button";
+import { SpotlightCard, ShinyText, Magnet } from "@/components/reactbits";
 import PricingSection from "./PricingSection";
 
 /*
@@ -130,19 +131,21 @@ export default function LandingPage() {
             الاصطناعي، وسلاسل إنجاز تحاسبك على التزامك.
           </p>
           <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
-            <Button size="lg" asChild className="gap-2">
-              <Link href="/login">
-                ابدأ مجانًا الآن
-                <ArrowLeft className="size-4" />
-              </Link>
-            </Button>
+            <Magnet padding={35} magnetStrength={3}>
+              <Button size="lg" asChild className="gap-2">
+                <Link href="/login">
+                  ابدأ مجانًا الآن
+                  <ArrowLeft className="size-4" />
+                </Link>
+              </Button>
+            </Magnet>
             <Button size="lg" variant="outline" asChild>
               <Link href="#pricing">اطّلع على الأسعار</Link>
             </Button>
           </div>
           <p className="mt-4 text-xs text-muted-foreground">
             بلا بطاقة ائتمانية · ألغِ في أي وقت ·{" "}
-            <span className="font-semibold text-primary">(المجاني للأبد)</span>
+            <ShinyText text="(المجاني للأبد)" className="font-semibold text-primary" />
           </p>
         </div>
       </section>
@@ -157,9 +160,9 @@ export default function LandingPage() {
         </p>
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((f) => (
-            <div
+            <SpotlightCard
               key={f.title}
-              className="rounded-2xl border border-border bg-card p-6 shadow-sm transition-shadow duration-200 hover:shadow-md"
+              className="p-6"
             >
               <div className="flex size-10 items-center justify-center rounded-xl bg-primary/12 text-primary">
                 <f.icon className="size-5" />
@@ -168,7 +171,7 @@ export default function LandingPage() {
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                 {f.description}
               </p>
-            </div>
+            </SpotlightCard>
           ))}
         </div>
       </section>
@@ -232,12 +235,16 @@ export default function LandingPage() {
           <p className="mx-auto mt-4 max-w-md text-muted-foreground">
             أنشئ هدفك الأول اليوم وشاهد كيف يحوّل النظام نيّتك إلى إنجاز مقيس.
           </p>
-          <Button size="lg" asChild className="mt-8 gap-2">
-            <Link href="/login">
-              ابدأ مجانًا الآن
-              <ArrowLeft className="size-4" />
-            </Link>
-          </Button>
+          <div className="mt-8">
+            <Magnet padding={35} magnetStrength={3}>
+              <Button size="lg" asChild className="gap-2">
+                <Link href="/login">
+                  ابدأ مجانًا الآن
+                  <ArrowLeft className="size-4" />
+                </Link>
+              </Button>
+            </Magnet>
+          </div>
         </div>
       </section>
 

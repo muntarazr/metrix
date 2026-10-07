@@ -162,6 +162,6 @@ export const compactCopy = {
 } as const;
 
 export const cardClass =
-  "rounded-2xl border-2 border-border/80 bg-card shadow-sm p-3 sm:p-4";
+  "rounded-xl border border-border/70 bg-card shadow-xs p-3 sm:p-4";
 export const softCardClass =
-  "rounded-2xl border-2 border-border/70 bg-muted/40 p-2.5 sm:p-3";
+  "rounded-xl border border-border/60 bg-muted/40 p-2.5 sm:p-3";

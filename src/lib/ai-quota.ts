@@ -27,6 +27,11 @@ export async function requireAiQuota(
   provider: AiProvider,
   operation: AiOperation,
 ): Promise<NextResponse | null> {
+  // In local development, bypass the artificial database quota to allow thorough testing
+  if (process.env.NODE_ENV === "development" && process.env.ENFORCE_AI_QUOTA_IN_DEV !== "true") {
+    return null;
+  }
+
   const { data, error } = await supabase.rpc("consume_ai_quota", {
     p_provider: provider,
     p_operation: operation,

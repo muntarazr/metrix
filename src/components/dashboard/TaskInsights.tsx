@@ -47,7 +47,6 @@ interface BreakdownRow {
 interface TaskAggregate {
   id: string;
   label: string;
-  icon: string;
   impactWeight: number;
   frequency: string;
   completionCount: number;
@@ -59,7 +58,6 @@ interface TaskAggregate {
 interface TopTaskItem {
   id: string;
   fullName: string;
-  icon: string;
   completions: number;
   totalPoints: number;
   impactWeight: number;
@@ -74,7 +72,6 @@ interface TopTaskItem {
 const copy = {
   en: {
     title: 'Most Frequent Skills',
-    subtitle: 'Skills and tasks with your highest consistency and repetition',
     loading: 'Loading skill insights...',
     empty: 'Complete a few tasks first, and your most frequent skills will be mapped here.',
     completions: 'Completions',
@@ -87,12 +84,10 @@ const copy = {
     pillar: 'Pillar',
     criteria: 'Completion Criteria',
     miniVersion: '2-Minute Rule',
-    activeSkills: 'top skills',
     details: 'Skill Details',
   },
   ar: {
     title: 'المهارات الأكثر تكرارًا',
-    subtitle: 'المهارات والمهام الأكثر التزاماً وتكراراً في مسار نموك',
     loading: 'جارِ تحميل إحصائيات المهارات...',
     empty: 'أنجز بعض المهام أولاً، وسيظهر هنا تلقائياً ترتيب المهارات الأكثر تكراراً والتزاماً.',
     completions: 'مرات التكرار',
@@ -105,7 +100,6 @@ const copy = {
     pillar: 'الركيزة / المسار',
     criteria: 'معيار الإنجاز',
     miniVersion: 'نسخة الدقيقتين',
-    activeSkills: 'مهارات متميزة',
     details: 'تفاصيل المهارة',
   },
 } as const;
@@ -259,7 +253,6 @@ export default function TaskInsights({ goalId, tasks, language = 'ar' }: TaskIns
         task.id,
         {
           label: task.task_description,
-          icon: task.icon || (task.task_type === 'sub' ? '🔹' : '🧭'),
           impactWeight: Number(task.impact_weight) || 1,
           frequency: task.frequency || 'daily',
           parentTaskId: task.parent_task_id || null,
@@ -274,7 +267,6 @@ export default function TaskInsights({ goalId, tasks, language = 'ar' }: TaskIns
       baseAggregates.set(task.id, {
         id: task.id,
         label: source?.label || task.task_description,
-        icon: source?.icon || '✨',
         impactWeight: Number(task.impact_weight) || source?.impactWeight || 1,
         frequency: task.frequency,
         completionCount: 0,
@@ -317,7 +309,6 @@ export default function TaskInsights({ goalId, tasks, language = 'ar' }: TaskIns
         return {
           id: item.id,
           fullName: item.label,
-          icon: item.icon,
           completions: item.completionCount,
           totalPoints: item.totalPoints,
           impactWeight: item.impactWeight,
@@ -343,15 +334,11 @@ export default function TaskInsights({ goalId, tasks, language = 'ar' }: TaskIns
         className={cn(PANEL_SURFACE, "rounded-2xl p-3.5 sm:p-4")}
         dir={isArabic ? 'rtl' : 'ltr'}
       >
-        <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-border/60">
+        <div className="flex items-center pb-2.5 mb-3 border-b border-border/60">
           <div className="flex items-center gap-2.5">
             <div className="h-7 w-7 rounded-lg bg-muted/60 animate-pulse" />
-            <div className="space-y-1">
-              <div className="h-3.5 w-28 rounded bg-muted/60 animate-pulse" />
-              <div className="h-2.5 w-40 rounded bg-muted/30 animate-pulse hidden sm:block" />
-            </div>
+            <div className="h-3.5 w-28 rounded bg-muted/60 animate-pulse" />
           </div>
-          <div className="h-5 w-16 rounded bg-muted/40 animate-pulse" />
         </div>
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -362,7 +349,6 @@ export default function TaskInsights({ goalId, tasks, language = 'ar' }: TaskIns
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   <div className="h-5 w-5 rounded bg-muted/50 animate-pulse" />
-                  <div className="h-7 w-7 rounded-lg bg-muted/50 animate-pulse" />
                   <div className="h-3.5 w-32 rounded bg-muted/60 animate-pulse" />
                 </div>
                 <div className="h-5 w-8 rounded-lg bg-muted/50 animate-pulse" />
@@ -413,25 +399,20 @@ export default function TaskInsights({ goalId, tasks, language = 'ar' }: TaskIns
           {selectedTask && (
             <div className="space-y-3.5">
               <DialogHeader>
-                <div className="flex items-start gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface border border-border/70 text-xl shadow-xs mt-0.5">
-                    {selectedTask.icon}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex h-5 items-center justify-center rounded bg-primary/10 border border-primary/20 px-1.5 text-[10px] font-black text-primary">
-                        #{analytics.topTasks.findIndex((t) => t.id === selectedTask.id) + 1}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-5 items-center justify-center rounded bg-primary/10 border border-primary/20 px-1.5 text-[10px] font-black text-primary">
+                      #{analytics.topTasks.findIndex((t) => t.id === selectedTask.id) + 1}
+                    </span>
+                    {selectedTask.parentName && (
+                      <span className="text-xs font-semibold text-muted-foreground truncate">
+                        {selectedTask.parentName}
                       </span>
-                      {selectedTask.parentName && (
-                        <span className="text-xs font-semibold text-muted-foreground truncate">
-                          {selectedTask.parentName}
-                        </span>
-                      )}
-                    </div>
-                    <DialogTitle className="text-start text-sm sm:text-base font-bold text-foreground leading-snug mt-1.5">
-                      {selectedTask.fullName}
-                    </DialogTitle>
+                    )}
                   </div>
+                  <DialogTitle className="text-start text-sm sm:text-base font-bold text-foreground leading-snug mt-1.5">
+                    {selectedTask.fullName}
+                  </DialogTitle>
                 </div>
               </DialogHeader>
 
@@ -497,29 +478,15 @@ export default function TaskInsights({ goalId, tasks, language = 'ar' }: TaskIns
       )}
 
       {/* Top Skills Section Card - Refined Balanced Height */}
-      <div className={cn(PANEL_SURFACE, "rounded-2xl p-3.5 sm:p-4 transition-all duration-300")}>
+      <div className={cn(PANEL_SURFACE, "rounded-2xl p-2.5 transition-all duration-300")}>
         {/* Section Header */}
-        <div className="flex items-center justify-between gap-3 pb-2.5 mb-3 border-b border-border/60">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/15">
-              <TrendingUp className="h-3.5 w-3.5" />
-            </span>
-            <div className="min-w-0">
-              <h3 className="truncate text-xs font-extrabold text-foreground sm:text-sm">
-                {text.title}
-              </h3>
-              <p className="hidden sm:block text-[11px] text-muted-foreground/75 leading-tight truncate mt-0.5">
-                {text.subtitle}
-              </p>
-            </div>
-          </div>
-
-          <span className="inline-flex items-center gap-1.5 rounded-lg border border-border/70 bg-muted/30 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground shrink-0">
-            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-            <span>
-              {formatNumberEn(analytics.topTasks.length)} {text.activeSkills}
-            </span>
+        <div className="flex items-center gap-2.5 pb-2.5 mb-3 border-b border-border/60">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/15">
+            <TrendingUp className="h-3.5 w-3.5" />
           </span>
+          <h3 className="truncate text-xs font-extrabold text-foreground sm:text-sm">
+            {text.title}
+          </h3>
         </div>
 
         {/* Top Tasks Balanced Grid */}
@@ -541,8 +508,8 @@ export default function TaskInsights({ goalId, tasks, language = 'ar' }: TaskIns
                   }
                 }}
                 className={cn(
-                  "group relative flex flex-col justify-between rounded-2xl border-2 border-border/80 bg-card p-3.5 text-start transition-all duration-200 hover:border-primary/60 hover:shadow-md cursor-pointer active:translate-y-[1px] shadow-xs",
-                  isTopRank && "border-primary/40 ring-2 ring-primary/20 bg-primary/[0.03]"
+                  "group relative flex flex-col justify-between rounded-xl border border-border/70 bg-card p-3.5 text-start transition-all duration-200 hover:border-primary/60 hover:shadow-xs cursor-pointer active:scale-[0.99] shadow-xs",
+                  isTopRank && "border-primary/40 ring-1 ring-primary/20 bg-primary/[0.03]"
                 )}
               >
                 {/* Top Row: Rank + Icon + Full Name + Multiplier */}
@@ -550,17 +517,13 @@ export default function TaskInsights({ goalId, tasks, language = 'ar' }: TaskIns
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <span
                       className={cn(
-                        "inline-flex h-6 min-w-6 items-center justify-center rounded-xl px-2 text-[10px] font-black shrink-0 tabular-nums border-2",
+                        "inline-flex h-5 min-w-5 items-center justify-center rounded-md px-1.5 text-[10px] font-semibold shrink-0 tabular-nums border",
                         isTopRank
                           ? "bg-primary text-primary-foreground border-primary/40 shadow-xs"
-                          : "bg-muted text-muted-foreground border-border/80 font-bold"
+                          : "bg-muted/60 text-muted-foreground border-border/60 font-medium"
                       )}
                     >
                       #{index + 1}
-                    </span>
-
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-surface border-2 border-border/70 text-sm shadow-xs">
-                      {item.icon}
                     </span>
 
                     <h4

@@ -7,8 +7,8 @@ import {
   Loader2,
   Pin,
   Target,
-  PenLine,
   Sparkles,
+  ArrowUp,
   CircleAlert,
   ListChecks,
   Bell,
@@ -21,6 +21,7 @@ import {
   Calendar,
   Snowflake,
   BarChart3,
+  Edit3,
 } from "lucide-react";
 import { translations, type Language } from "@/lib/translations";
 import type { GoalTaskStats } from "@/app/page";
@@ -59,7 +60,7 @@ interface HomePageProps {
   goals: Goal[];
   taskStatsMap?: Record<string, GoalTaskStats>;
   onSelectGoal: (id: string) => void;
-  onNavigateToCreate?: (goalText: string, mode: "ai" | "manual") => void;
+  onNavigateToCreate?: (goalText: string, mode?: "ai" | "manual") => void;
   onGoalUpdated?: () => void;
   language?: Language;
   recentGoalsLimit?: number;
@@ -82,8 +83,6 @@ export default function HomePage({
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showAIDetailPrompt, setShowAIDetailPrompt] = useState(false);
-  const [selectedCreationMode, setSelectedCreationMode] =
-    useState<"ai" | "manual">("ai");
   const goalTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -108,6 +107,37 @@ export default function HomePage({
   const [selectedLogGoalId, setSelectedLogGoalId] = useState<string | null>(
     null,
   );
+  const [selectedLogGoalIds, setSelectedLogGoalIds] = useState<string[]>([]);
+
+  const selectedLogGoals = useMemo(
+    () => goals.filter((g) => selectedLogGoalIds.includes(g.id)),
+    [goals, selectedLogGoalIds],
+  );
+
+  const toggleGoalSelection = useCallback((goalId: string) => {
+    setSelectedLogGoalIds((prev) => {
+      const isAlreadySelected = prev.includes(goalId);
+      const next = isAlreadySelected
+        ? prev.filter((id) => id !== goalId)
+        : [...prev, goalId];
+      if (next.length === 1) {
+        setSelectedLogGoalId(next[0]);
+      } else if (next.length === 0) {
+        setSelectedLogGoalId(null);
+      } else {
+        setSelectedLogGoalId(next[0]);
+      }
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (goals.length > 0 && selectedLogGoalIds.length === 0 && !selectedLogGoalId) {
+      setSelectedLogGoalIds([goals[0].id]);
+      setSelectedLogGoalId(goals[0].id);
+    }
+  }, [goals, selectedLogGoalIds.length, selectedLogGoalId]);
+
   const [logTasks, setLogTasks] = useState<TaskRow[]>([]);
   const [logTasksLoading, setLogTasksLoading] = useState(false);
   const [showProgressDialog, setShowProgressDialog] = useState(false);
@@ -164,7 +194,6 @@ export default function HomePage({
   };
 
   const handleAICreate = () => {
-    setSelectedCreationMode("ai");
     const trimmedGoal = normalizedGoalInput;
     if (!trimmedGoal) {
       goalTextareaRef.current?.focus();
@@ -322,29 +351,29 @@ export default function HomePage({
         ? "اكتب هدفك هنا\u200f..."
         : "Write your goal here...";
 
-  const handleManualCreate = () => {
-    setSelectedCreationMode("manual");
-    if (!hasGoalInput) {
-      goalTextareaRef.current?.focus();
-      return;
-    }
-    setShowAIDetailPrompt(false);
-    onNavigateToCreate?.(normalizedGoalInput, "manual");
-  };
 
   /* ---- Log mode: fetch tasks and open progress dialog ---- */
-  const handleLogSubmit = useCallback(async (customGoalId?: string) => {
-      const targetGoalId = customGoalId || selectedLogGoalId;
+  const handleLogSubmit = useCallback(
+    async (customGoalId?: string) => {
+      const targetGoalId =
+        customGoalId || selectedLogGoalId || selectedLogGoalIds[0];
       if (!targetGoalId) return;
       if (customGoalId && customGoalId !== selectedLogGoalId) {
         setSelectedLogGoalId(customGoalId);
+        setSelectedLogGoalIds([customGoalId]);
       }
       setLogTasksLoading(true);
       try {
+        const targetIds = customGoalId
+          ? [customGoalId]
+          : selectedLogGoalIds.length > 0
+            ? selectedLogGoalIds
+            : [targetGoalId];
+
         const { data, error } = await supabase
           .from("sub_layers")
           .select("*")
-          .eq("goal_id", targetGoalId)
+          .in("goal_id", targetIds)
           .order("sort_order", { ascending: true });
 
         if (error) {
@@ -360,8 +389,12 @@ export default function HomePage({
         setLogTasksLoading(false);
       }
     },
-    [selectedLogGoalId, supabase],
+    [selectedLogGoalId, selectedLogGoalIds, supabase],
   );
+
+  const handleDailyLogClick = useCallback(() => {
+    handleLogSubmit();
+  }, [handleLogSubmit]);
 
   const handleProgressDialogClose = useCallback(() => {
     setShowProgressDialog(false);
@@ -451,7 +484,7 @@ export default function HomePage({
 
         <div
           className={cn(
-            "relative z-20 flex items-stretch gap-2 overflow-hidden rounded-2xl",
+            "relative z-20 flex items-stretch gap-2 overflow-hidden rounded-2xl min-h-[114px] sm:min-h-[118px]",
             PANEL_SURFACE,
             "shadow-sm shadow-black/[0.03] transition-all duration-300 ease-out dark:shadow-black/10",
             boxMode === "new"
@@ -471,7 +504,7 @@ export default function HomePage({
               aria-selected={boxMode === "new"}
               onClick={() => setBoxMode("new")}
               className={cn(
-                "flex h-12 w-10 shrink-0 items-center justify-center rounded-xl transition-all duration-200",
+                "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-200",
                 boxMode === "new"
                   ? "bg-primary/12 text-primary ring-1 ring-primary/25 shadow-[0_4px_12px_-6px_color-mix(in_oklch,var(--primary)_60%,transparent)]"
                   : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
@@ -487,7 +520,7 @@ export default function HomePage({
               onClick={() => setBoxMode("log")}
               disabled={goals.length === 0}
               className={cn(
-                "flex h-12 w-10 shrink-0 items-center justify-center rounded-xl transition-all duration-200",
+                "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-200",
                 boxMode === "log"
                   ? "bg-primary/12 text-primary ring-1 ring-primary/25 shadow-[0_4px_12px_-6px_color-mix(in_oklch,var(--primary)_45%,transparent)]"
                   : "text-muted-foreground hover:bg-muted/60 hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
@@ -501,7 +534,7 @@ export default function HomePage({
           {/* Content area */}
           {boxMode === "new" ? (
             /* ===== NEW GOAL MODE (existing input) ===== */
-            <div className="relative min-w-0 flex-1">
+            <div className="relative min-w-0 flex-1 flex flex-col justify-between min-h-[114px] sm:min-h-[118px]">
               <div
                 className={cn(
                   "pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b to-transparent",
@@ -535,104 +568,120 @@ export default function HomePage({
               </div>
               <div
                 className={cn(
-                  "flex flex-row-reverse items-center gap-2 px-2 pb-2 pt-0 sm:items-center sm:justify-between sm:px-3 sm:pb-3",
+                  "flex flex-row-reverse items-center justify-between gap-2 px-2 pb-2 pt-0 sm:items-center sm:px-3 sm:pb-3",
                   isArabic ? "sm:flex-row-reverse" : "sm:flex-row"
                 )}
               >
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={toggleRecording}
-                  disabled={isProcessing}
-                  aria-pressed={isRecording}
-                  className={cn(
-                    "h-9 w-9 shrink-0 rounded-full px-0 shadow-none sm:w-9 sm:px-0",
-                    isProcessing
-                      ? "border-primary/45 bg-primary/12 text-primary"
-                      : isRecording
-                        ? "border-destructive/45 bg-destructive/12 text-destructive hover:bg-destructive/12"
-                        : "border-border bg-background text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                  )}
-                >
-                  {isProcessing ? <Loader2 className="size-4 animate-spin" /> : isRecording ? <StopCircle className="size-4" /> : <Mic className="size-4" />}
-                </Button>
                 <div
-                  className={cn(
-                    "grid min-w-0 flex-1 grid-cols-2 gap-1.5 sm:w-auto sm:flex-none sm:gap-2 sm:min-w-[280px]"
-                  )}
+                  className="flex items-center gap-2"
                   dir={isArabic ? "rtl" : "ltr"}
                 >
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={handleManualCreate}
-                    aria-pressed={selectedCreationMode === "manual"}
+                    size="sm"
+                    onClick={toggleRecording}
+                    disabled={isProcessing}
+                    aria-pressed={isRecording}
                     className={cn(
-                      "w-full h-9 min-w-0 rounded-full border px-2 text-xs font-semibold shadow-none transition-all duration-200 sm:h-10 sm:px-4 sm:text-sm",
-                      selectedCreationMode === "manual"
-                        ? "border-foreground/25 bg-foreground/12 text-foreground ring-1 ring-foreground/15"
-                        : "border-border bg-background text-muted-foreground/90 hover:bg-muted/60 hover:text-foreground"
+                      "h-9 w-9 shrink-0 rounded-full px-0 shadow-none sm:h-10 sm:w-10",
+                      isProcessing
+                        ? "border-primary/45 bg-primary/12 text-primary"
+                        : isRecording
+                          ? "border-destructive/45 bg-destructive/12 text-destructive hover:bg-destructive/12"
+                          : "border-border bg-background text-muted-foreground hover:bg-muted/60 hover:text-foreground"
                     )}
                   >
-                    <PenLine className="size-4 shrink-0" />
-                    <span className="truncate">{isArabic ? "يدوي" : "Manual"}</span>
+                    {isProcessing ? <Loader2 className="size-4 animate-spin" /> : isRecording ? <StopCircle className="size-4" /> : <Mic className="size-4" />}
                   </Button>
                   <Button
                     type="button"
-                    variant="outline"
                     onClick={handleAICreate}
-                    aria-pressed={selectedCreationMode === "ai"}
-                    className={cn(
-                      "w-full h-9 min-w-0 rounded-full border px-2 text-xs font-semibold shadow-none transition-all duration-300 sm:h-10 sm:px-4 sm:text-sm",
-                      aiPromptVisible
-                        ? "border-primary/45 bg-primary/12 text-primary"
-                        : selectedCreationMode === "ai"
-                          ? "border-primary/25 bg-primary/12 text-primary ring-1 ring-primary/15 hover:bg-primary/12"
-                          : "border-border bg-background text-muted-foreground/90 hover:bg-muted/60 hover:text-foreground"
-                    )}
+                    title={isArabic ? "صياغة الخطة بالذكاء الاصطناعي" : "Plan with AI"}
+                    aria-label={isArabic ? "صياغة الخطة بالذكاء الاصطناعي" : "Plan with AI"}
+                    className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-full px-0 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/20 flex items-center justify-center active:scale-95 transition-all"
                   >
-                    <Sparkles className="size-4 shrink-0" />
-                    <span className="truncate">{isArabic ? "ذكاء اصطناعي" : "AI Plan"}</span>
+                    <ArrowUp className="size-4 shrink-0" />
                   </Button>
                 </div>
+
+                {/* Direct Manual Goal Creation shortcut */}
+                <button
+                  type="button"
+                  onClick={() => onNavigateToCreate?.(goalInput.trim(), "manual")}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-muted-foreground/80 hover:text-primary hover:bg-muted/40 transition-colors cursor-pointer select-none"
+                  title={t.orCreateManually || (isArabic ? 'إنشاء هدف يدوي بدون ذكاء اصطناعي' : 'Create manual goal')}
+                >
+                  <Edit3 className="w-3.5 h-3.5 text-primary" />
+                  <span>{t.orCreateManually || (isArabic ? 'إنشاء يدوي' : 'Manual Goal')}</span>
+                </button>
               </div>
             </div>
           ) : (
             /* ===== DAILY LOG MODE ===== */
-            <div className="relative min-w-0 flex-1 flex flex-col">
-              <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-primary/12 via-primary/12 to-transparent" />
-              <div className="relative flex-1 px-2 pt-2 pb-1.5 sm:px-3 sm:pt-2.5 sm:pb-2.5 flex flex-col gap-2">
+            <div className="relative min-w-0 flex-1 flex flex-col justify-between min-h-[114px] sm:min-h-[118px]">
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-primary/10 to-transparent" />
+              <div className="relative flex-1 px-2 pt-2 pb-1.5 sm:px-3 sm:pt-2.5 sm:pb-2.5 flex flex-col justify-center min-h-[44px]">
                 {goals.length === 0 ? (
-                  <div className="flex items-center justify-center rounded-xl border border-dashed border-border/70 bg-muted/12 px-3 py-4 text-center">
-                    <p className="text-sm text-muted-foreground/75">
+                  <div className="flex items-center justify-center rounded-xl border border-dashed border-border/70 bg-muted/12 px-3 py-3 text-center">
+                    <p className="text-xs text-muted-foreground/75">
                       {t.noGoalsToLog}
                     </p>
                   </div>
                 ) : (
-                  <div className="flex flex-wrap gap-1.5 max-h-[88px] overflow-y-auto scrollbar-thin">
+                  <div className="flex flex-wrap items-center gap-1.5 max-h-[76px] overflow-y-auto scrollbar-thin py-0.5">
+                    {goals.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (selectedLogGoalIds.length === goals.length) {
+                            setSelectedLogGoalIds([]);
+                            setSelectedLogGoalId(null);
+                          } else {
+                            setSelectedLogGoalIds(goals.map((g) => g.id));
+                            setSelectedLogGoalId(goals[0]?.id || null);
+                          }
+                        }}
+                        className={cn(
+                          "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium transition-all duration-150 cursor-pointer active:scale-95",
+                          selectedLogGoalIds.length === goals.length
+                            ? "border-primary/40 bg-primary/15 text-primary font-semibold"
+                            : "border-dashed border-border/80 bg-background text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                        )}
+                      >
+                        <span>
+                          {selectedLogGoalIds.length === goals.length
+                            ? (isArabic ? "إلغاء الكل" : "None")
+                            : (isArabic ? "الكل" : "All")}
+                        </span>
+                      </button>
+                    )}
+
                     {goals.map((goal) => {
                       const Icon = getIconComponent(goal.icon || "Target");
                       const currentPoints = goal.current_points ?? 0;
                       const targetPoints = goal.target_points ?? 0;
-                      const progress = targetPoints > 0 ? Math.round((currentPoints / targetPoints) * 100) : 0;
-                      const isSelected = selectedLogGoalId === goal.id;
+                      const progress =
+                        targetPoints > 0
+                          ? Math.round((currentPoints / targetPoints) * 100)
+                          : 0;
+                      const isSelected = selectedLogGoalIds.includes(goal.id);
                       return (
                         <button
                           key={goal.id}
                           type="button"
-                          onClick={() => setSelectedLogGoalId(goal.id)}
+                          onClick={() => toggleGoalSelection(goal.id)}
                           aria-pressed={isSelected}
                           className={cn(
-                            "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-semibold transition-all duration-200",
+                            "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-all duration-150 cursor-pointer active:scale-95",
                             isSelected
-                              ? "border-primary bg-primary/12 text-primary ring-1 ring-primary/25 shadow-[0_4px_14px_-4px_color-mix(in_oklch,var(--primary)_40%,transparent)]"
-                              : "border-border bg-background text-muted-foreground hover:border-primary/25 hover:bg-primary/12 hover:text-foreground"
+                              ? "border-primary bg-primary/12 text-primary ring-1 ring-primary/25 font-semibold shadow-xs"
+                              : "border-border bg-background text-muted-foreground hover:border-primary/25 hover:bg-primary/10 hover:text-foreground opacity-75 hover:opacity-100"
                           )}
                         >
                           <span
                             className={cn(
-                              "flex h-4 w-4 shrink-0 items-center justify-center rounded-[5px] border transition-all duration-200",
+                              "flex h-4 w-4 shrink-0 items-center justify-center rounded-[5px] border transition-all duration-150",
                               isSelected
                                 ? "border-primary bg-primary text-primary-foreground"
                                 : "border-primary/25 bg-primary/12 text-primary"
@@ -640,8 +689,13 @@ export default function HomePage({
                           >
                             <Icon className="h-2.5 w-2.5" />
                           </span>
-                          <span className="max-w-[130px] truncate">{goal.title}</span>
-                          <span className={cn("tabular-nums text-[10px] font-bold transition-opacity", isSelected ? "opacity-80" : "opacity-50")}>
+                          <span className="max-w-[140px] sm:max-w-[180px] truncate">{goal.title}</span>
+                          <span
+                            className={cn(
+                              "tabular-nums text-[10px] font-bold transition-opacity",
+                              isSelected ? "opacity-90" : "opacity-50"
+                            )}
+                          >
                             {progress}%
                           </span>
                         </button>
@@ -650,24 +704,33 @@ export default function HomePage({
                   </div>
                 )}
               </div>
+
+              {/* Action Button */}
               <div className="px-2 pb-2 pt-0 sm:px-3 sm:pb-3">
                 <Button
                   type="button"
-                  disabled={!selectedLogGoalId || logTasksLoading || goals.length === 0}
-                  onClick={() => handleLogSubmit()}
+                  disabled={
+                    selectedLogGoalIds.length === 0 ||
+                    logTasksLoading ||
+                    goals.length === 0
+                  }
+                  onClick={handleDailyLogClick}
                   className={cn(
-                    "w-full h-10 rounded-xl px-4 text-sm font-bold transition-all duration-200",
-                    !selectedLogGoalId || goals.length === 0
+                    "w-full h-9 sm:h-10 rounded-xl px-4 text-xs sm:text-sm font-semibold transition-all duration-200",
+                    selectedLogGoalIds.length === 0 || goals.length === 0
                       ? "bg-muted/60 text-muted-foreground/50 cursor-not-allowed shadow-none"
-                      : "bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]"
+                      : "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 active:scale-[0.99]"
                   )}
                 >
-                  {logTasksLoading ? (
-                    <Loader2 className="size-4 shrink-0 animate-spin" />
-                  ) : (
-                    <Zap className="size-4 shrink-0" />
+                  <Zap className="size-3.5 shrink-0" />
+                  <span>
+                    {isArabic ? "تسجيل التقدّم اليوم" : "Log Today's Progress"}
+                  </span>
+                  {selectedLogGoalIds.length > 1 && (
+                    <span className="inline-flex items-center justify-center rounded-full bg-primary-foreground/20 px-1.5 py-0.5 text-[10px] font-bold tabular-nums">
+                      {selectedLogGoalIds.length}
+                    </span>
                   )}
-                  <span>{isArabic ? "تسجيل التقدّم اليوم" : "Log Today's Progress"}</span>
                 </Button>
               </div>
             </div>
@@ -681,19 +744,19 @@ export default function HomePage({
         dir={isArabic ? "rtl" : "ltr"}
       >
         <div className="flex shrink-0 items-center justify-between mb-2.5 px-1">
-          <div className="flex items-center gap-1.5 bg-muted/30 p-1 rounded-xl border border-border/50">
+          <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-xl border border-border/70">
             <button
               onClick={() => setBottomTab("goals")}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer",
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer active:scale-95",
                 bottomTab === "goals"
-                  ? "bg-card text-foreground shadow-xs border border-border/70"
+                  ? "bg-card text-foreground shadow-xs border border-border/70 font-semibold"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
               )}
             >
               <Target className="h-3.5 w-3.5 text-primary opacity-80" />
               <span>{isArabic ? "الأهداف الأخيرة" : "Recent Goals"}</span>
-              <span className="inline-flex h-4 min-w-[1.1rem] items-center justify-center rounded-full bg-primary/10 px-1.5 text-[10px] font-bold text-primary tabular-nums">
+              <span className="inline-flex h-4 min-w-[1.1rem] items-center justify-center rounded-full bg-primary/10 px-1.5 text-[10px] font-semibold text-primary tabular-nums">
                 {recentGoals.length}
               </span>
             </button>
@@ -701,16 +764,16 @@ export default function HomePage({
             <button
               onClick={() => setBottomTab("notifications")}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer",
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer active:scale-95",
                 bottomTab === "notifications"
-                  ? "bg-card text-foreground shadow-xs border border-border/70"
+                  ? "bg-card text-foreground shadow-xs border border-border/70 font-semibold"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
               )}
             >
               <Bell className="h-3.5 w-3.5 text-amber-500" />
               <span>{isArabic ? "الإشعارات" : "Notifications"}</span>
               {unreadNotifications.length > 0 && (
-                <span className="inline-flex h-4 min-w-[1.1rem] items-center justify-center rounded-full bg-destructive text-white px-1.5 text-[10px] font-bold tabular-nums">
+                <span className="inline-flex h-4 min-w-[1.1rem] items-center justify-center rounded-full bg-destructive text-white px-1.5 text-[10px] font-semibold tabular-nums">
                   {unreadNotifications.length}
                 </span>
               )}
@@ -749,7 +812,7 @@ export default function HomePage({
                     return (
                       <div
                         key={goal.id}
-                        className="group relative w-full min-h-[112px] sm:min-h-[120px] rounded-2xl border-2 border-border/80 bg-card p-3 sm:p-3.5 shadow-sm transition-all duration-200 ease-out hover:border-primary/60 hover:shadow-md active:translate-y-[2px] active:shadow-xs flex flex-col justify-between gap-2.5"
+                        className="group relative w-full min-h-[112px] sm:min-h-[120px] rounded-xl border border-border/70 bg-card p-3 sm:p-3.5 shadow-xs transition-all duration-200 ease-out hover:border-primary/60 hover:shadow-xs active:scale-[0.99] flex flex-col justify-between gap-2.5"
                       >
                         <button
                           onClick={() => onSelectGoal(goal.id)}
@@ -759,7 +822,7 @@ export default function HomePage({
                           {/* Top: Icon + Title */}
                           <div className="flex w-full items-center justify-between gap-2">
                             <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                              <div className="flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl border-2 border-primary/30 bg-primary/10 text-primary shadow-xs transition-all duration-200 group-hover:bg-primary group-hover:text-primary-foreground">
+                              <div className="flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-lg border border-primary/25 bg-primary/10 text-primary shadow-xs transition-all duration-200 group-hover:bg-primary group-hover:text-primary-foreground">
                                 <Icon className="h-4 w-4" />
                               </div>
                               <div className="min-w-0 flex-1">
@@ -945,7 +1008,7 @@ export default function HomePage({
                                   handleLogSubmit(n.goalId);
                                 }
                               }}
-                              className="h-8 rounded-lg px-3 text-xs font-bold shadow-xs gap-1.5"
+                              className="h-8 sm:h-9 rounded-lg px-3 text-xs font-medium shadow-xs gap-1.5 active:scale-95"
                             >
                               <Zap className="h-3.5 w-3.5" />
                               <span>{isArabic ? "تسجيل سريع" : "Quick Log"}</span>
@@ -956,7 +1019,7 @@ export default function HomePage({
                               size="sm"
                               variant="ghost"
                               onClick={() => onSelectGoal(n.goalId!)}
-                              className="h-8 rounded-lg px-2.5 text-xs text-muted-foreground hover:text-foreground"
+                              className="h-8 sm:h-9 rounded-lg px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground active:scale-95"
                             >
                               <span>{isArabic ? "عرض الهدف" : "View"}</span>
                             </Button>
@@ -974,18 +1037,29 @@ export default function HomePage({
       </div>
 
       {/* Progress Log Dialog (opened from daily-log mode) */}
-      {showProgressDialog && selectedLogGoal && (
+      {showProgressDialog && (selectedLogGoal || selectedLogGoals.length > 0) && (
         <ProgressLogDialog
           goal={{
-            id: selectedLogGoal.id,
-            title: selectedLogGoal.title,
-            ai_summary: selectedLogGoal.ai_summary || "",
-            created_at: selectedLogGoal.created_at,
-            estimated_completion_date: selectedLogGoal.estimated_completion_date,
-            current_points: selectedLogGoal.current_points,
-            target_points: selectedLogGoal.target_points,
+            id: (selectedLogGoal || selectedLogGoals[0]).id,
+            title: (selectedLogGoal || selectedLogGoals[0]).title,
+            ai_summary: (selectedLogGoal || selectedLogGoals[0]).ai_summary || "",
+            created_at: (selectedLogGoal || selectedLogGoals[0]).created_at,
+            estimated_completion_date:
+              (selectedLogGoal || selectedLogGoals[0]).estimated_completion_date,
+            current_points: (selectedLogGoal || selectedLogGoals[0]).current_points,
+            target_points: (selectedLogGoal || selectedLogGoals[0]).target_points,
           }}
+          goals={selectedLogGoals.map((g) => ({
+            id: g.id,
+            title: g.title,
+            ai_summary: g.ai_summary || "",
+            created_at: g.created_at,
+            estimated_completion_date: g.estimated_completion_date,
+            current_points: g.current_points,
+            target_points: g.target_points,
+          }))}
           tasks={logTasks}
+          initialMode={selectedLogGoals.length > 1 ? "ai" : "select"}
           onClose={handleProgressDialogClose}
           onSuccess={handleProgressDialogSuccess}
           language={language}

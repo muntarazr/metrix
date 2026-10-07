@@ -30,7 +30,7 @@ export default function GoalProgressBar({
   return (
     <div
       className={cn(
-        'relative h-9 sm:h-10 w-full overflow-hidden rounded-full border-2 border-border/80 bg-muted/50 shadow-inner',
+        'relative h-8 sm:h-9 w-full overflow-hidden rounded-full border border-border/70 bg-muted/40 shadow-inner',
         className
       )}
       role="progressbar"
@@ -41,10 +41,10 @@ export default function GoalProgressBar({
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 z-10 h-[40%] bg-gradient-to-b from-white/20 to-transparent"
+        className="pointer-events-none absolute inset-x-0 top-0 z-10 h-[40%] bg-gradient-to-b from-white/15 to-transparent"
       />
       <div
-        className="relative h-full rounded-full bg-gradient-to-r from-primary/80 via-primary to-primary transition-all duration-700 ease-out shadow-[0_2px_0_0_rgba(255,255,255,0.2)_inset]"
+        className="relative h-full rounded-full bg-gradient-to-r from-primary/90 to-primary transition-all duration-700 ease-out shadow-[inset_0_1px_0_0_rgba(255,255,255,0.25)]"
         style={{ width: `${fillWidth}%` }}
       >
         <div

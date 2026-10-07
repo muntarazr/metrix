@@ -70,3 +70,7 @@ next-env.d.ts
 # the local tree directly, not via this repo), but never committed
 /src/app/fonts/*.ttf
 /src/app/fonts/*.otf
+
+# internal audit artifacts
+.refactor-audit/
+audit-evidence/

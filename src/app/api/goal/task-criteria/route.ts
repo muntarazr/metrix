@@ -22,7 +22,19 @@ export async function POST(req: NextRequest) {
       taskType = "sub",
       language = "ar",
       force = false,
+      criteria: customCriteria,
     } = body;
+
+    if (taskId && customCriteria !== undefined) {
+      const { error: updateError } = await auth.supabase
+        .from("sub_layers")
+        .update({ completion_criteria: customCriteria.trim() || null })
+        .eq("id", taskId);
+      if (updateError) {
+        return NextResponse.json({ error: "Failed to update criteria" }, { status: 500 });
+      }
+      return NextResponse.json({ criteria: customCriteria, updated: true });
+    }
 
     let targetDescription = taskDescription;
     let targetGoalTitle = goalTitle;

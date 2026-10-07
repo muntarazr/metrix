@@ -14,6 +14,8 @@ export interface TaskRow {
   parent_task_id?: string | null;
   sort_order?: number | null;
   icon?: string | null;
+  /** Explicit execution days per task (0 = Sunday … 6 = Saturday). null = all days per frequency. */
+  schedule_days?: number[] | null;
   /** Cached two-minute version of the task; null until first generated. */
   mini_version?: string | null;
 }
@@ -77,6 +79,7 @@ export function normalizeTaskRow(task: TaskRow): TaskRow {
     impact_weight: clamp(Number(task.impact_weight) || 1, 1, maxWeight),
     sort_order: Number(task.sort_order) || 0,
     parent_task_id: taskType === 'sub' ? task.parent_task_id || null : null,
+    schedule_days: Array.isArray(task.schedule_days) ? task.schedule_days : (task.schedule_days === null ? null : undefined),
   };
 }
 
@@ -161,11 +164,11 @@ export function getScorableTasks(taskRows: TaskRow[]): ScorableTask[] {
     return subtasks;
   }
 
-  // Legacy fallback: if no subtasks yet, score mains as if they were subtasks.
+  // Flat tasks: each direct task is scored with its full impact weight
   return mains.map((main) => ({
     id: main.id,
     task_description: main.task_description,
-    impact_weight: clamp(Math.round((Number(main.impact_weight) || 1) / 2), 1, 5),
+    impact_weight: clamp(Number(main.impact_weight) || 1, 1, 5),
     frequency: normalizeFrequency(main.frequency),
     parent_task_id: null,
   }));
@@ -191,14 +194,22 @@ export function deriveMainBreakdown(
     .map((main) => {
       const scopedSubtasks = main.subtasks;
       if (scopedSubtasks.length === 0) {
+        const item = breakdownMap.get(main.id);
+        const weight = Number(main.impact_weight) || 1;
+        const isDone = item?.status === 'done';
+        const isPartial = item?.status === 'partial';
+        const points = item ? Number(item.points) || 0 : 0;
         return {
           main_task_id: main.id,
           main_task: main.task_description,
-          total_points: 0,
-          max_points: 0,
-          status: 'missed' as const,
-          completed_subtasks: 0,
-          total_subtasks: 0,
+          total_points: points,
+          max_points: weight,
+          status: (isDone ? 'done' : isPartial ? 'partial' : 'missed') as
+            | 'done'
+            | 'partial'
+            | 'missed',
+          completed_subtasks: isDone ? 1 : 0,
+          total_subtasks: 1,
         };
       }
 

@@ -301,34 +301,20 @@ export default function GrowthChart({
               ? 8
               : 6;
   const showDots = chartData.length <= 18;
-  const dayAxisTickGap = useMemo(() => {
-    if (bucketMode !== "day") return 0;
-    const n = chartData.length;
-    if (isNarrowViewport) {
-      if (n <= 7) return 10;
-      if (n <= 14) return 18;
-      if (n <= 30) return 26;
-      if (n <= 60) return 34;
-      return 42;
-    }
-    if (n <= 14) return 6;
-    if (n <= 30) return 10;
-    if (n <= 60) return 14;
-    if (n <= 90) return 18;
-    return 22;
-  }, [bucketMode, chartData.length, isNarrowViewport]);
-  const xAxisMinTickGap =
-    bucketMode === "day"
-      ? dayAxisTickGap
-      : chartData.length > 60
-        ? 44
-        : chartData.length > 30
-          ? 36
-          : isArabic
-            ? 30
-            : 28;
-  const xAxisInterval = "preserveStartEnd" as const;
+  const xAxisInterval = useMemo(() => {
+    if (bucketMode === "day") return 0;
+    if (chartData.length <= 12) return 0;
+    return "preserveStartEnd" as const;
+  }, [bucketMode, chartData.length]);
+
+  const xAxisMinTickGap = useMemo(() => {
+    if (bucketMode === "day") return 0;
+    if (chartData.length <= 12) return 0;
+    return 24;
+  }, [bucketMode, chartData.length]);
+
   const yAxisWidth = isArabic ? 40 : 34;
+
   const xAxisMetaByDate = useMemo(() => {
     const meta = new Map<string, { primary: string; secondary?: string }>();
 
@@ -347,41 +333,59 @@ export default function GrowthChart({
         entryDate.getMonth() !== previousDate.getMonth() ||
         entryDate.getFullYear() !== previousDate.getFullYear();
 
+      const secondary =
+        timeRange === "7d"
+          ? weekDayFormatter.format(entryDate)
+          : showMonth
+            ? shortMonthFormatter.format(entryDate)
+            : undefined;
+
       meta.set(entry.date, {
         primary: formatNumberEn(entryDate.getDate()),
-        secondary: showMonth
-          ? shortMonthFormatter.format(entryDate)
-          : undefined,
+        secondary,
       });
     });
 
     return meta;
-  }, [bucketMode, chartData, shortMonthFormatter]);
+  }, [bucketMode, chartData, shortMonthFormatter, timeRange, weekDayFormatter]);
+
   const renderXAxisTick = ({
     x = 0,
     y = 0,
     payload,
+    index = 0,
   }: {
     x?: number;
     y?: number;
     payload?: { value?: string };
+    index?: number;
   }) => {
     const value = payload?.value ?? "";
     const meta = xAxisMetaByDate.get(value);
     const primary = meta?.primary ?? value;
     const secondary = meta?.secondary;
+    const isDenseDayMode = bucketMode === "day" && chartData.length > 14;
 
     return (
       <g transform={`translate(${x},${y})`}>
         <text
           textAnchor="middle"
-          className="fill-muted-foreground text-[10.5px] font-medium"
+          className={cn(
+            "fill-muted-foreground font-medium select-none tabular-nums",
+            isDenseDayMode
+              ? "text-[8.5px] sm:text-[9.5px] md:text-[10px]"
+              : "text-[10.5px] sm:text-[11px]",
+          )}
         >
           <tspan x={0} dy={10}>
             {primary}
           </tspan>
           {secondary ? (
-            <tspan x={0} dy={12} className="text-[9px] opacity-75">
+            <tspan
+              x={index === 0 && x < 24 ? 8 : 0}
+              dy={12}
+              className="text-[8px] sm:text-[9px] opacity-75 font-normal"
+            >
               {secondary}
             </tspan>
           ) : null}
@@ -389,18 +393,19 @@ export default function GrowthChart({
       </g>
     );
   };
+
   const xAxisHeight = bucketMode === "day" ? 42 : 34;
   const chartViewportClass = fillHeight
     ? "aspect-auto h-full min-h-[178px] w-full shrink-0 flex-1 sm:min-h-[188px] md:min-h-[240px] lg:min-h-[262px]"
     : "aspect-auto h-[180px] w-full shrink-0 sm:h-[196px] lg:h-[208px]";
   const emptyStateClass = fillHeight
-    ? "h-full min-h-[178px] sm:min-h-[188px] md:min-h-[240px] lg:min-h-[262px]"
-    : "h-[180px] sm:h-[196px] lg:h-[208px]";
+    ? "h-full min-h-[178px] w-full flex-1 sm:min-h-[188px] md:min-h-[240px] lg:min-h-[262px]"
+    : "h-[180px] w-full flex-1 sm:h-[196px] lg:h-[208px]";
 
   const containerClass = cn(
     embedded
       ? "rounded-none border-0 bg-transparent p-0 shadow-none ring-0 hover:bg-transparent"
-      : cn("relative flex flex-col overflow-hidden rounded-2xl p-2.5 sm:p-3", PANEL_SURFACE),
+      : cn("relative flex flex-col overflow-hidden rounded-2xl p-2.5", PANEL_SURFACE),
     fillHeight && "h-full min-h-0",
     className,
   );
@@ -461,8 +466,8 @@ export default function GrowthChart({
               tickMargin={6}
               width={yAxisWidth}
               allowDecimals={false}
-              tickCount={4}
-              className="text-[11.5px] fill-muted-foreground"
+              tickCount={5}
+              className="text-[10.5px] sm:text-[11px] font-medium fill-muted-foreground tabular-nums"
               tickFormatter={(value: number) => formatNumber(value)}
             />
             <ChartTooltip
@@ -538,8 +543,8 @@ export default function GrowthChart({
               tickMargin={6}
               width={yAxisWidth}
               allowDecimals={false}
-              tickCount={4}
-              className="text-[11.5px] fill-muted-foreground"
+              tickCount={5}
+              className="text-[10.5px] sm:text-[11px] font-medium fill-muted-foreground tabular-nums"
               tickFormatter={(value: number) => formatNumber(value)}
             />
             <ChartTooltip
@@ -597,8 +602,8 @@ export default function GrowthChart({
               tickMargin={6}
               width={yAxisWidth}
               allowDecimals={false}
-              tickCount={4}
-              className="text-[11.5px] fill-muted-foreground"
+              tickCount={5}
+              className="text-[10.5px] sm:text-[11px] font-medium fill-muted-foreground tabular-nums"
               tickFormatter={(value: number) => formatNumber(value)}
             />
             <ChartTooltip
@@ -627,7 +632,7 @@ export default function GrowthChart({
             role="tablist"
             aria-label={isArabic ? "النطاق الزمني" : "Time range"}
           >
-            <div className="inline-flex max-w-full shrink-0 gap-1 rounded-2xl border-2 border-border/80 bg-muted/70 p-1 shadow-xs">
+            <div className="inline-flex max-w-full shrink-0 gap-1 rounded-lg border border-border/70 bg-muted/60 p-0.5 shadow-xs">
               {timeRangeOptions.map((option) => (
                 <button
                   key={option.key}
@@ -636,12 +641,12 @@ export default function GrowthChart({
                   onClick={() => setTimeRange(option.key)}
                   aria-selected={timeRange === option.key}
                   className={cn(
-                    "h-8 whitespace-nowrap rounded-xl px-3 text-[11px] font-extrabold leading-none transition-all duration-150 cursor-pointer active:translate-y-[1px] sm:h-7 sm:px-2.5",
+                    "h-7 whitespace-nowrap rounded-md px-2.5 text-[11px] font-medium leading-none transition-all duration-150 cursor-pointer active:scale-95",
                     isArabic
-                      ? "min-w-[3rem] tracking-normal"
-                      : "min-w-[2.75rem] tabular-nums",
+                      ? "min-w-[2.75rem] tracking-normal"
+                      : "min-w-[2.5rem] tabular-nums",
                     timeRange === option.key
-                      ? "bg-card text-foreground border-2 border-border/80 shadow-[0_2px_0_0_var(--border)]"
+                      ? "bg-card text-foreground border border-border/70 shadow-xs"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
@@ -651,7 +656,7 @@ export default function GrowthChart({
             </div>
           </div>
 
-          <div className="inline-flex shrink-0 rounded-2xl border-2 border-border/80 bg-muted/70 p-1 shadow-xs">
+          <div className="inline-flex shrink-0 rounded-lg border border-border/70 bg-muted/60 p-0.5 shadow-xs">
             {chartTypeOptions.map((option) => (
               <button
                 key={option.key}
@@ -660,9 +665,9 @@ export default function GrowthChart({
                 aria-pressed={chartType === option.key}
                 aria-label={option.label}
                 className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-150 cursor-pointer active:translate-y-[1px] sm:h-7 sm:w-7",
+                  "flex h-7 w-7 items-center justify-center rounded-md transition-all duration-150 cursor-pointer active:scale-95",
                   chartType === option.key
-                    ? "bg-card text-foreground border-2 border-border/80 shadow-[0_2px_0_0_var(--border)]"
+                    ? "bg-card text-foreground border border-border/70 shadow-xs"
                     : "text-muted-foreground hover:text-foreground",
                 )}
                 title={option.label}
@@ -675,11 +680,11 @@ export default function GrowthChart({
       </div>
 
       <div className="mt-1.5 flex flex-1 min-h-0">
-        <div className="flex w-full min-w-0 flex-1 min-h-0 overflow-hidden rounded-xl border border-border/45 bg-muted/12 p-2 sm:p-2.5 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]">
+        <div className="flex flex-col w-full min-w-0 flex-1 min-h-0 overflow-hidden rounded-xl border border-border/45 bg-muted/12 p-1.5 sm:p-2 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]">
           {chartData.length === 0 ? (
             <div
               className={cn(
-                "flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border/70 bg-card/12 px-5 text-center text-sm text-muted-foreground",
+                "flex w-full flex-1 min-h-full flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border/70 bg-card/20 px-5 py-6 text-center text-sm text-muted-foreground",
                 emptyStateClass,
               )}
             >

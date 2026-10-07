@@ -47,6 +47,37 @@ export class GeminiImageUnavailableError extends Error {
   }
 }
 
+export interface MultiGoalItemContext {
+  id: string;
+  title: string;
+  description?: string;
+  current_points?: number;
+  target_points?: number;
+  tasks?: Array<{
+    id: string;
+    title: string;
+    impact_weight?: number;
+  }>;
+}
+
+export interface MultiGoalEvaluatedItem {
+  goal_id: string;
+  goal_title: string;
+  mentioned: boolean;
+  extracted_activity: string;
+  points_to_award: number;
+  feedback: string;
+  completed_task_ids: string[];
+}
+
+export interface MultiGoalEvaluationResult {
+  overall_summary: string;
+  goals: MultiGoalEvaluatedItem[];
+  status?: "ok" | "refused";
+  safe_redirection?: { message: string; alternatives?: string[] };
+}
+
+
 function getApiErrorText(error: any) {
   if (typeof error?.message === "string") return error.message;
   try {
@@ -108,31 +139,237 @@ function isImagePlanError(error: any) {
 }
 
 /**
- * Robustly extracts and parses JSON from a string that might contain extra text or markdown.
+ * Robustly extracts, repairs, and parses JSON from LLM output that might contain
+ * extra text, markdown fences, single/multi-line comments, single quotes, unquoted keys,
+ * trailing commas, unescaped control characters, or truncated structures.
  */
-function extractJson(text: string): any {
+export function extractJson(text: string): any {
+  if (typeof text !== "string") return text;
+
+  // 1. Direct parse attempt
   try {
     return JSON.parse(text);
-  } catch {
-    const cleanText = text.replace(/```json|```/g, "").trim();
-    try {
-      return JSON.parse(cleanText);
-    } catch {
-      const start = cleanText.indexOf("{");
-      const end = cleanText.lastIndexOf("}");
+  } catch {}
 
-      if (start !== -1 && end !== -1 && end > start) {
-        const jsonStr = cleanText.substring(start, end + 1);
-        try {
-          return JSON.parse(jsonStr);
-        } catch (e3: any) {
-          throw new Error(
-            `Failed to parse extracted JSON: ${e3.message || e3}`,
-          );
+  // 2. Strip markdown fences if present
+  let str = text.trim();
+  const fenceMatch = str.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fenceMatch) {
+    try {
+      return JSON.parse(fenceMatch[1].trim());
+    } catch {}
+    str = fenceMatch[1].trim();
+  } else {
+    str = str.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
+  }
+
+  // 3. Find opening `{` or `[`
+  const firstBrace = str.indexOf("{");
+  const firstBracket = str.indexOf("[");
+  let startIdx = -1;
+  if (firstBrace !== -1 && firstBracket !== -1) {
+    startIdx = Math.min(firstBrace, firstBracket);
+  } else {
+    startIdx = firstBrace !== -1 ? firstBrace : firstBracket;
+  }
+
+  if (startIdx === -1) {
+    throw new Error("No JSON object or array found in response");
+  }
+
+  str = str.substring(startIdx);
+
+  // Try parsing from startIdx
+  try {
+    return JSON.parse(str);
+  } catch {}
+
+  // 4. Try from startIdx to last matching closing brace
+  const lastBrace = str.lastIndexOf("}");
+  const lastBracket = str.lastIndexOf("]");
+  const endIdx = Math.max(lastBrace, lastBracket);
+  if (endIdx > 0) {
+    const sub = str.substring(0, endIdx + 1);
+    try {
+      return JSON.parse(sub);
+    } catch {}
+  }
+
+  // 5. Strip single-line and multi-line comments outside of string literals
+  let cleaned = "";
+  let inStr = false;
+  let quoteChar = "";
+  let esc = false;
+  for (let i = 0; i < str.length; i++) {
+    const c = str[i];
+    const next = str[i + 1];
+
+    if (inStr) {
+      if (esc) {
+        cleaned += c;
+        esc = false;
+      } else if (c === "\\") {
+        cleaned += c;
+        esc = true;
+      } else if (c === quoteChar) {
+        cleaned += c;
+        inStr = false;
+        quoteChar = "";
+      } else {
+        cleaned += c;
+      }
+      continue;
+    }
+
+    if (c === '"' || c === "'") {
+      inStr = true;
+      quoteChar = c;
+      cleaned += c;
+      continue;
+    }
+
+    if (c === "/" && next === "/") {
+      while (i < str.length && str[i] !== "\n") i++;
+      cleaned += "\n";
+      continue;
+    }
+
+    if (c === "/" && next === "*") {
+      i += 2;
+      while (i < str.length && !(str[i] === "*" && str[i + 1] === "/")) i++;
+      i++;
+      continue;
+    }
+
+    cleaned += c;
+  }
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {}
+
+  // 6. State-machine pass: normalize quotes, escape unescaped controls, remove trailing commas
+  let normalized = "";
+  inStr = false;
+  quoteChar = "";
+  esc = false;
+  const stack: string[] = [];
+
+  for (let i = 0; i < cleaned.length; i++) {
+    const c = cleaned[i];
+
+    if (inStr) {
+      if (esc) {
+        normalized += c;
+        esc = false;
+      } else if (c === "\\") {
+        normalized += c;
+        esc = true;
+      } else if (c === quoteChar) {
+        normalized += '"';
+        inStr = false;
+        quoteChar = "";
+      } else if (c === '"') {
+        normalized += '\\"';
+      } else if (c === "\n") {
+        normalized += "\\n";
+      } else if (c === "\r") {
+        // ignore
+      } else if (c === "\t") {
+        normalized += "\\t";
+      } else {
+        normalized += c;
+      }
+      continue;
+    }
+
+    if (c === '"' || c === "'") {
+      inStr = true;
+      quoteChar = c;
+      normalized += '"';
+      continue;
+    }
+
+    if (c === "{" || c === "[") {
+      stack.push(c);
+      normalized += c;
+      continue;
+    }
+
+    if (c === "}" || c === "]") {
+      let j = normalized.length - 1;
+      while (j >= 0 && /\s/.test(normalized[j])) j--;
+      if (j >= 0 && normalized[j] === ",") {
+        normalized = normalized.substring(0, j) + normalized.substring(j + 1);
+      }
+
+      if (stack.length > 0) {
+        const expected = stack[stack.length - 1] === "{" ? "}" : "]";
+        if (c === expected) {
+          stack.pop();
         }
       }
-      throw new Error("No JSON object found in response");
+      normalized += c;
+      continue;
     }
+
+    if (c === ",") {
+      let j = normalized.length - 1;
+      while (j >= 0 && /\s/.test(normalized[j])) j--;
+      if (j >= 0 && (normalized[j] === "{" || normalized[j] === "[" || normalized[j] === "," || normalized[j] === ":")) {
+        continue;
+      }
+      normalized += c;
+      continue;
+    }
+
+    normalized += c;
+  }
+
+  // Handle truncation
+  if (inStr) normalized += '"';
+
+  let k = normalized.length - 1;
+  while (k >= 0 && /\s/.test(normalized[k])) k--;
+  if (k >= 0 && normalized[k] === ":") normalized += "null";
+
+  k = normalized.length - 1;
+  while (k >= 0 && /\s/.test(normalized[k])) k--;
+  if (k >= 0 && normalized[k] === ",") normalized = normalized.substring(0, k);
+
+  // If in an object and ends with key without colon/value (e.g. `{"a": 1, "b"`), append `: null`
+  if (stack.length > 0 && stack[stack.length - 1] === "{") {
+    let p = normalized.length - 1;
+    while (p >= 0 && /\s/.test(normalized[p])) p--;
+    if (p >= 0 && normalized[p] === '"') {
+      let q = p - 1;
+      while (q >= 0 && normalized[q] !== '"') q--;
+      if (q >= 0) {
+        let beforeString = q - 1;
+        while (beforeString >= 0 && /\s/.test(normalized[beforeString])) beforeString--;
+        if (beforeString >= 0 && (normalized[beforeString] === "{" || normalized[beforeString] === ",")) {
+          normalized += ": null";
+        }
+      }
+    }
+  }
+
+  // Close remaining open brackets
+  while (stack.length > 0) {
+    const open = stack.pop();
+    normalized += open === "{" ? "\n}" : "\n]";
+  }
+
+  // Final cleanup: remove trailing commas before closing braces/brackets
+  normalized = normalized.replace(/,(\s*[}\]])/g, "$1");
+
+  // Fix unquoted property names: e.g. { domain: "health" } -> { "domain": "health" }
+  normalized = normalized.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_-]*)(\s*:)/g, '$1"$2"$3');
+
+  try {
+    return JSON.parse(normalized);
+  } catch (e: any) {
+    throw new Error(`Failed to parse extracted JSON: ${e.message || e}`);
   }
 }
 
@@ -157,6 +394,22 @@ const DANGEROUS_KEYWORDS = [
   "build gun",
   "child porn",
   "abuse children",
+  // Arabic safety keywords
+  "انتحار",
+  "قتل نفسي",
+  "إيذاء نفسي",
+  "إنهاء حياتي",
+  "قنبلة",
+  "متفجرات",
+  "تفجير",
+  "شظايا",
+  "قتل",
+  "اغتيال",
+  "إرهاب",
+  "سرقة بطاقة",
+  "صنع سلاح",
+  "سلاح",
+  "أسلحة",
 ];
 
 type SafetyCheck = { isSafe: boolean; reason?: string };
@@ -231,6 +484,24 @@ function normalizeFrequency(value: any): "daily" | "weekly" {
   return value === "weekly" ? "weekly" : "daily";
 }
 
+/**
+ * Normalize an AI-provided weekday list into sorted unique ints in 0..6
+ * (0 = Sunday … 6 = Saturday). Returns null when the task runs on every day
+ * its frequency implies (no explicit schedule), or when the value is invalid.
+ */
+function normalizeScheduleDays(value: any): number[] | null {
+  if (!Array.isArray(value)) return null;
+  const days = Array.from(
+    new Set(
+      value
+        .map((d: any) => Math.round(Number(d)))
+        .filter((d: number) => Number.isFinite(d) && d >= 0 && d <= 6),
+    ),
+  ).sort((a: number, b: number) => a - b);
+  if (days.length === 0 || days.length === 7) return null;
+  return days;
+}
+
 function hashSeed(value: string) {
   let hash = 0;
   for (let index = 0; index < value.length; index += 1) {
@@ -249,93 +520,74 @@ function pickDailyFocusAngle(seed: string, language: "ar" | "en") {
 
 function normalizePlanHierarchy(rawPlan: any) {
   const result = { ...rawPlan };
-  const mainTasks = Array.isArray(result.main_tasks) ? result.main_tasks : [];
-  const legacyTasks = Array.isArray(result.tasks) ? result.tasks : [];
+  if (!result.plan || typeof result.plan !== "object") {
+    result.plan = {
+      goal_summary: result.ai_summary || "خطة الهدف",
+      estimated_total_days: 90,
+      confidence: "medium",
+    };
+  }
 
-  if (mainTasks.length === 0 && legacyTasks.length > 0) {
-    result.main_tasks = [
+  // Collect flat tasks from tasks[] or extract from main_tasks[]
+  let flatTasks: any[] = [];
+  if (Array.isArray(result.tasks) && result.tasks.length > 0) {
+    flatTasks = result.tasks;
+  } else if (Array.isArray(result.main_tasks) && result.main_tasks.length > 0) {
+    for (const main of result.main_tasks) {
+      const subs = Array.isArray(main.subtasks) ? main.subtasks : [];
+      if (subs.length > 0) {
+        flatTasks.push(...subs);
+      } else {
+        flatTasks.push(main);
+      }
+    }
+  }
+
+  if (flatTasks.length === 0) {
+    flatTasks = [
       {
-        id: "m1",
-        task: result.plan?.goal_summary || "Main Goal Track",
-        impact_weight: 7,
-        frequency: "weekly",
-        completion_criteria: "Consistent progress across subtasks",
-        subtasks: legacyTasks.map((task: any, idx: number) => ({
-          id: task.id || `s${idx + 1}`,
-          task: task.task || task.task_description || `Task ${idx + 1}`,
-          frequency: normalizeFrequency(task.frequency),
-          time_required_minutes: Number(task.time_required_minutes) || 0,
-          impact_weight: clamp(Number(task.impact_weight) || 1, 1, 5),
-          completion_criteria: task.completion_criteria || "",
-          notes: task.notes || "",
-        })),
+        id: "t1",
+        task: result.plan?.goal_summary || "المسار التنفيذي للهدف",
+        impact_weight: 4,
+        frequency: "daily",
+        completion_criteria: "إنجاز العمل المحدد لليوم وتأكيد النتيجة بموضوعية.",
+        time_required_minutes: 30,
       },
     ];
   }
 
-  if (!Array.isArray(result.main_tasks) || result.main_tasks.length === 0) {
-    result.main_tasks = [
-      {
-        id: "m1",
-        task: result.plan?.goal_summary || "Main Goal Track",
-        impact_weight: 7,
-        frequency: "weekly",
-        completion_criteria: "Consistent progress across subtasks",
-        subtasks: [],
-      },
-    ];
-  }
-
-  // Ensure structure shape
-  result.main_tasks = result.main_tasks.map((main: any, mainIdx: number) => {
-    const subtasks = Array.isArray(main.subtasks) ? main.subtasks : [];
-    const mainDesc = main.task || main.task_description || `Main Task ${mainIdx + 1}`;
-    const mainCriteria = (typeof main.completion_criteria === "string" && main.completion_criteria.trim())
-      ? main.completion_criteria.trim()
-      : `إنجاز خطوات مسار "${mainDesc}" بانتظام ومتابعة التقدم.`;
+  const normalizedTasks = flatTasks.map((t: any, idx: number) => {
+    const desc = t.task || t.task_description || `Task ${idx + 1}`;
+    const criteria =
+      typeof t.completion_criteria === "string" && t.completion_criteria.trim()
+        ? t.completion_criteria.trim()
+        : `إتمام "${desc}" بالكامل وتأكيد النتيجة بوضوح.`;
 
     return {
-      id: main.id || `m${mainIdx + 1}`,
-      task: mainDesc,
-      impact_weight: clamp(Number(main.impact_weight) || 5, 1, 10),
-      frequency: normalizeFrequency(main.frequency),
-      completion_criteria: mainCriteria,
-      notes: main.notes || "",
-      subtasks: subtasks.map((sub: any, subIdx: number) => {
-        const subDesc = sub.task || sub.task_description || `Subtask ${subIdx + 1}`;
-        const subCriteria = (typeof sub.completion_criteria === "string" && sub.completion_criteria.trim())
-          ? sub.completion_criteria.trim()
-          : `إتمام "${subDesc}" بالكامل وتأكيد النتيجة اليومية.`;
-
-        return {
-          id: sub.id || `m${mainIdx + 1}-s${subIdx + 1}`,
-          task: subDesc,
-          frequency: normalizeFrequency(sub.frequency),
-          time_required_minutes: Math.max(
-            0,
-            Number(sub.time_required_minutes) || 0,
-          ),
-          impact_weight: clamp(Number(sub.impact_weight) || 1, 1, 5),
-          completion_criteria: subCriteria,
-          notes: sub.notes || "",
-        };
-      }),
+      id: t.id || `t${idx + 1}`,
+      task: desc,
+      frequency: normalizeFrequency(t.frequency),
+      schedule_days: normalizeScheduleDays(t.schedule_days),
+      impact_weight: clamp(Number(t.impact_weight) || 3, 1, 5),
+      time_required_minutes: Math.max(0, Number(t.time_required_minutes) || 0),
+      completion_criteria: criteria,
+      notes: t.notes || "",
     };
   });
 
-  // Keep a flattened legacy-compatible tasks array derived from subtasks.
-  result.tasks = result.main_tasks.flatMap((main: any) =>
-    (main.subtasks || []).map((sub: any) => ({
-      id: sub.id,
-      task: sub.task,
-      frequency: sub.frequency,
-      time_required_minutes: sub.time_required_minutes,
-      impact_weight: sub.impact_weight,
-      completion_criteria: sub.completion_criteria,
-      notes: sub.notes,
-      parent_task_id: main.id,
-    })),
-  );
+  result.tasks = normalizedTasks;
+  // Also provide main_tasks where each item is a flat task for backwards-compatibility
+  result.main_tasks = normalizedTasks.map((t: any) => ({
+    id: t.id,
+    task: t.task,
+    frequency: t.frequency,
+    schedule_days: t.schedule_days,
+    impact_weight: t.impact_weight,
+    time_required_minutes: t.time_required_minutes,
+    completion_criteria: t.completion_criteria,
+    notes: t.notes,
+    subtasks: [],
+  }));
 
   return result;
 }
@@ -380,7 +632,11 @@ function convertMainTasksToRows(mainTasksInput: any[]): TaskRow[] {
 }
 
 export class GeminiService {
-  private static async callWithRetry(config: any, content: any): Promise<any> {
+  static async callWithRetry(
+    config: any,
+    content: any,
+    validateResponse?: (text: string) => any,
+  ): Promise<any> {
     let lastError: any = null;
 
     const contents = Array.isArray(content) ? content : [content];
@@ -392,6 +648,15 @@ export class GeminiService {
           config,
           contents,
         });
+
+        if (validateResponse) {
+          const text = response.text || "";
+          if (!text) {
+            throw new Error("Empty response text from Gemini API");
+          }
+          validateResponse(text);
+        }
+
         console.log(`Gemini call succeeded with model: ${model}`);
         return response;
       } catch (error: any) {
@@ -414,6 +679,15 @@ export class GeminiService {
               config,
               contents,
             });
+
+            if (validateResponse) {
+              const text = retryResponse.text || "";
+              if (!text) {
+                throw new Error("Empty response text from Gemini API on 503 retry");
+              }
+              validateResponse(text);
+            }
+
             console.log(`Gemini 503 retry succeeded with model: ${model}`);
             return retryResponse;
           } catch (retryError: any) {
@@ -435,6 +709,13 @@ export class GeminiService {
         if (status === 404) {
           console.warn(
             `Model ${model} not found (404), trying next fallback...`,
+          );
+          continue;
+        }
+
+        if (validateResponse) {
+          console.warn(
+            `Model ${model} output failed validation (${error?.message}), trying next fallback...`,
           );
           continue;
         }
@@ -465,12 +746,12 @@ export class GeminiService {
     throw new GeminiQuotaError(apiRetrySeconds);
   }
 
-  private static detectLanguage(text: string): "ar" | "en" {
+  static detectLanguage(text: string): "ar" | "en" {
     const arabicPattern = /[\u0600-\u06FF]/;
     return arabicPattern.test(text) ? "ar" : "en";
   }
 
-  private static checkContentSafety(text: string): SafetyCheck {
+  static checkContentSafety(text: string): SafetyCheck {
     const lower = text.toLowerCase();
     for (const kw of DANGEROUS_KEYWORDS) {
       if (lower.includes(kw)) {
@@ -504,34 +785,71 @@ export class GeminiService {
     }
 
     const userLanguage = GeminiService.detectLanguage(goalText);
+    const contextEntries = Object.entries(previousContext || {});
+    const formattedContext =
+      contextEntries.length > 0
+        ? contextEntries
+            .map(
+              ([question, answer], i) =>
+                `${i + 1}. Question: "${question}"\n   Answer: "${answer}"`,
+            )
+            .join("\n")
+        : "No previous answers yet.";
+
     const systemPrompt = `
 SYSTEM ROLE:
-You are an expert "Goal Investigator & Safety Gate".
+You are an elite, world-class "Universal Goal Investigator & Execution Architect".
+Your purpose is to deeply understand ANY goal in the world—from software development, artificial intelligence, and coding projects, to business startups, ecommerce, and freelancing, to fitness, calisthenics, weight loss, and athletics, to academic studies, languages, artistic crafts, and life transformations.
 
 TOP PRIORITY: SAFETY
-- If the goal involves violence, harming people/animals, self-harm, illegal wrongdoing, weapons, explosives, fraud, hacking, or instructions that facilitate harm/illegal activity:
-  - REFUSE to help create plans, steps, or questions that would enable wrongdoing.
+- If the goal involves violence, self-harm, illegal activities, weapons, fraud, or hacking:
+  - REFUSE to help.
   - Output JSON with status="refused" and safe_redirection.
 
-SECOND PRIORITY: REALISM & CLARITY
-- If the goal is vague, missing key constraints, or not measurable, ask questions until it becomes measurable.
-- Ask only what is needed for a practical plan.
-- You are allowed to use STRUCTURED_INPUT (title/description/target_points/main/sub tasks) as additional user intent.
+SECOND PRIORITY: MANDATORY MULTI-DIMENSIONAL INVESTIGATION (2 TO 4 SMART QUESTIONS IN ROUND 1)
+- In the initial round (when no previous answers have been recorded yet):
+  - You MUST ALWAYS generate 2 to 4 (up to 5 maximum) highly intelligent, domain-specific questions to calibrate the plan.
+  - NEVER return an empty questions array and NEVER set readiness="ready_for_plan" in the first round!
+  - Real execution always depends on deeper tactical dimensions that cannot be inferred from a single paragraph.
+  - GOLDEN RULE: Do NOT re-ask details the user explicitly provided in their goal text (for example, if they already stated their weight, height, that they have 1 hour daily, and no equipment, DO NOT ask what equipment they have or how many minutes). Instead, identify the NEXT tactical layer of depth:
+    * For Fitness & Health Goals:
+      1) Target Timeline/Deadline: e.g. "كم شهراً تمنح نفسك للوصول إلى وزن 90-95 كغ بصورة صحية ومستدامة؟" (type: "number" with unit: "months" or "weeks", or "single_choice").
+      2) Current physical baseline/capacity: e.g. "ما هو مستواك الحالي في تمارين وزن الجسم الأساسية (مثل تمرين الضغط Push-ups والسكوات)؟" (type: "single_choice": ["مبتدئ تماماً (أقل من 5 عدات)", "متوسط (بين 10 إلى 20 عدة)", "متقدم وعائد بعد انقطاع"]).
+      3) Joint health & physical restrictions: e.g. "هل تعاني من أية آلام أو إصابات سابقة في الركبتين أو أسفل الظهر؟" (type: "boolean" with options: ["نعم", "لا"]).
+      4) Weekly training frequency / rest days: e.g. "كم يوماً في الأسبوع تفضل تخصيصها للتمارين مع فترات راحة واستشفاء؟" (type: "single_choice": ["4 أيام أسبوعياً (مثالي ومستدام)", "5 أيام أسبوعياً", "6 أيام أسبوعياً"]).
+      5) Meal portioning strategy: e.g. "كيف تفضل ضبط وجبات المنزل اليومية (الرز والخبز)؟" (type: "single_choice": ["تقليل حصة النشويات للنصف مع زيادة البيض المسلوق", "نظام الصيام المتقطع (16 ساعة صيام و8 أكل)", "تخفيف تدريجي دون حرمان"]).
+    * For Programming, AI & Tech Goals:
+      1) Tools & tech stack: (type: "multi_choice": e.g. ["Next.js / React", "Python / FastAPI", "Supabase / PostgreSQL", "أدوات ذكاء اصطناعي ونماذج Gemini/OpenAI", "Git / GitHub"]).
+      2) Baseline programming level: (type: "single_choice": ["مبتدئ من الصفر", "أعرف الأساسيات فقط", "متوسط ولدي مشاريع سابقة", "مطور محترف"]).
+      3) Target launch or completion timeframe: (type: "number" with unit: "weeks" or "months").
+      4) Learning/building preference: (type: "single_choice": ["بناء مشروع عملي فوري والتعلم أثناء العمل", "دراسة منهجية ومسار تعليمي مكثف"]).
+    * For Business, Startups & Ecommerce Goals:
+      1) Business model/niche: (type: "single_choice" or "multi_choice").
+      2) Target revenue or customer milestone: (type: "number" with unit: "usd" or "iqd").
+      3) Marketing and acquisition channels: (type: "multi_choice": ["صناعة محتوى عضوي (تيك توك/إنستغرام)", "إعلانات ممولة", "شبكة علاقات وتواصل مباشر"]).
+      4) Financial investment capability: (type: "single_choice": ["بدون ميزانية إضافية (اعتماد على الجهد الشخصي)", "ميزانية محدودة", "ميزانية مفتوحة"]).
+    * For Languages, Skills & Academics:
+      1) Current level: (type: "single_choice").
+      2) Target milestone deadline: (type: "date" or "number" with unit: "months").
+      3) Focus area: (type: "multi_choice": ["المحادثة والطلاقة", "القواعد والمفردات", "اجتياز اختبار معتمد"]).
+    * For ANY other novel/specialized domain in the world:
+      Identify the missing tactical pillars: Timeline, Baseline/Experience, Equipment/Tools, Constraints/Risks, and Strategy Preference.
 
-CONTEXT AWARENESS
-- Do NOT re-ask already answered information.
-- Use both goal text and structured input.
+THIRD PRIORITY: QUESTION TYPES & UI MATCHING
+- "multi_choice": Multiple selections supported (chips) + custom text input. Perfect for tools, stacks, and resources.
+- "single_choice": One option selected (chips) + custom note field underneath.
+- "boolean": Exactly options: ["نعم", "لا"] (Arabic) or ["Yes", "No"] (English). The UI provides an automatic text explanation input.
+- "number": With explicit "unit" ("minutes", "hours", "days", "weeks", "months", "times_per_week", "kg", "km", "usd", "iqd").
+- "date": Calendar picker for specific target dates.
+- All questions MUST be polite, intelligent, and written in natural, fluent ${userLanguage === "ar" ? "Arabic" : "English"}.
 
-EXIT CONDITION
-Set readiness="ready_for_plan" and return empty questions when Core 4 are available:
-1) current state
-2) target state
-3) timeline
-4) available effort per day/week
-
-QUESTION RULES
-- Ask 2 to 4 questions max per round.
-- LANGUAGE: The user's goal is in ${userLanguage === "ar" ? "Arabic" : "English"}. Respond entirely in ${userLanguage === "ar" ? "Arabic" : "English"}.
+FOURTH PRIORITY: EXIT CONDITION — READINESS
+- Initial Round (${contextEntries.length === 0} previous answers):
+  - Set readiness="not_ready".
+  - Always return between 2 to 4 (max 5) smart questions.
+- Subsequent Rounds (${contextEntries.length > 0} previous answers):
+  - If the previous answers provide sufficient clarity on baseline, timeline, tools, and constraints: set readiness="ready_for_plan" and return questions: [].
+  - Only ask 1-2 follow-up questions if a critical blocker or ambiguity emerged from the previous answers.
 
 OUTPUT JSON FORMAT ONLY:
 {
@@ -539,17 +857,18 @@ OUTPUT JSON FORMAT ONLY:
   "goal_understanding": {
     "goal_summary": "string",
     "domain": "health|money|skills|career|study|home|other",
+    "goal_nature": "routine_habit|progressive_milestone",
     "risk_flags": ["none|self_harm_risk|violence|illegal|other"],
-    "missing_info": ["list of what is missing"],
+    "missing_info": ["list of what is missing from the pillars"],
     "readiness": "not_ready|ready_for_plan"
   },
   "questions": [
     {
       "id": "q1",
       "question": "string",
-      "type": "number|text|single_choice|multi_choice|date",
-      "options": ["only for choice types"],
-      "unit": "minutes|hours|usd|iqd|kg|m2|other",
+      "type": "single_choice|multi_choice|number|boolean|date|text",
+      "options": ["relevant options for choice types; for boolean use ['نعم','لا'] (Arabic) or ['Yes','No'] (English)"],
+      "unit": "minutes|hours|days|weeks|months|times|times_per_week|times_per_day|usd|iqd|kg|lbs|km|m2|other",
       "required": true
     }
   ],
@@ -564,17 +883,6 @@ OUTPUT JSON FORMAT ONLY:
   }
 }`;
 
-    const contextEntries = Object.entries(previousContext || {});
-    const formattedContext =
-      contextEntries.length > 0
-        ? contextEntries
-            .map(
-              ([question, answer], i) =>
-                `${i + 1}. Question: "${question}"\n   Answer: "${answer}"`,
-            )
-            .join("\n")
-        : "No previous answers yet.";
-
     const userPrompt = `
 USER GOAL:
 <<<BEGIN_USER_INPUT>>>
@@ -584,11 +892,22 @@ ${goalText}
 STRUCTURED_INPUT (optional):
 ${JSON.stringify(structuredInput || {}, null, 2)}
 
-PREVIOUS_ANSWERS (${contextEntries.length} answers already collected — DO NOT re-ask these):
+PREVIOUS_ANSWERS (${contextEntries.length} answers already collected):
 ${formattedContext}
 
+ROUND STATUS: ${contextEntries.length === 0 ? "INITIAL ROUND (No previous answers yet)" : `FOLLOW-UP ROUND (${contextEntries.length} answers provided)`}
+
 INSTRUCTION:
-If Core 4 are already covered by goal + structured_input + previous answers, set readiness="ready_for_plan" and return empty questions.
+${
+  contextEntries.length === 0
+    ? `- This is the INITIAL ROUND. You MUST ask between 2 to 4 (up to 5) domain-specific questions to calibrate the plan.
+- NEVER return empty questions or set readiness="ready_for_plan" in this round.
+- Do NOT re-ask details already given in the goal text. Ask the next tactical layer (e.g. target timeline in months/weeks, baseline experience, constraints/injuries, weekly frequency, or specific strategy preferences).
+- Set readiness="not_ready".`
+    : `- The user has already provided answers to previous questions.
+- If the answers give enough clarity to build a tailored plan, set readiness="ready_for_plan" and return questions: [].
+- If a critical detail is still missing or contradictory, ask at most 1-2 focused questions.`
+}
 `;
 
     try {
@@ -601,6 +920,7 @@ If Core 4 are already covered by goal + structured_input + previous answers, set
           },
         },
         { role: "user", parts: [{ text: userPrompt }] },
+        (text: string) => extractJson(text),
       );
 
       const responseText = response.text || "";
@@ -635,26 +955,73 @@ If Core 4 are already covered by goal + structured_input + previous answers, set
     const userLanguage = GeminiService.detectLanguage(goal);
     const currentDate = new Date().toISOString().split("T")[0];
 
+    let targetDeadlineInstruction = "";
+    if (targetDeadline) {
+      const diffMs = new Date(targetDeadline).getTime() - new Date(currentDate).getTime();
+      const diffDays = Math.max(3, Math.round(diffMs / (1000 * 60 * 60 * 24)));
+      targetDeadlineInstruction = `
+- CRITICAL TIMELINE ADAPTATION & INTENSIFICATION:
+  * The user explicitly configured the target deadline to: "${targetDeadline}" (exactly ${diffDays} days from today).
+  * You MUST set "plan.estimated_total_days": ${diffDays} and "plan.estimated_completion_date": "${targetDeadline}".
+  * If this deadline represents a shortened timeframe compared to standard (e.g. 60 days instead of 90/120 days):
+    - Achieving the same goal in fewer days REQUIRES intensifying the plan!
+    - Scale up the daily minutes/volume, AND ADD an explicit high-leverage acceleration sprint task (مهمة تحدٍّ مسرّعة) to make up for the shorter window (e.g. extra daily walking/steps target, extra sprint practice block, or weekly progress milestone challenge).
+    - In "ai_summary", explain clearly how the plan and tasks were intensified to match this ${diffDays}-day accelerated timeframe.
+`;
+    }
+
     const systemPrompt = `
 SYSTEM ROLE:
-You are "Plan Architect & Simulation Engine".
+You are an elite "Universal Plan Architect & Execution Engine".
+Your mission is to construct realistic, high-impact, directly actionable daily execution plans for ANY goal in the world—tech, programming, AI, business, ecommerce, bodybuilding, weight loss, athletics, languages, academic exams, or creative mastery.
 
 HARD CONSTRAINTS:
+- Output STRICTLY VALID JSON. Never include trailing commas, unescaped quotes inside strings, or comments.
 - Never provide instructions for harm/illegal activity.
 - Plan must be measurable, realistic, and executable.
-- Use a 2-level hierarchy:
-  - main_tasks[] (weight 1-10)
-  - each main task has subtasks[] (weight 1-5)
-- Subtasks frequency must be only "daily" or "weekly".
-- Do NOT use monthly or x_times_per_week.
-- Keep total subtasks between 4 and 12.
-- COMPLETION CRITERIA (معيار الإنجاز) IS MANDATORY:
-  - Every main task and every subtask MUST have a concrete, measurable "completion_criteria" (Definition of Done).
-  - It must answer clearly: "How does the user know with 100% certainty that this task is finished today without self-deception?"
-  - Examples: "قراءة 10 صفحات وتدوين ملاحظة واحدة", "كتابة 20 سطر كود وتشغيل الاختبارات", "30 دقيقة تمرين متواصل مع تمارين الإطالة".
-  - NEVER output an empty completion_criteria or generic phrases like "finish the task".
-- LANGUAGE: Respond entirely in ${userLanguage === "ar" ? "Arabic" : "English"}.
-- CURRENT DATE: ${currentDate}
+- DIRECT FLAT ACTIONABLE TASKS:
+  - Output a direct flat array "tasks": [ { id, task, frequency, schedule_days, impact_weight, time_required_minutes, completion_criteria, notes } ]
+  - Do NOT output hierarchical subtasks or nested layers. All tasks must be directly actionable.
+  - STRICT TASK COUNT: Provide 2 TO 3 actionable tasks daily (or up to 4 only if an acceleration sprint task is added for shortened deadlines). Never overload the user with busywork.
+  - Task frequency must be strictly "daily" or "weekly". Do NOT use monthly or x_times_per_week.
+  - "schedule_days": array of weekday numbers the user performs this task (0=Sunday, 1=Monday, ... 6=Saturday). Set it ONLY when appropriate (e.g., gym on Sunday/Tuesday/Thursday → [0,2,4], or 5 workout days [0,1,2,4,5] with 2 rest days). If every day, set to null.
+  - impact_weight must be between 1 and 5.
+  - Estimated time must be in minutes only ("time_required_minutes", e.g. 20, 30, 45). DO NOT assign rigid times-of-day (no morning/afternoon/evening slots), because the user executes whenever it fits their day.
+
+DOMAINS REALISM & PRACTICAL ACCURACY (CRITICAL):
+1) HEALTH, FITNESS & WEIGHT LOSS:
+   - Respect human physiology! NEVER prescribe an arbitrary severe calorie deficit (e.g. 1500 kcal for a tall 105kg adult whose Basal Metabolic Rate BMR is >2100 kcal is dangerous and ruins muscle mass). Aim for a safe, sustainable deficit (300-500 kcal).
+   - If the user relies on home cooking without a food scale or extra budget, NEVER prescribe counting grams/calories. Instead, prescribe tangible portion control rules (e.g., half-plate protein/eggs, one portion rice/bread, plentiful water).
+   - NEVER prescribe 7 days/week of heavy joint-loading workouts for beginners or heavy individuals without rest. Prescribe 4 to 5 workout days with 2 active recovery days, and populate schedule_days accordingly.
+2) PROGRAMMING, AI & TECH:
+   - Focus on writing real code, building tangible features, committing to git, and shipping projects—NOT passive video tutorial consumption.
+3) BUSINESS, COMMERCE & FREELANCING:
+   - Focus on direct customer contact, outreach, offer validation, and sales actions over endless theoretical desk research.
+4) ACADEMICS, MEDICINE & LANGUAGES:
+   - Focus on active recall, spaced repetition, mock exams, and daily speaking/writing practice.
+5) UNCONVENTIONAL & CREATIVE SKILLS:
+   - Anchor the tasks in daily deliberate practice with the specific tools the user possesses.
+
+STRICT ADHERENCE TO USER FEEDBACK & NOTES:
+- Every note, constraint, tool limitation, or clarification provided in the answers MUST be treated as an absolute hard requirement. You must shape the tasks directly around the user's specific words.
+
+DURATION TRUTH:
+- If targetDeadline is passed, enforce the targetDeadline constraints below.
+- Otherwise, if any answer states a duration (e.g. "3 أشهر", "90 يوم", "12 weeks"), convert deterministically: weeks×7, months×30, and set "plan.estimated_total_days" to EXACTLY that many days.
+- "estimated_completion_date" = CURRENT DATE + estimated_total_days.
+${targetDeadlineInstruction}
+
+COMPLETION CRITERIA (معيار الإنجاز) IS MANDATORY:
+- Every single task MUST have a concrete, measurable "completion_criteria" (Definition of Done) placed right with it.
+- It must answer clearly: "How does the user know with 100% certainty that this task is finished today without self-deception?"
+- Must include quantitative/tangible measures (e.g. "قراءة 15 صفحة وتدوين ملخص في سطرين", "إتمام 4 مجموعات ضغط وسكوات مع تسجيل العدات", "برمجة خاصية تسجيل الدخول واختبارها محلياً").
+- NEVER output an empty completion_criteria or generic phrases like "finish the task".
+
+GOAL TITLE CONSTRAINT ("plan.goal_summary" = the goal's NAME, not its description):
+- Distill the goal to its essential short punchy name in AT MOST 10 words (aim for 2-6 words) like "الوصول لوزن 90 كغ مع بناء عضل" or "إطلاق متجر إلكتروني".
+
+LANGUAGE: Respond entirely in ${userLanguage === "ar" ? "Arabic" : "English"}.
+CURRENT DATE: ${currentDate}
 
 REALISM:
 - If unrealistic, return status="unrealistic" with best feasible alternative.
@@ -671,25 +1038,16 @@ OUTPUT JSON FORMAT ONLY:
     "estimated_completion_date": "YYYY-MM-DD",
     "confidence": "low|medium|high"
   },
-  "main_tasks": [
+  "tasks": [
     {
-      "id": "m1",
+      "id": "t1",
       "task": "string",
-      "impact_weight": number,
       "frequency": "daily|weekly",
+      "schedule_days": [0,1,2,4,5],
+      "impact_weight": number,
+      "time_required_minutes": number,
       "completion_criteria": "string",
-      "notes": "string",
-      "subtasks": [
-        {
-          "id": "s1",
-          "task": "string",
-          "frequency": "daily|weekly",
-          "time_required_minutes": number,
-          "impact_weight": number,
-          "completion_criteria": "string",
-          "notes": "string"
-        }
-      ]
+      "notes": "string"
     }
   ],
   "realism_check": {
@@ -730,12 +1088,14 @@ Target Deadline (Optional): ${targetDeadline || "None"}
       const response = await GeminiService.callWithRetry(
         {
           responseMimeType: "application/json",
+          maxOutputTokens: 8192,
           systemInstruction: {
             parts: [{ text: systemPrompt }],
             role: "system",
           },
         },
         { role: "user", parts: [{ text: userPrompt }] },
+        (text: string) => extractJson(text),
       );
 
       const responseText = response.text || "";
@@ -857,22 +1217,28 @@ SYSTEM ROLE:
 - إذا تعارضت زاوية اليوم مع قاعدة عدم التكرار، وسّع الزاوية لكن اسأل عن مهمة أو نمط أو عائق مختلف.
 - لا تطلب من المستخدم إعادة إجابة معلومات موجودة أصلاً في الهدف أو المهام أو السجلات أو الإجابات السابقة.
 
-📌 مخرجات الـ Suggestions:
-- بناءً على البيانات الموجودة (الهدف، المهام، السجلات، والإجابات السابقة)، اقترح 2-4 خطوات عملية.
-- صنّف كل اقتراح كـ:
-    "goal_task"        -> خطوة تخدم الهدف مباشرة (مهمة جديدة داخل الخطة).
-    "external_booster" -> شيء نفسي/بيئي يساعده خارج الهدف لكنه يسرّع التقدم (مثل: تنظيم الدوام، الابتعاد عن المحبطين، أخذ استراحة شحن طاقة، تحسين النوم، ترتيب بيئة العمل).
-- اجعل الـ external_booster target_type="main" و parent_task_id=null.
-- اجعل الـ goal_task تعتمد على target_type المناسب (main إذا كان مساراً جديداً، sub إذا كان خطوة تحت مسار موجود مع parent_task_id صحيح).
-- حاول تخلط على الأقل external_booster واحد إذا كانت البيانات تظهر أن أسلوب الحياة أو البيئة تأثر على التنفيذ.
-- كل اقتراح لازم يكون عنده emoji واحد يمثل طبيعته.
-- كل اقتراح لازم يحتوي على completion_criteria محدد وقابل للقياس يبين شلون يعرف المستخدم إنه أنجز هاي الخطوة بالضبط (مثلاً: "جلسة تركيز 25 دقيقة بدون تشتت"، "إرسال 3 رسائل تواصل مهنية"، "شرب 2 لتر ماء على مدار اليوم").
-- frequency: بس "daily" أو "weekly".
-- impact_weight: 1..5 للمهام الفرعية و 1..10 للمهام الرئيسية.
-- اذا كانت السجلات والإجابات قليلة، اقترح 1-2 اقتراحات خفيفة مستنبطة من الهدف+المهام فقط.
+📌 مخرجات الـ Quick Options (خيارات سريعة ذكية):
+- قم بتوليد من 3 إلى 5 خيارات سريعة ديناميكية (quick_options) مخصصة لسؤال اليوم وسياق المستخدم.
+- الخيارات يجب أن تكون مشتقة بعناية من السؤال الحالي + المهام الحالية للمستخدم + سجل إنجازه الأخير (وليست خيارات عامة ولا مكررة).
+- اكتبها بلهجة عراقية طبيعية ذكية وموجزة جداً (سطر واحد قصير لكل خيار) بحيث يضغط عليها المستخدم بلمسة واحدة ليجيب عن حالته أو عائقه اليوم.
+
+📌 القواعد الصارمة للـ Suggestions (إلغاء التوليد العشوائي، والتركيز على تعديل المهام عند التعثر):
+- ⚠️ القاعدة الأولى والأساسية: في الأيام الطبيعية أو عندما يكون أداء المستخدم مستمراً ولا يعاني من انقطاع، يجب أن تكون قائمة الاقتراحات فارغة تماماً: "suggestions": []! لا تخلق مهام جديدة تزيد من عبء وقت المستخدم وتشتت تركيزه (المهام تأخذ وقتاً بشرياً حقيقياً من 15 دقيقة إلى ساعات، وإضافة مهام إضافية يسبب الإحباط).
+- متى تولد اقتراحات؟ فقط عند وجود "تعثر حقيقي" (Stall / Bottleneck):
+  1) إذا أظهرت السجلات الأخيرة انقطاعاً أو تراجعاً ملحوظاً (توقف يومين أو أكثر أو إنجاز منخفض جداً).
+  2) أو إذا كانت إجابة المستخدم (USER_ANSWER) توضح عائقاً صريحاً أو اختناقاً في مهمة معينة.
+- 🎯 طبيعة الاقتراح عند التعثر:
+  - لا تقم باختراع مهام جديدة عشوائية تستهلك وقتاً إضافياً!
+  - بدلاً من ذلك، اقترح **تعديلاً ذكياً على مهمة قائمة بالفعل** (support_type: "task_adjustment"):
+    - حدد target_task_id من معرفات المهام الموجودة.
+    - Title: اكتب الصياغة الجديدة للمهمة بعد التعديل والتخفيف لكسر الجمود.
+    - completion_criteria: معيار إنجاز مخفف ومحدد وقابل للتنفيذ السريع.
+    - reason: اشرح للمستخدم بوضوح كيف يساعده هذا التعديل على تجاوز العائق الحالي.
+  - 🛡️ شرط جوهري للتعديل: يجب أن يحافظ التعديل على جوهر الهدف الأساسي (Goal Core Essence) ولا يقلل من قيمته، بل ينسجم ويتناسق مع باقي مهام الخطة لضمان استمرارية الزخم بدلاً من الانقطاع التام.
+  - الحد الأقصى: اقتراح واحد فقط (أو 2 على الأكثر إذا لزم الأمر).
 
 📌 معالجة الإجابة:
-- اذا كان USER_ANSWER موجود، خلي نفس السؤال ونقّح الـ suggestions بناءً على الإجابة.
+- اذا كان USER_ANSWER موجود، خلي نفس السؤال ونقّح الـ suggestions بناءً على الإجابة (إذا كان فيها عائق يستوجب تعديل مهمة).
 - answer_coaching تصير رسالة مدرب قصيرة تتفاعل مع الإجابة (تحفيزية، كاشفة، أو تتحدى تفكيره).
 - اذا USER_ANSWER فاضي، answer_coaching تبقى نص فارغ.
 
@@ -891,6 +1257,7 @@ OUTPUT JSON ONLY:
   "angle_label": "string",
   "question": "string",
   "question_why": "string",
+  "quick_options": ["خيار سريع 1", "خيار سريع 2", "خيار سريع 3"],
   "answer_coaching": "string",
   "suggestions_unlocked": boolean,
   "answered_days_count": number,
@@ -898,7 +1265,7 @@ OUTPUT JSON ONLY:
   "suggestions": [
     {
       "id": "s1",
-      "emoji": "a single emoji that best represents this suggestion (e.g. 📖, 🏃, 💡, 🧘, 🎯, 💰, 🛡️, 🌱)",
+      "emoji": "🛠️",
       "title": "string",
       "reason": "string",
       "completion_criteria": "string (معيار إنجاز ملموس ومحدد وقابل للقياس يوضح متى تعتبر المهمة منجزة اليوم)",
@@ -906,7 +1273,8 @@ OUTPUT JSON ONLY:
       "impact_weight": number,
       "target_type": "main|sub",
       "parent_task_id": "string or null",
-      "support_type": "goal_task|external_booster"
+      "target_task_id": "string or null",
+      "support_type": "task_adjustment|goal_task|external_booster"
     }
   ],
   "safe_redirection": {
@@ -987,6 +1355,7 @@ ${options.answer || ""}
           },
         },
         { role: "user", parts: [{ text: userPrompt }] },
+        (text: string) => extractJson(text),
       );
 
       const responseText = response.text || "";
@@ -996,6 +1365,18 @@ ${options.answer || ""}
       const suggestions = Array.isArray(parsed.suggestions)
         ? parsed.suggestions
         : [];
+
+      const rawQuickOptions = Array.isArray(parsed.quick_options)
+        ? parsed.quick_options
+        : Array.isArray(parsed.options)
+          ? parsed.options
+          : [];
+      const quick_options = rawQuickOptions
+        .filter(
+          (opt: unknown): opt is string =>
+            typeof opt === "string" && opt.trim().length > 0,
+        )
+        .map((opt: string) => opt.trim());
 
       return {
         status: parsed.status === "refused" ? "refused" : "ok",
@@ -1012,6 +1393,7 @@ ${options.answer || ""}
           typeof parsed.question_why === "string"
             ? parsed.question_why.trim()
             : "",
+        quick_options,
         answer_coaching:
           typeof parsed.answer_coaching === "string"
             ? parsed.answer_coaching.trim()
@@ -1022,12 +1404,19 @@ ${options.answer || ""}
         suggestions: suggestions
           .map((item: any, index: number) => {
             const supportType =
-              item?.support_type === "external_booster"
-                ? "external_booster"
-                : "goal_task";
+              item?.support_type === "task_adjustment"
+                ? "task_adjustment"
+                : item?.support_type === "external_booster"
+                  ? "external_booster"
+                  : "goal_task";
             const rawTargetType = item?.target_type === "sub" ? "sub" : "main";
             const targetType =
               supportType === "external_booster" ? "main" : rawTargetType;
+            const targetTaskId =
+              typeof item?.target_task_id === "string" && item.target_task_id.trim()
+                ? item.target_task_id.trim()
+                : null;
+
             return {
               id:
                 typeof item?.id === "string"
@@ -1045,9 +1434,11 @@ ${options.answer || ""}
               emoji:
                 typeof item?.emoji === "string" && item.emoji.trim()
                   ? item.emoji.trim()
-                  : supportType === "external_booster"
-                    ? "⚡"
-                    : "🎯",
+                  : supportType === "task_adjustment"
+                    ? "🛠️"
+                    : supportType === "external_booster"
+                      ? "⚡"
+                      : "🎯",
               frequency: normalizeFrequency(item?.frequency),
               impact_weight: clamp(
                 Number(item?.impact_weight) || 1,
@@ -1061,6 +1452,7 @@ ${options.answer || ""}
                 typeof item?.parent_task_id === "string"
                   ? item.parent_task_id
                   : null,
+              target_task_id: targetTaskId,
               support_type: supportType,
             };
           })
@@ -1133,33 +1525,44 @@ TIME-BASED BONUS:
 `
       : "";
 
+    const coachPersona = goalContext?.coach_persona || "balanced";
+    const coachPersonaInstruction =
+      coachPersona === "strict"
+        ? "COACH PERSONA: Strict & Uncompromising. Direct, highly rigorous, zero sugarcoating, focus on standard and discipline."
+        : coachPersona === "analytical"
+          ? "COACH PERSONA: Analytical & Pragmatic. Focus on exact numbers, percentages of criteria achieved, time spent, and tangible outputs."
+          : "COACH PERSONA: Balanced & Encouraging. Positive yet honest, acknowledges genuine effort, reinforces momentum, and gently points out what remains.";
+
+    const localTimeContext = goalContext?.local_time
+      ? `CURRENT USER LOCAL TIME: ${goalContext.local_time}. If this is morning/afternoon, encourage the user to keep going for the rest of the day. If evening/night, summarize the day's total harvest.`
+      : "";
+
     const systemPrompt = `
 SYSTEM ROLE:
-You are "Daily Judge" for a goal-tracking app.
+You are "Daily Judge & Accountability Coach" for METRIX.
+${coachPersonaInstruction}
+${localTimeContext}
 
 LANGUAGE RULE:
 - User language is ${userLanguage === "ar" ? "Arabic" : "English"}.
 - Respond fully in ${userLanguage === "ar" ? "Arabic" : "English"}.
 
 SCORING RULES:
-- Score SUBTASKS only.
-- Each subtask has impact_weight 1..5 and this is the max points for that subtask.
-- status mapping:
-  - done => 80%..100% of weight
-  - partial => 30%..60% of weight
+- Score defined tasks against their "completion_criteria".
+- Each task has impact_weight 1..5 which is the max points for that task.
+- STATUS MAPPING:
+  - done => 80%..100% of weight (if completed or substantially done e.g. 70%+ of criteria, reward encouragingly with ~80%-100% of weight).
+  - partial => 40%..75% of weight (honest progress made but noticeable part of criteria remains).
   - missed/unknown => 0
-- Bonus allowed only for extra work beyond defined subtasks: 0..5
+- Bonus allowed only for extra verified work beyond defined tasks: 0..5
 - MAX BASE POINTS today = ${maxBasePoints}
 - ABSOLUTE DAILY CAP = ${dynamicDailyCap}
-- total_points_awarded = min(ABSOLUTE DAILY CAP, sum(subtask points) + bonus)
+- total_points_awarded = min(ABSOLUTE DAILY CAP, sum(task points) + bonus)
 ${timeBonusInstruction}
-ANTI-GAMING:
+ANTI-GAMING & FAIRNESS:
 - Repeated/copied logs => conservative score and warning in reason.
-- Unrealistic claims => conservative scoring.
-- Off-topic/gibberish => 0.
-- If the report contains multiple same-day updates, evaluate net progress so far and do not count the same accomplishment twice.
-- Your scoring must reflect actual output, not polite encouragement.
-- If progress is weak, reasons should say it is below the required level.
+- If progress is weak, reasons should clearly state what was missing from the completion criteria.
+- If the report is a partial daytime update, score what was accomplished so far. Subsequent reports on the same day accumulate towards the daily cap.
 
 OUTPUT JSON ONLY:
 {
@@ -1238,6 +1641,7 @@ ${previousLogsContext}
           },
         },
         { role: "user", parts: [{ text: userPrompt }] },
+        (text: string) => extractJson(text),
       );
 
       const responseText = response.text || "";
@@ -1314,13 +1718,220 @@ ${previousLogsContext}
         comparison_message: performance.copy.comparison_message,
         warning_message: performance.copy.warning_message,
         performance_meta: performance.meta,
-        full_feedback: performance.copy.full_feedback,
-        coach_message: performance.copy.coach_message,
+        full_feedback:
+          typeof parsed?.coach_message === "string" &&
+          parsed.coach_message.trim()
+            ? parsed.coach_message.trim()
+            : performance.copy.full_feedback,
+        coach_message:
+          typeof parsed?.coach_message === "string" &&
+          parsed.coach_message.trim()
+            ? parsed.coach_message.trim()
+            : performance.copy.coach_message,
         comparison_with_previous: performance.copy.comparison_message,
         score: totalAwarded,
       };
     } catch (error) {
       console.error("Gemini evaluateDailyLog Error:", error);
+      throw error;
+    }
+  }
+
+  static async evaluateMultiGoalDailyLog(
+    goals: MultiGoalItemContext[],
+    userInput: string,
+    language: "ar" | "en" = "ar",
+    coachPersona: "strict" | "balanced" | "analytical" = "balanced",
+  ): Promise<MultiGoalEvaluationResult> {
+    const safetyCheck = GeminiService.checkContentSafety(userInput);
+    if (!safetyCheck.isSafe) {
+      const reason = safetyCheck.reason || "Safety check triggered";
+      return {
+        status: "refused",
+        overall_summary: reason,
+        goals: [],
+        safe_redirection: {
+          message: reason,
+          alternatives: [
+            "Please reach out to professional support if you are in distress.",
+          ],
+        },
+      };
+    }
+
+    const isArabic =
+      language === "ar" || GeminiService.detectLanguage(userInput) === "ar";
+
+    const coachPersonaInstruction =
+      coachPersona === "strict"
+        ? "COACH PERSONA: Strict & Uncompromising. Direct, highly rigorous, zero sugarcoating, focus on standard and discipline."
+        : coachPersona === "analytical"
+          ? "COACH PERSONA: Analytical & Pragmatic. Focus on exact numbers, percentages of criteria achieved, time spent, and tangible outputs."
+          : "COACH PERSONA: Balanced & Encouraging. Positive yet honest, acknowledges genuine effort, reinforces momentum, and gently points out what remains.";
+
+    const systemPrompt = `
+SYSTEM ROLE:
+You are the "Multi-Goal Disentanglement & Daily Accountability Evaluator" for METRIX.
+${coachPersonaInstruction}
+
+CONTEXT:
+The user is pursuing multiple active goals (which may be sub-goals or mini-goals).
+The user provides an informal, free-form text or spoken voice transcript describing what they accomplished today.
+Crucially, the user's input often intermingles, combines, or merges several goals together in one rambling or colloquial narrative (e.g. Iraqi, Gulf, Egyptian, Levantine, or MSA Arabic, or English). Words may be disorganized ("مشبوش ومدموج").
+
+YOUR TASK:
+1. DISENTANGLE & MAP:
+   Carefully examine the user's narrative against the list of provided goals.
+   For EACH provided goal:
+   - Determine if the user's text genuinely mentions, references, or describes any activity or milestone related to this goal (set "mentioned": true or false).
+   - If mentioned, EXTRACT and ISOLATE only the specific accomplishments that belong to this goal ("extracted_activity"). Discard parts belonging to other goals. Formulate a crisp, clear statement of what was actually achieved (in the user's language).
+   - If NOT mentioned or no progress was made on this goal, set:
+     - "mentioned": false
+     - "extracted_activity": "${isArabic ? "لم يتم ذكر نشاط لهذا الهدف اليوم" : "No activity mentioned for this goal today"}"
+     - "points_to_award": 0
+     - "feedback": "${isArabic ? "لا بأس، التركيز غداً يعيد الزخم المطلوب." : "No worries, tomorrow is a fresh opportunity to regain momentum."}"
+
+2. RIGOROUS & FAIR SCORING:
+   - For each goal where progress was actually made ("mentioned": true):
+     - Calculate "points_to_award" (integer).
+     - Standard scoring guidelines:
+       - Minor / small effort: 5 - 10 points
+       - Moderate / solid effort: 12 - 20 points
+       - High / substantial effort: 25 - 35 points
+       - Cap per goal: 40 points maximum.
+     - If the goal has subtasks listed in its context, inspect if any specific subtasks were fulfilled and list their IDs in "completed_task_ids".
+
+3. COACHING FEEDBACK:
+   - For each goal with progress, write a sharp, personalized 1-2 sentence coaching evaluation ("feedback") in the user's language, strictly adopting the tone and style of the COACH PERSONA above.
+
+4. OVERALL SUMMARY:
+   - Write a 1-2 sentence executive summary of the user's total day ("overall_summary") reflecting the COACH PERSONA tone.
+
+STRICT JSON OUTPUT:
+Return ONLY a valid JSON object matching this schema:
+{
+  "overall_summary": "string",
+  "goals": [
+    {
+      "goal_id": "string",
+      "goal_title": "string",
+      "mentioned": boolean,
+      "extracted_activity": "string",
+      "points_to_award": number,
+      "feedback": "string",
+      "completed_task_ids": ["string"]
+    }
+  ]
+}
+`;
+
+    const userPrompt = `
+ACTIVE GOALS CONTEXT:
+${JSON.stringify(
+  goals.map((g) => ({
+    goal_id: g.id,
+    title: g.title,
+    description: g.description,
+    current_points: g.current_points,
+    target_points: g.target_points,
+    available_tasks: g.tasks?.map((t) => ({
+      task_id: t.id,
+      title: t.title,
+      weight: t.impact_weight,
+    })),
+  })),
+  null,
+  2,
+)}
+
+USER'S COMBINED DAILY LOG:
+"""
+${userInput}
+"""
+
+Language to reply in: ${isArabic ? "Arabic" : "English"}
+`;
+
+    try {
+      const response = await GeminiService.callWithRetry(
+        {
+          temperature: 0.2,
+          responseMimeType: "application/json",
+        },
+        [{ text: systemPrompt }, { text: userPrompt }],
+        (text) => extractJson(text),
+      );
+
+      const parsed = extractJson(response.text || "{}");
+      const overall_summary =
+        typeof parsed?.overall_summary === "string"
+          ? parsed.overall_summary
+          : "";
+      const rawGoals = Array.isArray(parsed?.goals) ? parsed.goals : [];
+
+      const evaluatedGoals: MultiGoalEvaluatedItem[] = goals.map(
+        (inputGoal) => {
+          const found = rawGoals.find(
+            (r: any) =>
+              r.goal_id === inputGoal.id ||
+              r.goal_title?.trim().toLowerCase() ===
+                inputGoal.title.trim().toLowerCase(),
+          );
+          if (found && Boolean(found.mentioned)) {
+            return {
+              goal_id: inputGoal.id,
+              goal_title: inputGoal.title,
+              mentioned: true,
+              extracted_activity:
+                typeof found.extracted_activity === "string" &&
+                found.extracted_activity.trim().length > 0
+                  ? found.extracted_activity.trim()
+                  : isArabic
+                    ? "إنجاز مهام مرتبطة بالهدف"
+                    : "Progress achieved on goal tasks",
+              points_to_award: Math.min(
+                40,
+                Math.max(1, Math.round(Number(found.points_to_award) || 10)),
+              ),
+              feedback:
+                typeof found.feedback === "string" &&
+                found.feedback.trim().length > 0
+                  ? found.feedback.trim()
+                  : isArabic
+                    ? "استمرارية رائعة تدعم تقدمك المستمر."
+                    : "Great consistency supporting your ongoing momentum.",
+              completed_task_ids: Array.isArray(found.completed_task_ids)
+                ? found.completed_task_ids.map(String)
+                : [],
+            };
+          }
+          return {
+            goal_id: inputGoal.id,
+            goal_title: inputGoal.title,
+            mentioned: false,
+            extracted_activity: isArabic
+              ? "لم يتم ذكر نشاط لهذا الهدف اليوم"
+              : "No activity mentioned for this goal today",
+            points_to_award: 0,
+            feedback: isArabic
+              ? "لا بأس، التركيز غداً يعيد الزخم المطلوب."
+              : "No worries, tomorrow is a fresh opportunity to regain momentum.",
+            completed_task_ids: [],
+          };
+        },
+      );
+
+      return {
+        status: "ok",
+        overall_summary:
+          overall_summary ||
+          (isArabic
+            ? "تم تحليل وتوزيع إنجازاتك اليومية بنجاح."
+            : "Your daily accomplishments have been successfully analyzed and distributed."),
+        goals: evaluatedGoals,
+      };
+    } catch (error) {
+      console.error("Gemini evaluateMultiGoalDailyLog Error:", error);
       throw error;
     }
   }
@@ -1402,6 +2013,7 @@ ${userInput}
           },
         },
         { role: "user", parts: [{ text: userPrompt }] },
+        (text: string) => extractJson(text),
       );
 
       const responseText = response.text || "";
@@ -1627,10 +2239,11 @@ Strict content rules: ABSOLUTELY NO humans, NO people, NO faces, NO bodies, NO h
     const mainTasks = safeTasks.filter((t) => (t?.task_type ?? "main") === "main");
     const subTasks = safeTasks.filter((t) => t?.task_type === "sub");
 
-    const taskContext = mainTasks.map((main) => ({
+    const effectiveMains = mainTasks.length > 0 ? mainTasks : safeTasks;
+    const taskContext = effectiveMains.map((main) => ({
       id: main.id,
       task_type: "main",
-      task_description: main.task_description,
+      task_description: main.task_description || main.task || "",
       frequency: main.frequency ?? "daily",
       impact_weight: main.impact_weight ?? 1,
       time_required_minutes: main.time_required_minutes ?? 0,
@@ -1640,7 +2253,7 @@ Strict content rules: ABSOLUTELY NO humans, NO people, NO faces, NO bodies, NO h
         .map((sub) => ({
           id: sub.id,
           task_type: "sub",
-          task_description: sub.task_description,
+          task_description: sub.task_description || sub.task || "",
           frequency: sub.frequency ?? "daily",
           impact_weight: sub.impact_weight ?? 1,
           time_required_minutes: sub.time_required_minutes ?? 0,
@@ -1750,6 +2363,7 @@ ${instruction}
           },
         },
         { role: "user", parts: [{ text: userPrompt }] },
+        (text: string) => extractJson(text),
       );
 
       const responseText = response.text || "";
@@ -1759,6 +2373,114 @@ ${instruction}
       return GeminiService.sanitizeGoalEdit(parsed, safeTasks);
     } catch (error) {
       console.error("Gemini editGoalWithAI Error:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Specifically replaces a single task with an alternative that STRICTLY honors
+   * the user's explicit replacement reason and custom note (e.g. specific calories, tools, preferences).
+   */
+  static async replaceTaskWithAI(params: {
+    goalTitle: string;
+    currentTask: {
+      id: string;
+      task: string;
+      frequency?: string;
+      impact_weight?: number;
+      time_required_minutes?: number;
+      completion_criteria?: string;
+    };
+    reason: string;
+    userNote?: string;
+    otherTasks?: string[];
+  }) {
+    const { goalTitle, currentTask, reason, userNote = "", otherTasks = [] } = params;
+    const combinedInput = `${reason} ${userNote}`.trim();
+    const safetyCheck = GeminiService.checkContentSafety(combinedInput);
+    if (!safetyCheck.isSafe) {
+      return {
+        status: "refused",
+        explanation: safetyCheck.reason,
+      };
+    }
+
+    const userLanguage = GeminiService.detectLanguage(`${goalTitle} ${combinedInput}`);
+
+    const systemPrompt = `
+SYSTEM ROLE:
+You are an expert "Task Replacement Specialist". The user is reviewing their action plan for a goal and wants to REPLACE one specific task with an alternative that directly addresses their feedback and constraints.
+
+CORE DIRECTIVE - STRICT ADHERENCE TO USER'S NOTE:
+1. If the user provided a specific note or instruction (e.g. specific calories, alternative workout method, home equipment, or time limitations):
+   - You MUST STRICTLY AND FAITHFULLY honor the user's note as the primary specification for the replacement task!
+   - Do NOT ignore what the user specifically asked for. If they say "I want to commit to 1500 or 1000 calories", the new task MUST be about committing to and tracking those calories!
+2. If the user mentioned a reason like "not fitting schedule" or "too hard" without specific note:
+   - Provide a genuinely lighter, more accessible alternative that still advances the goal.
+3. Distinctness:
+   - The new task must be distinct from the OTHER TASKS in the plan. Do not duplicate existing tasks.
+4. Output Language:
+   - Must be in ${userLanguage === "ar" ? "Arabic" : "English"}.
+
+OUTPUT JSON FORMAT ONLY:
+{
+  "task": "Clean, concise, actionable task description",
+  "completion_criteria": "Clear verifiable completion criteria proving the task was accomplished today",
+  "time_required_minutes": number between 5 and 180,
+  "frequency": "daily" | "weekly",
+  "impact_weight": number between 1 and 5,
+  "explanation": "Brief 1-sentence explanation of why this replacement fits the user's note"
+}`;
+
+    const userPrompt = `
+GOAL TITLE: ${goalTitle}
+
+TASK TO REPLACE:
+- Task: "${currentTask.task}"
+- Frequency: ${currentTask.frequency || "daily"}
+- Time required: ${currentTask.time_required_minutes || 20} minutes
+- Criteria: "${currentTask.completion_criteria || ""}"
+
+REASON FOR REPLACEMENT:
+${reason}
+
+USER'S SPECIFIC NOTE & DETAIL (CRITICAL REQUIREMENT):
+<<<BEGIN_USER_NOTE>>>
+${userNote || "No specific extra note provided. Suggest the best alternative for the stated reason."}
+<<<END_USER_NOTE>>>
+
+OTHER TASKS IN THIS PLAN (DO NOT DUPLICATE THESE):
+${JSON.stringify(otherTasks, null, 2)}
+`;
+
+    try {
+      const response = await GeminiService.callWithRetry(
+        {
+          responseMimeType: "application/json",
+          systemInstruction: {
+            parts: [{ text: systemPrompt }],
+            role: "system",
+          },
+        },
+        { role: "user", parts: [{ text: userPrompt }] },
+        (text: string) => extractJson(text),
+      );
+
+      const responseText = response.text || "";
+      if (!responseText) throw new Error("Empty response from Gemini API");
+
+      const parsed = extractJson(responseText);
+      return {
+        status: "ok",
+        task: String(parsed.task || "").trim() || currentTask.task,
+        completion_criteria: String(parsed.completion_criteria || "").trim() || currentTask.completion_criteria,
+        time_required_minutes: Math.max(5, Math.min(300, Number(parsed.time_required_minutes) || currentTask.time_required_minutes || 20)),
+        frequency: parsed.frequency === "weekly" ? "weekly" : "daily",
+        impact_weight: Math.max(1, Math.min(5, Number(parsed.impact_weight) || currentTask.impact_weight || 3)),
+        explanation: parsed.explanation || "",
+      };
+    } catch (error) {
+      console.error("Gemini replaceTaskWithAI Error:", error);
       throw error;
     }
   }
@@ -1862,6 +2584,384 @@ ${instruction}
     }
 
     return { ...parsed, task_changes: changes };
+  }
+
+  /**
+   * Intelligently audits and rebalances a plan when the user adjusts
+   * timeline duration, difficulty tier, or target points. Recalibrates
+   * completion criteria, time required, and impact weights.
+   */
+  static async rebalancePlan(params: {
+    goalTitle: string;
+    aiSummary?: string;
+    targetDurationDays: number;
+    previousDurationDays?: number;
+    initialPlanDays?: number;
+    difficulty: "easy" | "medium" | "hard" | "expert" | "legendary";
+    targetPoints: number;
+    dailyRate?: number;
+    tasks: Array<{
+      id: string;
+      task: string;
+      frequency?: "daily" | "weekly";
+      impact_weight?: number;
+      completion_criteria?: string;
+      subtasks?: Array<{
+        id: string;
+        task: string;
+        frequency?: "daily" | "weekly";
+        impact_weight?: number;
+        time_required_minutes?: number;
+        completion_criteria?: string;
+      }>;
+    }>;
+    language?: "ar" | "en";
+  }) {
+    const userLanguage = params.language || GeminiService.detectLanguage(params.goalTitle);
+    const currentDate = new Date().toISOString().split("T")[0];
+
+    const safeTasks = Array.isArray(params.tasks) ? params.tasks : [];
+    if (safeTasks.length === 0) {
+      return GeminiService.rebalancePlanLocally(params);
+    }
+
+    const systemPrompt = `
+SYSTEM ROLE:
+You are an expert "Goal & Plan Rebalancer & Feasibility Auditor" (مراجع وموازن الخطط الذكية) for a habit-tracking app.
+
+CONTEXT:
+The user has updated their parameters:
+- Goal: "${params.goalTitle}"
+- Goal Summary/Context: "${params.aiSummary || ""}"
+- New Duration: ${params.targetDurationDays} days (previously ${params.previousDurationDays || params.targetDurationDays} days, initial plan was ${params.initialPlanDays || params.previousDurationDays || params.targetDurationDays} days)
+- Commitment Tier: ${params.difficulty} (target rate: ${params.dailyRate || 100} pts/day)
+- Target Points: ${params.targetPoints} points
+- Language: ${userLanguage === "ar" ? "Arabic" : "English"}
+- Current Date: ${currentDate}
+
+CRITICAL OBJECTIVES:
+
+1. REALISM & SCIENTIFIC FEASIBILITY CHECK (فحص الواقعية والاستحالة العلمية/العملية):
+   - You MUST critically audit whether the goal "${params.goalTitle}" is physically, biologically, logically, and practically possible within ${params.targetDurationDays} days.
+   - EXAMPLES OF IMPOSSIBLE OR DANGEROUS TIMELINES:
+     * Weight loss goals: e.g. losing 10kg, 20kg in 7 days or 30 days is biologically impossible and life-threatening. Safe medical loss is 0.5 - 1 kg/week, requiring at least ~7 days per 1 kg lost (e.g. 20kg requires minimum ~140 days).
+     * Language acquisition: achieving fluency or comprehensive mastery in 7-14 days is impossible.
+     * Technical skills: mastering full-stack programming or complex professional domains from scratch in 7-14 days is impossible.
+     * Major physical transformations compressed into a few days.
+   - IF THE TIMELINE IS IMPOSSIBLE OR UNREALISTIC:
+     * "realism_check.is_realistic": false
+     * "realism_check.severity": "impossible" (if physically/biologically impossible or hazardous) or "warning" (if extremely compressed/unrealistic)
+     * "realism_check.warning_message": A very clear, compassionate, and precise Arabic (or English) message explaining directly WHY this goal cannot be achieved in ${params.targetDurationDays} days, stating the scientific/logical reason (e.g. "لا يمكنك تحقيق هذا الهدف خلال ${params.targetDurationDays} أيام بسبب: خسارة 20 كجم تتطلب عجزاً حرارياً يفوق 154,000 سعرة حرارية، وهو مستحيل بيولوجياً ويشكل خطراً جسيماً على الصحة. المعدل العلمي الآمن هو 0.5 - 1 كجم أسبوعياً.").
+     * "realism_check.recommended_min_days": number (e.g. 140 for 20kg loss, 90 for a language, etc.)
+   - IF THE TIMELINE IS REALISTIC:
+     * "realism_check.is_realistic": true
+     * "realism_check.severity": "realistic"
+     * "realism_check.warning_message": ""
+     * "realism_check.recommended_min_days": ${params.targetDurationDays}
+
+2. COMPLETION CRITERIA (معيار الإنجاز):
+   - Every main task and every subtask MUST have a concrete, measurable "completion_criteria".
+   - Scale this criteria according to the new timeframe and commitment level:
+     * If duration decreased or difficulty increased: increase daily intensity/output volume (e.g. read more pages, write more code, practice longer).
+     * If duration increased or difficulty decreased: adjust criteria to be sustainable and consistent over the longer timeframe without burnout.
+     * Keep criteria practical, unambiguous, and directly verifiable.
+
+3. TIME REQUIRED (time_required_minutes):
+   - Adjust "time_required_minutes" for each subtask to match the difficulty tier:
+     * easy: 10-25 minutes
+     * medium: 25-45 minutes
+     * hard: 45-75 minutes
+     * expert: 60-100 minutes
+     * legendary: 90-150 minutes
+
+4. IMPACT WEIGHTS (impact_weight 1..5 for subtasks, 1..10 for main tasks):
+   - Recalibrate weights so the daily subtasks sum up in balance with the difficulty level and target daily rate.
+
+5. TASKS PRESERVATION & GRANULARITY:
+   - Preserve existing tasks and their IDs.
+   - If the higher commitment or longer duration requires additional structure, you MAY add 1-2 new relevant subtasks or milestone tasks with new unique IDs (e.g. "s_new_1").
+
+6. AUDIT SUMMARY (مراجعة منطقية للأمر):
+   - In "audit_summary", provide a clear, logical, reassuring audit review in ${userLanguage === "ar" ? "Arabic" : "English"} explaining what changed in the timeline and criteria, how daily time and weights were rebalanced, or highlighting the realism assessment.
+
+OUTPUT JSON FORMAT ONLY:
+{
+  "status": "ok",
+  "audit_summary": "string",
+  "recommended_daily_time_minutes": number,
+  "realism_check": {
+    "is_realistic": boolean,
+    "severity": "realistic" | "warning" | "impossible",
+    "warning_message": "string",
+    "recommended_min_days": number
+  },
+  "main_tasks": [
+    {
+      "id": "string",
+      "task": "string",
+      "frequency": "daily" | "weekly",
+      "impact_weight": number,
+      "completion_criteria": "string",
+      "subtasks": [
+        {
+          "id": "string",
+          "task": "string",
+          "frequency": "daily" | "weekly",
+          "impact_weight": number,
+          "time_required_minutes": number,
+          "completion_criteria": "string"
+        }
+      ]
+    }
+  ]
+}
+`;
+
+    const userPrompt = `
+CURRENT TASKS TO REBALANCE:
+${JSON.stringify(safeTasks, null, 2)}
+`;
+
+    try {
+      const response = await GeminiService.callWithRetry(
+        {
+          responseMimeType: "application/json",
+          systemInstruction: { parts: [{ text: systemPrompt }], role: "system" },
+        },
+        { role: "user", parts: [{ text: userPrompt }] },
+        (text: string) => extractJson(text),
+      );
+
+      const responseText = response.text || "";
+      if (!responseText) throw new Error("Empty response from Gemini API");
+
+      const parsed = extractJson(responseText);
+      if (parsed && Array.isArray(parsed.main_tasks) && parsed.main_tasks.length > 0) {
+        const localCheck = GeminiService.evaluateRealismLocally(params);
+        // If local check detects an impossible timeline, ensure warning is prominent even if AI was overly lenient
+        const realismCheck = parsed.realism_check?.is_realistic === false
+          ? parsed.realism_check
+          : (!localCheck.is_realistic ? localCheck : (parsed.realism_check || localCheck));
+
+        return {
+          status: "ok",
+          audit_summary: parsed.audit_summary || (userLanguage === "ar" ? "تمت مراجعة الخطة وإعادة موازنتها بنجاح لتلائم المعايير الجديدة." : "Plan audited and rebalanced successfully."),
+          recommended_daily_time_minutes: Number(parsed.recommended_daily_time_minutes) || 30,
+          realism_check: realismCheck,
+          main_tasks: parsed.main_tasks.map((main: any, mIdx: number) => ({
+            id: main.id || `m_${mIdx + 1}`,
+            task: main.task || `Main Task ${mIdx + 1}`,
+            frequency: main.frequency === "weekly" ? "weekly" : "daily",
+            impact_weight: Math.max(1, Math.min(10, Number(main.impact_weight) || 5)),
+            completion_criteria: main.completion_criteria || "",
+            subtasks: Array.isArray(main.subtasks)
+              ? main.subtasks.map((sub: any, sIdx: number) => ({
+                  id: sub.id || `s_${mIdx + 1}_${sIdx + 1}`,
+                  task: sub.task || `Subtask ${sIdx + 1}`,
+                  frequency: sub.frequency === "weekly" ? "weekly" : "daily",
+                  impact_weight: Math.max(1, Math.min(5, Number(sub.impact_weight) || 2)),
+                  time_required_minutes: Math.max(5, Number(sub.time_required_minutes) || 20),
+                  completion_criteria: sub.completion_criteria || "",
+                }))
+              : [],
+          })),
+        };
+      }
+      return GeminiService.rebalancePlanLocally(params);
+    } catch (error) {
+      console.warn("Gemini rebalancePlan failed, using local rebalance engine:", error);
+      return GeminiService.rebalancePlanLocally(params);
+    }
+  }
+
+  /**
+   * Deterministic local evaluation of goal feasibility and realistic timeline.
+   */
+  static evaluateRealismLocally(params: {
+    goalTitle: string;
+    aiSummary?: string;
+    targetDurationDays: number;
+    previousDurationDays?: number;
+    initialPlanDays?: number;
+    language?: "ar" | "en";
+  }): {
+    is_realistic: boolean;
+    severity: "realistic" | "warning" | "impossible";
+    warning_message: string;
+    recommended_min_days: number;
+  } {
+    const isAr = (params.language || "ar") === "ar";
+    const fullGoalText = `${params.goalTitle} ${params.aiSummary || ""}`.toLowerCase();
+
+    // 1. Weight loss pattern check (e.g. "التحول من ال 105 إلى ال 85", "خسارة 20 كجم", "lose 20 kg")
+    const weightLossRegex = /(?:خسارة|فقدان|إنقاص|انقاص|تخفيض|تنزيل|نزول|نقص|خساره|lose|loss|dropping)\s*(\d+)\s*(?:كجم|كيلو|كيلوغرام|كغ|kg|kilos|pounds|رطل)/i;
+    const weightTransformRegex = /(?:(?:التحول|تغيير|نزول|إنقاص|انقاص|فقدان|خسارة)\s+)?من\s+(?:ال\s*)?(\d+)\s*(?:كجم|كيلو|كيلوغرام|كغ|kg)?\s+(?:إلى|الى|لـ|ل)\s+(?:ال\s*)?(\d+)|from\s+(\d+)\s+to\s+(\d+)/i;
+
+    let kgToLose = 0;
+    const matchLoss = fullGoalText.match(weightLossRegex);
+    if (matchLoss) {
+      kgToLose = Number(matchLoss[1]);
+    } else {
+      const matchTrans = fullGoalText.match(weightTransformRegex);
+      if (matchTrans) {
+        const fromVal = Number(matchTrans[1] || matchTrans[3]);
+        const toVal = Number(matchTrans[2] || matchTrans[4]);
+        if (fromVal > toVal) {
+          kgToLose = fromVal - toVal;
+        }
+      }
+    }
+
+    if (kgToLose > 0) {
+      // Safe maximum weight loss is ~1 kg per week (7 days)
+      const safeMinDays = Math.max(14, Math.round(kgToLose * 7));
+      const totalDeficit = kgToLose * 7700;
+      const dailyDeficit = Math.round(totalDeficit / Math.max(1, params.targetDurationDays));
+
+      if (params.targetDurationDays < safeMinDays * 0.4) {
+        return {
+          is_realistic: false,
+          severity: "impossible",
+          recommended_min_days: safeMinDays,
+          warning_message: isAr
+            ? `لا يمكنك تحقيق هدف خسارة ${kgToLose} كجم خلال ${params.targetDurationDays} أيام فقط؛ لأن هذا يتطلب عجزاً حرارياً يفوق ${dailyDeficit.toLocaleString()} سعرة حرارية يومياً (إجمالي ${totalDeficit.toLocaleString()} سعرة)، وهو أمر مستحيل بيولوجياً ويشكل خطراً صحياً بالغاً. الحد الأدنى الآمن علمياً هو ${safeMinDays} يوماً (بمعدل 0.5 إلى 1 كجم أسبوعياً).`
+            : `You cannot lose ${kgToLose} kg in ${params.targetDurationDays} days; this requires an impossible daily deficit of ${dailyDeficit.toLocaleString()} kcal (${totalDeficit.toLocaleString()} kcal total), which is biologically unachievable and dangerous. The recommended safe minimum is ${safeMinDays} days.`,
+        };
+      }
+      if (params.targetDurationDays < safeMinDays * 0.75) {
+        return {
+          is_realistic: false,
+          severity: "warning",
+          recommended_min_days: safeMinDays,
+          warning_message: isAr
+            ? `المدة المحددة (${params.targetDurationDays} يوماً) مضغوطة جداً وغير واقعية لخسارة ${kgToLose} كجم، وقد تسبب إجهاداً شديداً وفقداناً للكتلة العضلية. يُنصح بمدة لا تقل عن ${safeMinDays} يوماً لضمان استدامة النتائج وصحتك.`
+            : `The selected timeline (${params.targetDurationDays} days) is overly aggressive for losing ${kgToLose} kg and may cause muscle loss and burnout. A sustainable timeline is at least ${safeMinDays} days.`,
+        };
+      }
+    }
+
+    // 2. High ratio compression vs initial plan days (e.g. originally 90-120 days, pulled down to <= 14 days)
+    const benchmarkInitialDays = params.initialPlanDays || params.previousDurationDays || 90;
+    if (benchmarkInitialDays >= 45 && params.targetDurationDays <= 14) {
+      const minRecommended = Math.max(30, Math.round(benchmarkInitialDays * 0.5));
+      return {
+        is_realistic: false,
+        severity: "impossible",
+        recommended_min_days: minRecommended,
+        warning_message: isAr
+          ? `لا يمكنك تحقيق هذا الهدف خلال ${params.targetDurationDays} أيام؛ لأن هذا المسار تم تصميمه كرحلة تراكمية (${benchmarkInitialDays} يوماً). ضغطه في ${params.targetDurationDays} أيام فقط غير قابل للتنفيذ عملياً وسيؤدي إلى الإحباط والانقطاع.`
+          : `This goal was designed as a ${benchmarkInitialDays}-day journey. Compressing it into ${params.targetDurationDays} days is unfeasible and leads to quick burnout.`,
+      };
+    }
+
+    return {
+      is_realistic: true,
+      severity: "realistic",
+      warning_message: "",
+      recommended_min_days: params.targetDurationDays,
+    };
+  }
+
+  /**
+   * Deterministic local fallback rebalance algorithm. Ensures that plan rebalance
+   * works 100% reliably even when AI is unavailable or quotas are met.
+   */
+  static rebalancePlanLocally(params: {
+    goalTitle: string;
+    aiSummary?: string;
+    targetDurationDays: number;
+    previousDurationDays?: number;
+    initialPlanDays?: number;
+    difficulty: "easy" | "medium" | "hard" | "expert" | "legendary";
+    targetPoints: number;
+    tasks: Array<any>;
+    language?: "ar" | "en";
+  }) {
+    const isAr = (params.language || "ar") === "ar";
+    const tierDailyMinutes: Record<string, number> = {
+      easy: 20,
+      medium: 35,
+      hard: 60,
+      expert: 90,
+      legendary: 120,
+    };
+    const tierWeightRange: Record<string, number> = {
+      easy: 1,
+      medium: 2,
+      hard: 3,
+      expert: 4,
+      legendary: 5,
+    };
+    const tierNamesAr: Record<string, string> = {
+      easy: "سهل",
+      medium: "متوسط",
+      hard: "صعب",
+      expert: "خبير",
+      legendary: "أسطوري",
+    };
+
+    const realismCheck = GeminiService.evaluateRealismLocally(params);
+
+    const targetMinutes = tierDailyMinutes[params.difficulty] || 35;
+    const baseWeight = tierWeightRange[params.difficulty] || 2;
+    const prevDays = params.previousDurationDays || params.targetDurationDays;
+    const ratio = prevDays > 0 ? prevDays / params.targetDurationDays : 1;
+
+    const updatedMains = (params.tasks || []).map((main: any, mIdx: number) => {
+      const subs = Array.isArray(main.subtasks) ? main.subtasks : [];
+      const subCount = Math.max(1, subs.length);
+      const allocatedMinutesPerSub = Math.max(5, Math.round(targetMinutes / subCount));
+
+      const updatedSubs = subs.map((sub: any, sIdx: number) => {
+        const currentMins = Number(sub.time_required_minutes) || allocatedMinutesPerSub;
+        const adjustedMins = Math.max(5, Math.min(180, Math.round(currentMins * (ratio > 1 ? Math.min(1.5, ratio) : Math.max(0.7, ratio)))));
+        const finalMins = params.difficulty === "easy" ? Math.min(25, adjustedMins) : Math.max(allocatedMinutesPerSub, adjustedMins);
+
+        let criteria = (sub.completion_criteria || "").trim();
+        if (!criteria) {
+          criteria = isAr
+            ? (ratio >= 1.4 ? `إنجاز مكثف لمتطلبات الخطوة بتركيز لمدة لا تقل عن ${finalMins} دقيقة لمواكبة المدة المضغوطة (${params.targetDurationDays} يوم).` : `إتمام متطلبات الخطوة بتركيز لمدة لا تقل عن ${finalMins} دقيقة.`)
+            : (ratio >= 1.4 ? `Intensive execution of subtask requirements with focus for at least ${finalMins} minutes (${params.targetDurationDays}-day pace).` : `Complete subtask requirements with focus for at least ${finalMins} minutes.`);
+        } else if (ratio >= 1.4 && !criteria.includes("مكثف") && !criteria.includes("intensive")) {
+          criteria = isAr
+            ? `${criteria} (إنجاز مكثف لمواكبة المدة المضغوطة ${params.targetDurationDays} يوم)`
+            : `${criteria} (intensive pace for ${params.targetDurationDays}-day target)`;
+        }
+
+        return {
+          id: sub.id || `s_${mIdx + 1}_${sIdx + 1}`,
+          task: sub.task || `Subtask ${sIdx + 1}`,
+          frequency: sub.frequency === "weekly" ? "weekly" : "daily",
+          impact_weight: Math.max(1, Math.min(5, baseWeight + (sIdx % 2))),
+          time_required_minutes: finalMins,
+          completion_criteria: criteria,
+        };
+      });
+
+      return {
+        id: main.id || `m_${mIdx + 1}`,
+        task: main.task || `Main Task ${mIdx + 1}`,
+        frequency: main.frequency === "weekly" ? "weekly" : "daily",
+        impact_weight: Math.max(2, Math.min(10, baseWeight * 2)),
+        completion_criteria: main.completion_criteria || (isAr ? `التحقق من إتمام كافة الخطوات بدقة لضمان التقدم نحو مستهدف ${params.targetPoints} نقطة.` : `Verify completion of all subtasks toward target ${params.targetPoints} points.`),
+        subtasks: updatedSubs,
+      };
+    });
+
+    const diffAr = tierNamesAr[params.difficulty] || params.difficulty;
+    const auditSummary = !realismCheck.is_realistic
+      ? realismCheck.warning_message
+      : isAr
+        ? `تمت المراجعة المنطقية وإعادة الموازنة بنجاح: تم ضبط معايير الإنجاز اليومية لتلائم مدة ${params.targetDurationDays} يوماً بمستوى "${diffAr}"، وإعادة معايرة الأوقات المطلوبة (${targetMinutes} دقيقة يومياً) وتوزيع أوزان النقاط لتحقيق مستهدف ${params.targetPoints.toLocaleString()} نقطة بواقعية واستدامة.`
+        : `Logical plan audit & rebalance complete: Daily completion criteria updated for ${params.targetDurationDays} days at "${params.difficulty}" tier. Calibrated required daily time (~${targetMinutes} mins/day) and impact weights to realistically achieve ${params.targetPoints.toLocaleString()} points.`;
+
+    return {
+      status: "ok" as const,
+      audit_summary: auditSummary,
+      recommended_daily_time_minutes: targetMinutes,
+      realism_check: realismCheck,
+      main_tasks: updatedMains,
+    };
   }
 
   /**
@@ -2034,6 +3134,7 @@ ${JSON.stringify(stats, null, 2)}
           systemInstruction: { parts: [{ text: systemPrompt }], role: "system" },
         },
         { role: "user", parts: [{ text: userPrompt }] },
+        (text: string) => extractJson(text),
       );
 
       const responseText = response.text || "";

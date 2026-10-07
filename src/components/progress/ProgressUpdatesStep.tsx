@@ -247,7 +247,7 @@ export default function ProgressUpdatesStep({
 
       {/* Main Liquid Progress Tube Card */}
       <div
-        className={`rounded-2xl border-2 p-5 space-y-3.5 shadow-sm transition-all duration-500 ${
+        className={`rounded-xl border p-5 space-y-3.5 shadow-xs transition-all duration-500 ${
           isMilestone
             ? "border-amber-500/30 bg-gradient-to-b from-amber-500/10 via-card to-card shadow-amber-500/10"
             : "border-primary/20 bg-gradient-to-b from-primary/5 via-card to-card"
@@ -255,7 +255,7 @@ export default function ProgressUpdatesStep({
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {isArabic ? "شريط التقدم الكلي" : "Total Goal Progress"}
             </span>
             {updates.deltaPoints > 0 && (
@@ -434,7 +434,7 @@ export default function ProgressUpdatesStep({
             setPhase(0);
             setTimeout(() => setPhase(1), 100);
           }}
-          className="w-full sm:w-auto px-5 py-3.5 bg-muted/60 hover:bg-muted text-foreground border border-border/70 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+          className="w-full sm:w-auto px-5 py-3.5 bg-muted/60 hover:bg-muted text-foreground border border-border/70 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 shadow-xs"
           title={isArabic ? "إعادة تشغيل الحركة" : "Replay Animation"}
         >
           <RotateCcw className="w-4 h-4 text-muted-foreground" />
@@ -444,10 +444,10 @@ export default function ProgressUpdatesStep({
         <button
           type="button"
           onClick={onDone}
-          className={`w-full flex-1 py-3.5 rounded-2xl font-black text-base hover:opacity-90 active:scale-[0.98] transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer ${
+          className={`w-full flex-1 py-3.5 rounded-xl font-medium text-base active:scale-[0.98] transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer ${
             isMilestone
-              ? "bg-amber-500 hover:bg-amber-600 text-amber-950 shadow-amber-500/25"
-              : "bg-primary text-primary-foreground shadow-primary/20"
+              ? "bg-amber-500 hover:bg-amber-600 text-amber-950 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)]"
+              : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)]"
           }`}
         >
           <Check className="w-5 h-5 stroke-[2.5]" />

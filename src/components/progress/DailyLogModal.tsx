@@ -225,15 +225,15 @@ export default function DailyLogModal({ goal, tasks, onClose, onSuccess, languag
     }
 
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-            <div className="bg-card rounded-t-3xl sm:rounded-3xl w-full max-w-lg overflow-hidden animate-in slide-in-from-bottom duration-300 border border-border">
-                <div className="p-6 border-b border-border flex justify-between items-center">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div className="bg-card rounded-t-2xl sm:rounded-2xl w-full max-w-lg overflow-hidden animate-in slide-in-from-bottom duration-300 border border-border/70 shadow-lg">
+                <div className="p-6 border-b border-border/70 flex justify-between items-center">
                     <div>
                         <h3 className="text-xl font-bold text-foreground">{t.logProgress}</h3>
-                        <p className="text-xs text-muted-foreground font-bold uppercase">{goal.title}</p>
+                        <p className="text-xs text-muted-foreground font-semibold uppercase">{goal.title}</p>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-muted rounded-full transition-colors">
-                        <X className="w-6 h-6 text-muted-foreground" />
+                    <button onClick={onClose} className="p-2 hover:bg-muted rounded-lg transition-colors">
+                        <X className="w-5 h-5 text-muted-foreground" />
                     </button>
                 </div>
 
@@ -251,13 +251,13 @@ export default function DailyLogModal({ goal, tasks, onClose, onSuccess, languag
 
                 <div className="p-6 space-y-6">
                     <div className="space-y-2">
-                        <label className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">{t.describeWhatYouDid}</label>
+                        <label className="text-sm font-semibold text-muted-foreground uppercase tracking-widest px-1">{t.describeWhatYouDid}</label>
                         <div className="relative">
                             <textarea
                                 value={logText}
                                 onChange={(e) => setLogText(e.target.value)}
                                 placeholder={t.progressPlaceholder}
-                                className="w-full h-48 p-4 border-2 rounded-2xl resize-none transition-all placeholder:text-muted-foreground bg-muted/20 text-foreground border-transparent focus:border-primary"
+                                className="w-full h-48 p-4 border rounded-xl resize-none transition-all placeholder:text-muted-foreground bg-muted/20 text-foreground border-border/70 focus:border-primary focus:bg-card focus:shadow-xs"
                                 dir={language === 'ar' ? 'rtl' : 'ltr'}
                             />
                             <div className="absolute bottom-4 end-4">
@@ -269,7 +269,7 @@ export default function DailyLogModal({ goal, tasks, onClose, onSuccess, languag
                         </div>
                     </div>
 
-                    <div className="p-4 bg-primary/8 rounded-2xl flex gap-3 text-primary text-sm">
+                    <div className="p-4 bg-primary/8 rounded-xl flex gap-3 text-primary text-sm border border-primary/15">
                         <AlertCircle className="w-5 h-5 flex-shrink-0" />
                         <p dir={language === 'ar' ? 'rtl' : 'ltr'}>{t.aiJudgeNote}</p>
                     </div>
@@ -277,7 +277,7 @@ export default function DailyLogModal({ goal, tasks, onClose, onSuccess, languag
                     <button
                         onClick={handleSubmit}
                         disabled={loading || !logText.trim()}
-                        className="w-full py-4 bg-primary text-primary-foreground rounded-2xl font-bold text-lg hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-primary/20"
+                        className="w-full py-3.5 bg-primary text-primary-foreground rounded-xl font-medium text-base hover:bg-primary/90 transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-xs shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)] active:scale-[0.98]"
                     >
                         {loading ? <Loader2 className="animate-spin w-5 h-5" /> : <><Send className="w-5 h-5" /> {t.submitLog}</>}
                     </button>

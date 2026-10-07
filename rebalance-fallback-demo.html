@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مثال: Rebalance Fallback</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'IBM Plex Sans Arabic', sans-serif;
+            background: #f8f9fa;
+            color: #1a1a1a;
+            line-height: 1.8;
+            padding: 2rem;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            padding: 2.5rem;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: #0d0d0d;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 1rem;
+        }
+        h2 {
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin: 1.5rem 0 0.75rem;
+            color: #0d0d0d;
+        }
+        p {
+            margin-bottom: 1rem;
+            color: #374151;
+            font-size: 0.95rem;
+        }
+        .scenario {
+            background: #f0f9ff;
+            border-right: 4px solid #0ea5e9;
+            padding: 1.25rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        .scenario-title {
+            font-weight: 600;
+            color: #0369a1;
+            margin-bottom: 0.5rem;
+        }
+        .code-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: 'Fira Code', 'Courier New', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            margin: 0.75rem 0;
+            direction: ltr;
+            text-align: left;
+        }
+        .code-comment {
+            color: #6a9955;
+        }
+        .code-keyword {
+            color: #569cd6;
+        }
+        .code-string {
+            color: #ce9178;
+        }
+        .highlight {
+            background: #fef3c7;
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        .option {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            transition: all 0.2s;
+        }
+        .option:hover {
+            border-color: #0ea5e9;
+            background: #f0f9ff;
+        }
+        .option-title {
+            font-weight: 600;
+            color: #0d0d0d;
+            margin-bottom: 0.25rem;
+        }
+        .option-desc {
+            font-size: 0.85rem;
+            color: #6b7280;
+        }
+        .flow {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 1rem 0;
+            flex-wrap: wrap;
+        }
+        .flow-step {
+            background: #e0e7ff;
+            color: #3730a3;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        .flow-arrow {
+            color: #9ca3af;
+            font-size: 1rem;
+        }
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+        .badge-green {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .badge-red {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .badge-yellow {
+            background: #fef3c7;
+            color: #92400e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>مثال عملي: Rebalance Fallback</h1>
+        
+        <h2>السؤال</h2>
+        <p>
+            عندما المستخدم يعدّل مدة الخطة أو صعوبتها، النظام يستدعي AI لإعادة توازن الخطة.
+            لكن ماذا يحدث إذا نفدت حصة AI (Quota)؟
+        </p>
+
+        <h2>الوضع الحالي في الكود</h2>
+        
+        <div class="scenario">
+            <div class="scenario-title">السيناريو: المستخدم غيّر المدة من 90 يوم إلى 30 يوم</div>
+            <div class="flow">
+                <span class="flow-step">المستخدم يعدّل المدة</span>
+                <span class="flow-arrow">←</span>
+                <span class="flow-step">POST /api/goal/rebalance</span>
+                <span class="flow-arrow">←</span>
+                <span class="flow-step">فحص الحصة</span>
+                <span class="flow-arrow">←</span>
+                <span class="flow-step">الحصة نفدت!</span>
+            </div>
+        </div>
+
+        <h2>الكود الحالي (rebalance/route.ts)</h2>
+        <div class="code-block">
+<span class="code-comment">// المسار: src/app/api/goal/rebalance/route.ts</span>
+<span class="code-keyword">const</span> auth = <span class="code-keyword">await</span> requireUser(req);
+<span class="code-keyword">if</span> (auth.error) <span class="code-keyword">return</span> auth.error;
+
+<span class="code-comment">// فحص حصة AI</span>
+<span class="code-keyword">const</span> quotaResult = <span class="code-keyword">await</span> requireAiQuota(auth.supabase, <span class="code-string">'gemini'</span>, <span class="code-string">'ai_edit'</span>);
+
+<span class="code-keyword">if</span> (!quotaResult.allowed) {
+    <span class="code-comment">// ✅ يوجد fallback محلي — لا يتوقف!</span>
+    <span class="code-keyword">const</span> localResult = GeminiService.rebalancePlanLocally(params);
+    <span class="code-keyword">return</span> Response.json(localResult);
+}
+
+<span class="code-comment">// الحصة متاحة — استدعاء AI</span>
+<span class="code-keyword">const</span> result = <span class="code-keyword">await</span> GeminiService.rebalancePlan(params);
+<span class="code-keyword">return</span> Response.json(result);
+        </div>
+
+        <h2>المشكلة</h2>
+        <p>
+            <span class="highlight">rebalance</span> فقط عنده fallback محلي.
+            أما <span class="highlight">plan</span> و <span class="highlight">investigate</span> فليس عندهم — يتوقفون تمامًا عند نفاد الحصة.
+        </p>
+
+        <h2>السؤال</h2>
+        <p>تريد نضيف fallback محلي لـ plan و investigate أيضًا؟</p>
+
+        <div class="option">
+            <div class="option-title">أ) نضيف fallback للثنين</div>
+            <div class="option-desc">
+                fallback محلي لـ plan و investigate — يضمن عدم التوقف أبدًا.
+                مثال: إذا نفدت الحصة أثناء إنشاء الخطة، النظام يولد خطة بسيطة محليًا بدل ما يظهر خطأ.
+            </div>
+        </div>
+
+        <div class="option">
+            <div class="option-title">ب) fallback بس لـ investigate</div>
+            <div class="option-desc">
+                investigate فقط يحصل على fallback (تحقيق بسيط محلي).
+                plan ينتظر المستخدم حتى تتوفر الحصة.
+            </div>
+        </div>
+
+        <div class="option">
+            <div class="option-title">ج) إعادة محاولة تلقائية</div>
+            <div class="option-desc">
+                النموذج يعيد المحاولة تلقائيًا بعد نفاد الحصة (wait and retry).
+                قد يتأخر المستخدم عدة دقائق.
+            </div>
+        </div>
+
+        <div class="option">
+            <div class="option-title">د) رسالة للمستخدم</div>
+            <div class="option-desc">
+                نعرض للمستخدم: "الحصة نفدت، حاول لاحقًا" بدون أي fallback.
+                بسيط لكن قد يحبط المستخدم.
+            </div>
+        </div>
+
+        <h2>مثال عملي للـ fallback المحلي</h2>
+        <p>إذا اخترت الخيار (أ)، هذا مثال كيف راح يعمل:</p>
+        
+        <div class="code-block">
+<span class="code-comment">// مثال: خطة محلية بسيطة عند نفاد الحصة</span>
+<span class="code-keyword">function</span> createPlanLocally(goal, duration, difficulty) {
+    <span class="code-keyword">const</span> tasks = [
+        {
+            id: <span class="code-string">"t1"</span>,
+            task: <span class="code-string">"مهمة يومية أساسية"</span>,
+            frequency: <span class="code-string">"daily"</span>,
+            impact_weight: 3,
+            time_required_minutes: 30,
+            completion_criteria: <span class="code-string">"إنجاز المهمة بالكامل"</span>
+        }
+    ];
+    
+    <span class="code-keyword">return</span> {
+        status: <span class="code-string">"ok"</span>,
+        plan: {
+            goal_summary: goal,
+            estimated_total_days: duration,
+            confidence: <span class="code-string">"low"</span>
+        },
+        tasks: tasks,
+        is_local_fallback: <span class="code-keyword">true</span>  <span class="code-comment">// علم أنه محلي</span>
+    };
+}
+        </div>
+
+        <p style="margin-top: 1.5rem; color: #6b7280; font-size: 0.85rem;">
+            ملاحظة: الـ fallback المحلي يكون بسيط ومحدد مسبقًا، يعطي المستخدم خطة قابلة للتنفيذ حتى لو ليست ذكية.
+        </p>
+    </div>
+</body>
+</html>

@@ -61,6 +61,7 @@ create table if not exists public.sub_layers (
   impact_weight         integer not null default 1,
   completion_criteria   text default '',
   time_required_minutes integer not null default 0,
+  schedule_days         smallint[] default null,
   sort_order            integer not null default 0,
   icon                  text,
   accent_color          text,

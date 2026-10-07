@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SpotlightCard, ShinyText } from "@/components/reactbits";
 
 /*
  * Interactive pricing section: a single billing toggle (monthly / yearly),
@@ -114,15 +115,14 @@ export default function PricingSection() {
             >
               {opt.label}
               {opt.key === "yearly" && (
-                <span
+                <ShinyText
+                  text="(وفّر شهرين)"
                   className={
                     billing === "yearly"
                       ? "ms-1.5 text-xs opacity-90"
                       : "ms-1.5 text-xs font-semibold text-primary"
                   }
-                >
-                  (وفّر شهرين)
-                </span>
+                />
               )}
             </button>
           ))}
@@ -137,12 +137,17 @@ export default function PricingSection() {
               ? Math.round(plan.monthly * YEARLY_FREE_MONTHS * 100) / 100
               : 0;
           return (
-            <div
+            <SpotlightCard
               key={plan.name}
+              spotlightColor={
+                plan.highlighted
+                  ? "color-mix(in oklch, var(--primary) 22%, transparent)"
+                  : "color-mix(in oklch, var(--primary) 12%, transparent)"
+              }
               className={
                 plan.highlighted
-                  ? "relative flex flex-col rounded-2xl border-2 border-primary bg-card p-8 shadow-md"
-                  : "relative flex flex-col rounded-2xl border border-border bg-card p-8 shadow-sm"
+                  ? "relative flex flex-col rounded-xl border border-primary ring-1 ring-primary/30 bg-card p-8 shadow-sm"
+                  : "relative flex flex-col rounded-xl border border-border/70 bg-card p-8 shadow-xs"
               }
             >
               {plan.note && (
@@ -193,7 +198,7 @@ export default function PricingSection() {
               >
                 <Link href="/login">{plan.cta}</Link>
               </Button>
-            </div>
+            </SpotlightCard>
           );
         })}
       </div>

@@ -44,6 +44,7 @@ interface DayCalendarGridProps {
   language?: Language;
   loading?: boolean;
   onViewLogDetails?: (log: Log) => void;
+  streakFreezes?: string[];
 }
 
 interface CalendarCell {
@@ -56,6 +57,7 @@ interface CalendarCell {
   logCount: number;
   totalPoints: number;
   badge: "none" | "strong" | "exceptional";
+  isFrozen?: boolean;
 }
 
 function parseLocalDay(value: string) {
@@ -143,6 +145,7 @@ export default function DayCalendarGrid({
   language = "ar",
   loading = false,
   onViewLogDetails,
+  streakFreezes = [],
 }: DayCalendarGridProps) {
   const isArabic = language === "ar";
   const labels = {
@@ -209,19 +212,19 @@ export default function DayCalendarGrid({
   );
   const weekdayLabels = useMemo(() => {
     const formatter = new Intl.DateTimeFormat(locale, { weekday: "narrow" });
-    // Jan 8, 2024 = Monday — gives Mon-Sun order
+    // Jan 7, 2024 = Sunday — gives Sun-Sat order (Sunday first)
     return Array.from({ length: 7 }, (_, index) =>
-      formatter.format(new Date(2024, 0, 8 + index)),
+      formatter.format(new Date(2024, 0, 7 + index)),
     );
   }, [locale]);
-  const todayWeekdayIndex = (today.getDay() + 6) % 7;
+  const todayWeekdayIndex = today.getDay();
 
   const { calendarCells, monthStats } = useMemo(() => {
     const viewYear = viewDate.getFullYear();
     const viewMonth = viewDate.getMonth();
     const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-    // ISO week: Monday=0 … Sunday=6  (JS getDay: Sun=0, Mon=1…Sat=6)
-    const firstDayIndex = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7;
+    // Standard week: Sunday=0 … Saturday=6 (JS getDay: Sun=0, Mon=1…Sat=6)
+    const firstDayIndex = new Date(viewYear, viewMonth, 1).getDay();
     const monthStart = new Date(viewYear, viewMonth, 1);
     monthStart.setHours(0, 0, 0, 0);
     const monthEnd = new Date(viewYear, viewMonth, daysInMonth);
@@ -256,6 +259,8 @@ export default function DayCalendarGrid({
             ? "strong"
             : "none";
 
+        const isFrozen = streakFreezes.includes(dateKey);
+
         return {
           date: dateKey,
           dayNum,
@@ -266,6 +271,7 @@ export default function DayCalendarGrid({
           logCount: dayLogs.length,
           totalPoints,
           badge,
+          isFrozen,
         };
       },
     );
@@ -294,7 +300,7 @@ export default function DayCalendarGrid({
               : Math.max(0, daysInMonth - today.getDate()),
       },
     };
-  }, [goalStart, logsByDate, today, viewDate]);
+  }, [goalStart, logsByDate, today, viewDate, streakFreezes]);
 
   const monthLabel = useMemo(
     () =>
@@ -344,6 +350,7 @@ export default function DayCalendarGrid({
   ];
 
   const selectedLogs = selectedDate ? logsByDate.get(selectedDate) || [] : [];
+  const selectedDayIsFrozen = selectedDate ? streakFreezes.includes(selectedDate) : false;
   const selectedDayBadge = selectedLogs.some(
     (log) =>
       parseDailyLogBreakdown(log.breakdown).meta?.badge === "exceptional",
@@ -416,7 +423,7 @@ export default function DayCalendarGrid({
                 setTooltip(null);
                 setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
               }}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border-2 border-border/80 bg-card text-foreground shadow-[0_2px_0_0_var(--border)] transition-all hover:bg-muted/60 active:translate-y-[1px] active:shadow-none cursor-pointer"
+              className="flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-card text-foreground shadow-xs transition-all hover:bg-muted/80 active:scale-95 cursor-pointer"
               aria-label={isArabic ? "الشهر السابق" : "Previous month"}
             >
               <ChevronLeft className="h-3.5 w-3.5" />
@@ -503,7 +510,7 @@ export default function DayCalendarGrid({
                 viewDate.getFullYear() === today.getFullYear() &&
                 viewDate.getMonth() === today.getMonth()
               }
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border-2 border-border/80 bg-card text-foreground shadow-[0_2px_0_0_var(--border)] transition-all hover:bg-muted/60 active:translate-y-[1px] active:shadow-none disabled:pointer-events-none disabled:opacity-30 cursor-pointer"
+              className="flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-card text-foreground shadow-xs transition-all hover:bg-muted/80 active:scale-95 disabled:pointer-events-none disabled:opacity-30 cursor-pointer"
               aria-label={isArabic ? "الشهر التالي" : "Next month"}
             >
               <ChevronRight className="h-3.5 w-3.5" />
@@ -575,15 +582,21 @@ export default function DayCalendarGrid({
                       x: rect.left + rect.width / 2,
                       y: rect.top,
                       state,
-                      badgeLabel,
+                      badgeLabel: day.isFrozen
+                        ? isArabic
+                          ? "❄️ يوم راحة تكتيكي"
+                          : "❄️ Tactical Rest Day"
+                        : badgeLabel,
                     });
                   }}
                   onMouseLeave={() => setTooltip(null)}
                   className={cn(
                     "group relative h-6 rounded-lg border text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-1 focus-visible:ring-offset-card min-[390px]:h-7 min-[500px]:h-8 md:aspect-square md:h-auto",
-                    day.isBeforeStart || day.isAfterToday
-                      ? "border-border/45 bg-muted/12 text-muted-foreground/50"
-                      : HEAT_SURFACE[tier],
+                    day.isFrozen
+                      ? "border-sky-400/50 bg-sky-500/20 text-sky-700 dark:text-sky-300 ring-1 ring-sky-400/30"
+                      : day.isBeforeStart || day.isAfterToday
+                        ? "border-border/45 bg-muted/12 text-muted-foreground/50"
+                        : HEAT_SURFACE[tier],
                     day.isToday &&
                       !isSelected &&
                       !day.isBeforeStart &&
@@ -601,20 +614,26 @@ export default function DayCalendarGrid({
                       !day.isAfterToday &&
                       "shadow-md shadow-primary/20",
                   )}
-                  aria-label={`${day.date} ${day.logCount > 0 ? `${day.logCount} ${labels.logs}` : labels.noActivity}${badgeLabel ? ` ${badgeLabel}` : ""}`}
+                  aria-label={`${day.date} ${day.isFrozen ? "Tactical Rest Day" : day.logCount > 0 ? `${day.logCount} ${labels.logs}` : labels.noActivity}${badgeLabel ? ` ${badgeLabel}` : ""}`}
                 >
                   <span
                     className={cn(
                       "absolute left-1 top-0.5 text-[10px] font-bold leading-none min-[390px]:top-1 min-[390px]:text-[11px] sm:left-1.5 sm:top-1.5 sm:text-xs",
-                      day.isBeforeStart || day.isAfterToday
-                        ? "text-muted-foreground/50"
-                        : HEAT_TEXT[tier],
+                      day.isFrozen
+                        ? "text-sky-700 dark:text-sky-300 font-extrabold"
+                        : day.isBeforeStart || day.isAfterToday
+                          ? "text-muted-foreground/50"
+                          : HEAT_TEXT[tier],
                     )}
                   >
                     {day.dayNum}
                   </span>
 
-                  {day.hasLogs && !day.isBeforeStart && !day.isAfterToday && (
+                  {day.isFrozen ? (
+                    <span className="absolute bottom-0.5 right-1 text-[9px] leading-none select-none">
+                      ❄️
+                    </span>
+                  ) : day.hasLogs && !day.isBeforeStart && !day.isAfterToday && (
                     <span
                       className={cn(
                         "absolute bottom-0.5 right-1 h-1.5 w-1.5 rounded-full opacity-90 min-[390px]:bottom-1 sm:bottom-1.5 sm:right-1.5 sm:h-2 sm:w-2 ring-2 ring-background",
@@ -723,7 +742,13 @@ export default function DayCalendarGrid({
                     },
                   )}
                 </p>
-                {selectedDayBadgeLabel && (
+                {selectedDayIsFrozen && (
+                  <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10.5px] font-bold bg-sky-500/15 text-sky-600 dark:text-sky-400 ring-1 ring-sky-500/30">
+                    <span>❄️</span>
+                    <span>{isArabic ? "يوم راحة تكتيكي (محمي)" : "Tactical Rest Day (Protected)"}</span>
+                  </div>
+                )}
+                {!selectedDayIsFrozen && selectedDayBadgeLabel && (
                   <div
                     className={cn(
                       "mt-2.5 inline-flex items-center rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ring-1",
@@ -763,7 +788,23 @@ export default function DayCalendarGrid({
             </div>
 
             <div className="flex-1 space-y-3 overflow-y-auto p-4 sm:space-y-3.5 sm:p-5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted/20 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5">
-              {selectedLogs.length === 0 ? (
+              {selectedDayIsFrozen && selectedLogs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-3 py-10 text-center sm:py-14">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-500/15 text-sky-500 border border-sky-500/25 text-2xl">
+                    ❄️
+                  </div>
+                  <div className="space-y-1 max-w-xs">
+                    <p className="text-sm font-bold text-foreground">
+                      {isArabic ? "يوم راحة تكتيكي مفعل" : "Tactical Rest Day Active"}
+                    </p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {isArabic
+                        ? "تم استخدام تصريح الراحة لحماية سلسلة الاستمرار واحتساب متوسط النقاط اليومية لهذا اليوم."
+                        : "A rest pass was used to protect your streak and award daily average points for this day."}
+                    </p>
+                  </div>
+                </div>
+              ) : selectedLogs.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-3 py-10 text-muted-foreground sm:py-14">
                   <CalendarDays className="h-10 w-10 opacity-25" />
                   <span className="text-sm font-semibold">{labels.noLogsForDay}</span>
@@ -850,22 +891,6 @@ export default function DayCalendarGrid({
                             >
                               {log.ai_feedback}
                             </p>
-                          </div>
-                        )}
-
-                        {onViewLogDetails && (
-                          <div className="pt-1">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedDate(null);
-                                onViewLogDetails(log);
-                              }}
-                              className="w-full py-2 px-3 rounded-lg bg-primary/10 hover:bg-primary/15 text-primary text-xs font-bold transition-all flex items-center justify-center gap-1.5 border border-primary/20 active:scale-95 cursor-pointer"
-                            >
-                              <Sparkles className="w-3.5 h-3.5" />
-                              <span>{isArabic ? "عرض التقييم والتحديثات" : "View Evaluation & Updates"}</span>
-                            </button>
                           </div>
                         )}
                       </div>

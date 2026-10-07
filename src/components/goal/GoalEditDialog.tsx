@@ -3,7 +3,7 @@
 import { type ElementType, useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { arSA, enUS } from 'react-day-picker/locale';
-import { Calendar, CalendarDays, Loader2, Sparkles, Target } from 'lucide-react';
+import { AlertCircle, Calendar, CalendarDays, Clock, Loader2, Sparkles, Target, TrendingUp } from 'lucide-react';
 import { translations, type Language } from '@/lib/translations';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/utils/supabase/client';
@@ -135,8 +135,8 @@ function DatePopoverField({
 
   return (
     <div className="space-y-1.5">
-      <Label className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground/75">
-        <Icon className="size-3.5 text-primary/75" />
+      <Label className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground/80">
+        <Icon className="size-3.5 text-primary/70" />
         <span>{label}</span>
       </Label>
 
@@ -146,20 +146,20 @@ function DatePopoverField({
             type="button"
             variant="outline"
             className={cn(
-              'h-11 w-full rounded-xl border-border bg-card px-3.5 font-normal shadow-sm',
+              'h-11 w-full rounded-xl border-border/80 bg-card px-3.5 font-normal shadow-xs hover:border-primary/40 transition-colors',
               isArabic ? 'justify-end text-right' : 'justify-start text-left',
               !value && 'text-muted-foreground',
             )}
           >
-            <Calendar className="size-4 shrink-0 text-primary/50 mr-2 rtl:mr-0 rtl:ml-2" />
-            <span className="truncate">
+            <Calendar className="size-4 shrink-0 text-primary/60 mr-2 rtl:mr-0 rtl:ml-2" />
+            <span className="truncate text-xs sm:text-sm font-medium">
               {value ? format(dateInputToDate(value), 'PPP', { locale }) : placeholder}
             </span>
           </Button>
         </PopoverTrigger>
 
         <PopoverContent
-          className="w-auto border-border p-0 shadow-lg"
+          className="w-auto border-border/70 p-0 shadow-xl rounded-2xl"
           align={isArabic ? 'end' : 'start'}
           dir={isArabic ? 'rtl' : 'ltr'}
         >
@@ -597,30 +597,29 @@ export default function GoalEditDialog({
     <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? onOpenChange(true) : handleClose())}>
       <DialogContent
         dir={isArabic ? 'rtl' : 'ltr'}
-        className="inset-x-2 inset-y-2 left-2 right-2 top-2 bottom-2 flex flex-col h-auto w-auto max-w-none translate-x-0 translate-y-0 overflow-hidden rounded-[1.75rem] border border-border bg-card p-0 shadow-2xl shadow-black/25 sm:inset-auto sm:left-1/2 sm:right-auto sm:top-1/2 sm:bottom-auto sm:w-[min(calc(100vw-2rem),56rem)] sm:h-auto sm:max-h-[85dvh] sm:max-w-4xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-[2.25rem] transition-all duration-300"
+        className="w-[calc(100vw-1.5rem)] sm:max-w-2xl max-h-[90dvh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl sm:rounded-3xl border border-border/80 bg-card shadow-2xl transition-all duration-200"
       >
-        <DialogHeader className="sr-only">
-          <DialogTitle>{labels.title}</DialogTitle>
-          <DialogDescription>{labels.subtitle}</DialogDescription>
-        </DialogHeader>
-
-        <div className="flex-1 min-h-0 space-y-4 overflow-y-auto overscroll-contain px-4 pb-4 pt-12 sm:space-y-5 sm:px-8 sm:pb-8 sm:pt-6 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted/20 hover:[&::-webkit-scrollbar-thumb]:bg-muted/60">
-          {errorMessage && (
-            <div className="rounded-2xl border border-destructive/25 bg-destructive/12 px-4 py-3 text-sm text-destructive font-semibold shadow-sm">
-              {errorMessage}
+        {/* Visible, Distinctive Header */}
+        <div className="shrink-0 border-b border-border/60 bg-muted/15 px-5 sm:px-6 pt-5 pb-4">
+          <div className="flex items-start justify-between gap-3 pe-10 sm:pe-12">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20">
+                <Target className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-base sm:text-lg font-bold tracking-tight text-foreground">
+                  {labels.title}
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                  {labels.subtitle}
+                </DialogDescription>
+              </div>
             </div>
-          )}
+          </div>
 
-          {aiSuccessMessage && (
-            <div className="rounded-2xl border border-primary/25 bg-primary/12 px-4 py-3 text-sm text-primary font-semibold shadow-sm flex items-center gap-2">
-              <Sparkles className="size-4 shrink-0 text-primary" />
-              <span>{aiSuccessMessage}</span>
-            </div>
-          )}
-
-          {/* Premium Impeccable Tabs */}
-          <div className="flex justify-center border-b border-border/45 pb-4">
-            <div className="inline-flex rounded-2xl bg-muted/60 p-1.5 shadow-inner border border-border/70">
+          {/* Mode Switcher Tabs */}
+          <div className="mt-4 flex items-center justify-between gap-2">
+            <div className="inline-flex rounded-xl bg-muted/70 p-1 border border-border/60 shadow-xs">
               <button
                 type="button"
                 onClick={() => {
@@ -628,13 +627,13 @@ export default function GoalEditDialog({
                   setErrorMessage(null);
                 }}
                 className={cn(
-                  "flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition-colors duration-200 ease-out",
+                  "flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all duration-150",
                   activeTab === 'manual'
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                    ? "bg-card text-foreground shadow-xs border border-border/40"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <Target className={cn("size-4", activeTab === 'manual' ? "text-primary-foreground" : "text-muted-foreground")} />
+                <Target className="size-3.5" />
                 <span>{aiLabels.tabManual}</span>
               </button>
               <button
@@ -644,68 +643,92 @@ export default function GoalEditDialog({
                   setErrorMessage(null);
                 }}
                 className={cn(
-                  "flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition-colors duration-200 ease-out",
+                  "flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all duration-150",
                   activeTab === 'ai'
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <Sparkles className={cn("size-4", activeTab === 'ai' ? "text-primary-foreground" : "text-muted-foreground")} />
+                <Sparkles className="size-3.5" />
                 <span>{aiLabels.tabAi}</span>
               </button>
             </div>
+
+            <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground bg-muted/40 px-2.5 py-1 rounded-lg border border-border/40">
+              <span>{isArabic ? 'الهدف:' : 'Target:'}</span>
+              <span className="font-bold text-foreground" dir="ltr">{safePreviewTargetPoints.toLocaleString()}</span>
+              <span>{isArabic ? 'نقطة' : 'pts'}</span>
+            </div>
           </div>
+        </div>
 
-        {activeTab === 'manual' ? (
-          <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr] pt-2 items-start">
-              {/* Left Column (Core info) */}
-              <div className="space-y-4 rounded-2xl border border-border bg-canvas p-4">
-                {/* Icon & Title Row */}
-                <div className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-start">
-                  <div className="space-y-1.5 flex flex-col items-center sm:items-start">
-                    <Label className="text-xs font-bold text-muted-foreground/75">
-                      {t.selectIcon}
-                    </Label>
-                    <div className="rounded-xl border border-border bg-card dark:bg-card p-2 shadow-sm hover:border-primary/45 transition-colors duration-200">
-                      <IconPicker selectedIcon={icon} onSelectIcon={setIcon} className="h-12 w-12 rounded-lg hover:scale-105 transition-transform duration-200" />
-                    </div>
+        {/* Dialog Body */}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-5 sm:p-6 space-y-5">
+          {errorMessage && (
+            <div className="flex items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-xs sm:text-sm text-destructive font-medium shadow-xs">
+              <AlertCircle className="size-4 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
+          {aiSuccessMessage && (
+            <div className="flex items-center gap-2.5 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-xs sm:text-sm text-primary font-medium shadow-xs">
+              <Sparkles className="size-4 shrink-0 text-primary" />
+              <span>{aiSuccessMessage}</span>
+            </div>
+          )}
+
+          {activeTab === 'manual' ? (
+            <div className="space-y-5">
+              {/* SECTION 1: GOAL IDENTITY */}
+              <div className="space-y-3">
+                <Label htmlFor="goal-edit-title" className="text-xs font-bold text-muted-foreground/80 flex items-center justify-between">
+                  <span>{isArabic ? 'عنوان الهدف وأيقونته' : 'Goal Title & Icon'}</span>
+                  <span className="text-[11px] font-normal text-muted-foreground/60">{isArabic ? 'اضغط على الأيقونة لتغييرها' : 'Click icon to change'}</span>
+                </Label>
+                <div className="flex items-center gap-3">
+                  <div className="relative shrink-0">
+                    <IconPicker
+                      selectedIcon={icon}
+                      onSelectIcon={setIcon}
+                      className="h-11 w-11 sm:h-12 sm:w-12 rounded-xl border-border/80 bg-muted/30 hover:bg-muted/60 hover:border-primary/50 transition-all shadow-xs"
+                    />
                   </div>
-
-                  <div className="space-y-1.5 flex-1">
-                    <Label htmlFor="goal-edit-title" className="text-xs font-bold text-muted-foreground/75">
-                      {t.goalTitle}
-                    </Label>
+                  <div className="flex-1 min-w-0">
                     <Input
                       id="goal-edit-title"
                       value={title}
                       onChange={(event) => setTitle(event.target.value)}
-                      placeholder={isArabic ? 'مثال: تعلم البرمجة العملية' : 'Example: Learn practical programming'}
+                      placeholder={isArabic ? 'مثال: الوصول لوزن 75 كغ مع بناء عضلات' : 'Goal title...'}
                       dir={isArabic ? 'rtl' : 'ltr'}
-                      className="h-11 rounded-xl border border-border bg-card dark:bg-card px-3.5 text-sm shadow-sm focus:border-primary focus:ring-2 focus:ring-primary/25 transition-colors duration-200"
+                      className="h-11 sm:h-12 rounded-xl border-border/80 bg-card px-4 text-sm font-semibold shadow-xs focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/40 transition-colors"
                     />
                   </div>
                 </div>
 
-                {/* Description */}
-                <div className="space-y-1.5">
-                  <Label htmlFor="goal-edit-description" className="text-xs font-bold text-muted-foreground/75">
+                <div className="space-y-1.5 pt-1">
+                  <Label htmlFor="goal-edit-description" className="text-xs font-bold text-muted-foreground/80">
                     {t.goalDescription}
                   </Label>
                   <Textarea
                     id="goal-edit-description"
                     value={description}
                     onChange={(event) => setDescription(event.target.value)}
-                    placeholder={isArabic ? 'اكتب وصفاً مختصراً يوضح نتيجة الهدف ولماذا هو مهم لك.' : 'Write a short description that explains the outcome and why it matters.'}
+                    placeholder={isArabic ? 'اكتب وصفاً أو دافعاً للهدف (اختياري)...' : 'Write a brief description or motivation for this goal...'}
                     dir={isArabic ? 'rtl' : 'ltr'}
-                    className="min-h-40 rounded-xl border border-border bg-card dark:bg-card px-3.5 py-2.5 text-sm leading-6 shadow-sm focus:border-primary focus:ring-2 focus:ring-primary/25 transition-colors duration-200"
+                    className="min-h-[76px] max-h-32 rounded-xl border-border/80 bg-card px-3.5 py-2.5 text-xs sm:text-sm leading-relaxed shadow-xs focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/40 resize-none transition-colors"
                   />
                 </div>
               </div>
 
-              {/* Right Column (Dates, targets & metrics) */}
-              <div className="space-y-4 rounded-2xl border border-border bg-canvas p-4">
-                {/* Start & End Dates */}
-                <div className="grid gap-3 sm:grid-cols-2">
+              {/* SECTION 2: TIMELINE & METRICS (2x2 GRID) */}
+              <div className="pt-1">
+                <div className="text-xs font-bold text-muted-foreground/80 mb-3 flex items-center gap-1.5">
+                  <CalendarDays className="size-3.5 text-primary/70" />
+                  <span>{isArabic ? 'الجدول الزمني والنقاط' : 'Timeline & Points'}</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <DatePopoverField
                     icon={CalendarDays}
                     isArabic={isArabic}
@@ -725,77 +748,92 @@ export default function GoalEditDialog({
                     value={endDate}
                     minDate={startDate}
                   />
-                </div>
-
-                {/* Points configuration */}
-                <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <Label htmlFor="goal-edit-current-points" className="text-xs font-bold text-muted-foreground/75">
-                      {labels.currentPoints}
+                    <Label htmlFor="goal-edit-current-points" className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground/80">
+                      <TrendingUp className="size-3.5 text-primary/70" />
+                      <span>{labels.currentPoints}</span>
                     </Label>
-                    <Input
-                      id="goal-edit-current-points"
-                      type="number"
-                      min={0}
-                      step={100}
-                      value={currentPoints}
-                      onChange={(event) => setCurrentPoints(event.target.value)}
-                      className="h-11 rounded-xl border border-border bg-card dark:bg-card px-3.5 text-sm shadow-sm focus:border-primary focus:ring-2 focus:ring-primary/25 transition-colors duration-200"
-                      dir="ltr"
-                    />
+                    <div className="relative">
+                      <Input
+                        id="goal-edit-current-points"
+                        type="number"
+                        min={0}
+                        step={100}
+                        value={currentPoints}
+                        onChange={(event) => setCurrentPoints(event.target.value)}
+                        className="h-11 rounded-xl border-border/80 bg-card px-3.5 text-sm font-semibold shadow-xs focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/40"
+                        dir="ltr"
+                      />
+                      <span className="absolute inset-y-0 end-3 flex items-center text-xs font-medium text-muted-foreground/60 pointer-events-none">
+                        {isArabic ? 'نقطة' : 'pts'}
+                      </span>
+                    </div>
                   </div>
-
                   <div className="space-y-1.5">
-                    <Label htmlFor="goal-edit-target-points" className="text-xs font-bold text-muted-foreground/75">
-                      {labels.targetPoints}
+                    <Label htmlFor="goal-edit-target-points" className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground/80">
+                      <Target className="size-3.5 text-primary/70" />
+                      <span>{labels.targetPoints}</span>
                     </Label>
-                    <Input
-                      id="goal-edit-target-points"
-                      type="number"
-                      min={1000}
-                      step={100}
-                      value={targetPoints}
-                      onChange={(event) => setTargetPoints(event.target.value)}
-                      className="h-11 rounded-xl border border-border bg-card dark:bg-card px-3.5 text-sm shadow-sm focus:border-primary focus:ring-2 focus:ring-primary/25 transition-colors duration-200"
-                      dir="ltr"
-                    />
+                    <div className="relative">
+                      <Input
+                        id="goal-edit-target-points"
+                        type="number"
+                        min={1000}
+                        step={100}
+                        value={targetPoints}
+                        onChange={(event) => setTargetPoints(event.target.value)}
+                        className="h-11 rounded-xl border-border/80 bg-card px-3.5 text-sm font-semibold shadow-xs focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/40"
+                        dir="ltr"
+                      />
+                      <span className="absolute inset-y-0 end-3 flex items-center text-xs font-medium text-muted-foreground/60 pointer-events-none">
+                        {isArabic ? 'نقطة' : 'pts'}
+                      </span>
+                    </div>
                   </div>
                 </div>
+              </div>
 
-                {/* Plan stats bar */}
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-primary/8 px-3.5 py-2.5 text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <Calendar className="size-3.5 text-primary/75" />
-                    <span className="text-muted-foreground">{labels.duration}:</span>
-                    <span className="font-extrabold text-foreground">{totalDays} {isArabic ? 'يوم' : 'days'}</span>
+              {/* SECTION 3: TELEMETRY STRIP */}
+              <div className="rounded-xl border border-border/60 bg-muted/30 p-3 sm:px-4 sm:py-3">
+                <div className="grid grid-cols-3 gap-2 text-center divide-x divide-border/50 rtl:divide-x-reverse">
+                  <div className="px-1">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{labels.duration}</p>
+                    <p className="text-xs sm:text-sm font-extrabold text-foreground mt-0.5">
+                      {totalDays} <span className="text-[10px] font-normal text-muted-foreground">{isArabic ? 'يوم' : 'days'}</span>
+                    </p>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <Sparkles className="size-3.5 text-primary/75" />
-                    <span className="text-muted-foreground">{labels.dailyPace}:</span>
-                    <span className="font-extrabold text-foreground" dir="ltr">{suggestedDailyPoints.toLocaleString()}</span>
+                  <div className="px-1">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{labels.dailyPace}</p>
+                    <p className="text-xs sm:text-sm font-extrabold text-foreground mt-0.5" dir="ltr">
+                      ~{suggestedDailyPoints.toLocaleString()} <span className="text-[10px] font-normal text-muted-foreground">{isArabic ? 'ن/يوم' : 'pts/d'}</span>
+                    </p>
+                  </div>
+                  <div className="px-1">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{labels.currentProgress}</p>
+                    <p className="text-xs sm:text-sm font-extrabold text-primary mt-0.5">
+                      {Math.min(100, Math.max(0, Math.round(((Number(currentPoints) || 0) / safePreviewTargetPoints) * 100)))}%
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
           ) : (
             /* SMART PREMIUM AI EDIT TAB */
-            <div className="space-y-6 pt-2">
-              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-primary/25 bg-primary/12 text-primary">
-                  <Sparkles className="size-5" />
+            <div className="space-y-5">
+              {/* AI Intro Card */}
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex items-start gap-3.5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary border border-primary/25">
+                  <Sparkles className="size-4.5" />
                 </div>
-                <div className="space-y-1 text-center sm:text-start rtl:sm:text-right">
-                  <h3 className="text-base font-bold text-foreground">
-                    {aiLabels.aiTitle}
-                  </h3>
-                  <p className="text-xs text-muted-foreground/90 leading-relaxed max-w-2xl">
-                    {aiLabels.aiSubtitle}
-                  </p>
+                <div className="space-y-0.5 min-w-0">
+                  <h4 className="text-sm font-bold text-foreground">{aiLabels.aiTitle}</h4>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{aiLabels.aiSubtitle}</p>
                 </div>
               </div>
 
-              <div className="space-y-2.5 rounded-2xl border border-border bg-canvas p-4">
-                <Label htmlFor="ai-instructions" className="text-xs font-bold text-muted-foreground/75">
+              {/* Prompt Area */}
+              <div className="space-y-2.5">
+                <Label htmlFor="ai-instructions" className="text-xs font-bold text-muted-foreground/80">
                   {aiLabels.aiPromptLabel}
                 </Label>
                 <div className="relative">
@@ -806,20 +844,40 @@ export default function GoalEditDialog({
                     placeholder={aiLabels.aiTextareaPlaceholder}
                     dir={isArabic ? 'rtl' : 'ltr'}
                     className={cn(
-                      'min-h-[132px] w-full rounded-xl border border-border bg-card dark:bg-card px-4 py-3 text-sm leading-relaxed shadow-sm focus:border-primary focus:ring-2 focus:ring-primary/25 transition-colors duration-200',
+                      'min-h-[110px] w-full rounded-xl border border-border/80 bg-card px-4 py-3 text-xs sm:text-sm leading-relaxed shadow-xs focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/40 resize-none transition-colors',
                       isArabic ? 'text-right pl-10' : 'text-left pr-10',
                     )}
                   />
                   <div className={cn("absolute bottom-3 pointer-events-none", isArabic ? "left-3" : "right-3")}>
-                    <Sparkles className={cn("size-5 transition-colors duration-200", isAiProcessing ? "text-primary animate-pulse" : "text-muted-foreground/50")} />
+                    <Sparkles className={cn("size-4 transition-colors duration-200", isAiProcessing ? "text-primary animate-pulse" : "text-muted-foreground/40")} />
                   </div>
                 </div>
-                <div className="flex justify-end pt-1">
+
+                {/* Suggested Quick Prompt Chips */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[11px] text-muted-foreground/60">{isArabic ? 'أمثلة سريعة:' : 'Quick examples:'}</span>
+                  {[
+                    isArabic ? 'مدد الهدف شهراً إضافياً' : 'Extend goal by 1 month',
+                    isArabic ? 'زد النقاط المستهدفة إلى 15,000' : 'Increase target to 15,000 pts',
+                    isArabic ? 'عدل التواريخ لتنتهي بنهاية العام' : 'End at year end',
+                  ].map((example, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setAiInstruction(example)}
+                      className="rounded-lg border border-border/50 bg-muted/40 px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/70 hover:border-border transition-colors cursor-pointer"
+                    >
+                      {example}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex justify-end pt-2">
                   <Button
                     type="button"
                     onClick={handleAiEdit}
                     disabled={isAiProcessing || !aiInstruction.trim()}
-                    className="font-bold rounded-xl h-11 w-full sm:w-auto px-6 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors duration-200"
+                    className="h-10 rounded-xl px-5 text-xs sm:text-sm font-semibold bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 transition-colors w-full sm:w-auto"
                   >
                     {isAiProcessing ? (
                       <>
@@ -836,14 +894,14 @@ export default function GoalEditDialog({
                 </div>
               </div>
 
-              {/* PENDING TASK CHANGES - reviewed before anything is written */}
+              {/* PENDING TASK CHANGES */}
               {taskChanges.length > 0 && (
-                <div className="rounded-2xl border border-border bg-canvas p-4 space-y-3">
-                  <div className="flex items-baseline justify-between gap-3 border-b border-border/70 pb-2">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground/75">
-                      {aiLabels.changesTitle}
-                    </h4>
-                    <span className="text-[10px] text-muted-foreground/75">{aiLabels.changesHint}</span>
+                <div className="rounded-xl border border-border/60 bg-card p-4 space-y-3 shadow-xs">
+                  <div className="flex items-baseline justify-between gap-3 border-b border-border/50 pb-2">
+                    <h5 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <span>{aiLabels.changesTitle}</span>
+                    </h5>
+                    <span className="text-[10px] text-muted-foreground">{aiLabels.changesHint}</span>
                   </div>
 
                   <ul className="space-y-2">
@@ -854,7 +912,7 @@ export default function GoalEditDialog({
                       const lostHistory = isRemove ? (checkinCounts[(change as { id: string }).id] ?? 0) : 0;
 
                       const opLabel = isRemove ? aiLabels.opRemove : isAdd ? aiLabels.opAdd : aiLabels.opUpdate;
-                      const description = change.op === 'add'
+                      const taskDesc = change.op === 'add'
                         ? change.task_description
                         : existing?.task_description ?? aiLabels.unknownTask;
 
@@ -874,33 +932,35 @@ export default function GoalEditDialog({
                         <li
                           key={`${change.op}-${index}`}
                           className={cn(
-                            'flex items-start justify-between gap-3 rounded-xl border bg-card dark:bg-card px-3 py-2',
-                            isRemove ? 'border-destructive/45' : 'border-border',
+                            'flex items-start justify-between gap-3 rounded-xl border bg-muted/20 px-3 py-2 text-xs',
+                            isRemove ? 'border-destructive/40' : 'border-border/60',
                           )}
                         >
                           <div className="min-w-0 flex-1 space-y-1">
                             <div className="flex flex-wrap items-center gap-2">
                               <span
                                 className={cn(
-                                  'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold',
+                                  'shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold',
                                   isRemove
-                                    ? 'bg-destructive/12 text-destructive'
-                                    : 'bg-primary/8 text-primary',
+                                    ? 'bg-destructive/15 text-destructive'
+                                    : isAdd
+                                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                                    : 'bg-primary/15 text-primary',
                                 )}
                               >
                                 {opLabel}
                               </span>
-                              <span className={cn('text-sm font-semibold text-foreground', isRemove && 'line-through opacity-70')}>
-                                {description}
+                              <span className={cn('text-xs font-semibold text-foreground', isRemove && 'line-through opacity-70')}>
+                                {taskDesc}
                               </span>
                             </div>
                             {details.length > 0 && (
-                              <p className="text-xs text-muted-foreground/90 leading-relaxed">
+                              <p className="text-[11px] text-muted-foreground leading-relaxed">
                                 {details.join(' · ')}
                               </p>
                             )}
                             {lostHistory > 0 && (
-                              <p className="text-xs font-semibold text-destructive">
+                              <p className="text-[11px] font-semibold text-destructive">
                                 {lostHistory} {isArabic ? 'إنجاز مسجل' : 'recorded completions'} — {aiLabels.historyWarning}
                               </p>
                             )}
@@ -910,7 +970,7 @@ export default function GoalEditDialog({
                             type="button"
                             variant="ghost"
                             onClick={() => discardChange(index)}
-                            className="h-7 shrink-0 rounded-lg px-2 text-xs font-bold text-muted-foreground hover:text-foreground"
+                            className="h-6 shrink-0 rounded-lg px-2 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted"
                           >
                             {aiLabels.discard}
                           </Button>
@@ -922,48 +982,42 @@ export default function GoalEditDialog({
               )}
 
               {/* COMPACT PLAN PREVIEW CARD */}
-              <div className="rounded-2xl border border-border bg-canvas p-4 space-y-3">
-                <div className="flex items-center justify-between border-b border-border/45 pb-2">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground/75 flex items-center gap-1.5">
-                    <Target className="size-3.5 text-primary/75" />
+              <div className="rounded-xl border border-border/60 bg-muted/20 p-4 space-y-3">
+                <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                  <h5 className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
+                    <Target className="size-3.5 text-primary/70" />
                     <span>{aiLabels.aiSuccessPreviewTitle}</span>
-                  </h4>
+                  </h5>
                   {aiSuccessMessage && (
-                    <span className="text-[10px] text-primary font-bold bg-primary/12 px-2 py-0.5 rounded-full border border-primary/25">
-                      {isArabic ? 'تلقائي' : 'AI Sync'}
+                    <span className="text-[10px] text-primary font-bold bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20">
+                      {isArabic ? 'تم التحديث' : 'Synced'}
                     </span>
                   )}
                 </div>
 
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  {/* Goal Identity */}
-                  <div className="flex items-start gap-3 min-w-0 flex-1">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary/15 bg-primary/12 p-2.5 text-primary">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
                       {getGoalIcon(icon)}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h5 className="font-extrabold text-sm text-foreground line-clamp-1">
+                      <h6 className="font-bold text-sm text-foreground truncate">
                         {title || (isArabic ? 'بدون عنوان' : 'Untitled')}
-                      </h5>
-                      <p className="text-xs text-muted-foreground/75 line-clamp-1 mt-0.5">
-                        {description || (isArabic ? 'لا يوجد وصف متاح.' : 'No description available.')}
+                      </h6>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {description || (isArabic ? 'لا يوجد وصف.' : 'No description.')}
                       </p>
                     </div>
                   </div>
 
-                  {/* Key Plan Metrics */}
-                  <div className="flex flex-wrap items-center gap-2 text-xs sm:shrink-0">
-                    <div className="flex flex-col gap-0.5 bg-card dark:bg-card px-3 py-1.5 rounded-xl border border-border">
-                      <span className="text-[9px] text-muted-foreground/90 font-bold uppercase">{labels.duration}</span>
-                      <span className="font-extrabold text-foreground">{totalDays} {isArabic ? 'يوم' : 'days'}</span>
+                  <div className="flex items-center gap-2 text-xs">
+                    <div className="bg-card px-2.5 py-1.5 rounded-lg border border-border/60 text-center">
+                      <span className="text-[9px] text-muted-foreground block">{labels.duration}</span>
+                      <span className="font-bold text-foreground">{totalDays} {isArabic ? 'يوم' : 'd'}</span>
                     </div>
-                    <div className="flex flex-col gap-0.5 bg-card dark:bg-card px-3 py-1.5 rounded-xl border border-border">
-                      <span className="text-[9px] text-muted-foreground/90 font-bold uppercase">{labels.targetPoints}</span>
-                      <span className="font-extrabold text-primary">{safePreviewTargetPoints.toLocaleString()}</span>
-                    </div>
-                    <div className="flex flex-col gap-0.5 bg-card dark:bg-card px-3 py-1.5 rounded-xl border border-border">
-                      <span className="text-[9px] text-muted-foreground/90 font-bold uppercase">{labels.dailyPace}</span>
-                      <span className="font-extrabold text-foreground" dir="ltr">{suggestedDailyPoints.toLocaleString()}</span>
+                    <div className="bg-card px-2.5 py-1.5 rounded-lg border border-border/60 text-center">
+                      <span className="text-[9px] text-muted-foreground block">{labels.targetPoints}</span>
+                      <span className="font-bold text-primary">{safePreviewTargetPoints.toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
@@ -972,17 +1026,29 @@ export default function GoalEditDialog({
           )}
         </div>
 
+        {/* Dialog Footer */}
         <DialogFooter
           className={cn(
-            'shrink-0 border-t border-border/70 bg-card px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:px-8 sm:py-5',
+            'shrink-0 border-t border-border/60 bg-muted/15 px-5 sm:px-6 py-3.5 pb-[calc(0.875rem+env(safe-area-inset-bottom))] flex flex-col-reverse sm:flex-row items-center justify-end gap-2.5',
             isArabic && 'sm:flex-row-reverse sm:space-x-reverse',
           )}
         >
-          <Button type="button" variant="outline" onClick={handleClose} disabled={isSaving || isAiProcessing} className="h-11 w-full sm:w-auto rounded-xl font-bold border-border hover:bg-muted/60">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={handleClose}
+            disabled={isSaving || isAiProcessing}
+            className="h-10 w-full sm:w-auto rounded-xl font-medium text-xs sm:text-sm text-muted-foreground hover:text-foreground"
+          >
             {t.cancel}
           </Button>
-          <Button type="button" onClick={handleSave} disabled={isSaving || isAiProcessing} className="h-11 w-full sm:w-auto rounded-xl font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-md">
-            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin shrink-0" />}
+          <Button
+            type="button"
+            onClick={handleSave}
+            disabled={isSaving || isAiProcessing}
+            className="h-10 w-full sm:w-auto rounded-xl font-semibold text-xs sm:text-sm bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+          >
+            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin shrink-0 rtl:mr-0 rtl:ml-2" />}
             {t.saveChanges}
           </Button>
         </DialogFooter>

@@ -1,0 +1,1432 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>نموذج واجهة قسم المكافآت التفاعلي | METRIX Interactive Prototype</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-elevated: #ffffff;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --text-subtle: #94a3b8;
+      --border: #e2e8f0;
+      --border-subtle: #f1f5f9;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-soft: #eff6ff;
+      --primary-border: #bfdbfe;
+      --success: #10b981;
+      --success-soft: #ecfdf5;
+      --amber: #f59e0b;
+      --amber-soft: #fffbeb;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 20px;
+      --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.07), 0 1px 2px rgba(0, 0, 0, 0.04);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+      --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+      --shadow-modal: 0 20px 40px -10px rgba(0, 0, 0, 0.18);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 24px 16px 80px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .app-viewport {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Top Control Bar */
+    .controls-banner {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      box-shadow: var(--shadow-xs);
+      flex-wrap: wrap;
+    }
+
+    .goal-selector-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .control-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .goal-chip {
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .goal-chip:hover {
+      border-color: var(--primary-border);
+      color: var(--primary);
+    }
+
+    .goal-chip.active {
+      background: var(--primary-soft);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .meta-tag {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: #f1f5f9;
+      color: #475569;
+      font-weight: 600;
+    }
+
+    /* ===================================================
+       THE EXACT SECTION AS IT WILL APPEAR IN METRIX
+       =================================================== */
+    .metrix-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: 18px 20px;
+      box-shadow: var(--shadow-sm);
+      position: relative;
+      overflow: visible;
+    }
+
+    /* Section Header */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .header-leading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #64748b;
+      font-size: 16px;
+    }
+
+    .header-title-wrap {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .header-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .points-pill {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      background: #f1f5f9;
+      border: 1px solid var(--border);
+      color: #334155;
+    }
+
+    /* 1. COMPACT MOMENTUM BAR (Ultra clean & minimal, doesn't waste space) */
+    .momentum-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #f8fafc;
+      border: 1px solid #edf2f7;
+      border-radius: 10px;
+      padding: 8px 14px;
+      margin-bottom: 16px;
+      gap: 12px;
+    }
+
+    .momentum-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #334155;
+      font-weight: 600;
+    }
+
+    .momentum-flame {
+      color: #ea580c;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+    }
+
+    .momentum-highlight {
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    .momentum-progress-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 140px;
+    }
+
+    .progress-track {
+      flex: 1;
+      height: 6px;
+      background: #e2e8f0;
+      border-radius: 9999px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #6366f1);
+      border-radius: 9999px;
+      transition: width 0.3s ease;
+    }
+
+    .progress-percent {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      min-width: 32px;
+      text-align: left;
+    }
+
+    /* 2. HOLOGRAPHIC CARDS DECK (Preserving aesthetic with rich depth) */
+    .deck-container {
+      position: relative;
+      width: 100%;
+      padding-top: 14px;
+      padding-bottom: 6px;
+      overflow: visible;
+    }
+
+    .deck-row {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .card-slot {
+      flex: 1 1 0%;
+      min-width: 0;
+      position: relative;
+      cursor: pointer;
+      perspective: 1000px;
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), z-index 0s;
+    }
+
+    .card-slot:hover {
+      z-index: 40;
+    }
+
+    .card-body {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 0.7;
+      border-radius: 12px;
+      padding: 8px 6px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+      transform-origin: bottom center;
+    }
+
+    .card-slot:hover .card-body {
+      transform: translateY(-16px) scale(1.08) rotate(0deg) !important;
+      box-shadow: 0 16px 30px -6px rgba(0,0,0,0.22), 0 0 0 2px rgba(255,255,255,0.8);
+    }
+
+    /* Card States */
+    .card-unlocked {
+      background: linear-gradient(155deg, #1e293b 0%, #0f172a 100%);
+      border: 1px solid rgba(255,255,255,0.25);
+      color: #ffffff;
+    }
+
+    .card-active-challenge {
+      background: linear-gradient(155deg, #1e1b4b 0%, #312e81 100%);
+      border: 2px solid #818cf8;
+      box-shadow: 0 0 16px rgba(99, 102, 241, 0.35);
+      color: #ffffff;
+      animation: pulse-border 2.5s infinite;
+    }
+
+    @keyframes pulse-border {
+      0%, 100% { box-shadow: 0 0 12px rgba(99, 102, 241, 0.3); }
+      50% { box-shadow: 0 0 22px rgba(99, 102, 241, 0.6); }
+    }
+
+    .card-locked {
+      background: linear-gradient(155deg, #090d16 0%, #171d2b 100%);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.4);
+      filter: grayscale(0.2);
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      z-index: 2;
+    }
+
+    .card-number {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .card-badge-icon {
+      font-size: 11px;
+    }
+
+    .card-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      position: relative;
+      z-index: 2;
+      text-align: center;
+    }
+
+    .card-icon-emblem {
+      font-size: 20px;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+      margin-bottom: 2px;
+    }
+
+    .card-title {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
+    .card-status-pill {
+      font-size: 8px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.14);
+      backdrop-filter: blur(4px);
+      margin-top: 2px;
+    }
+
+    .card-active-challenge .card-status-pill {
+      background: #4f46e5;
+      color: #e0e7ff;
+    }
+
+    .card-bottom {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      z-index: 2;
+      background: rgba(0,0,0,0.35);
+      border-radius: 6px;
+      padding: 3px 2px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .card-points-val {
+      font-size: 9px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .card-points-label {
+      font-size: 7px;
+      opacity: 0.6;
+      margin-top: 1px;
+    }
+
+    /* Subtle Holo Sheen Layer */
+    .card-holo-sheen {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.16) 0%, transparent 45%, rgba(255,255,255,0.06) 100%);
+      pointer-events: none;
+    }
+
+    .card-perk-hint {
+      position: absolute;
+      top: -6px;
+      right: 50%;
+      transform: translateX(50%);
+      background: #10b981;
+      color: #ffffff;
+      font-size: 8px;
+      font-weight: 800;
+      padding: 1px 6px;
+      border-radius: 9999px;
+      box-shadow: 0 2px 5px rgba(16, 185, 129, 0.4);
+      white-space: nowrap;
+      z-index: 10;
+    }
+
+    /* 3. INTERACTIVE MODAL (The Solution to "How do we know the reward?") */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      backdrop-filter: blur(6px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 16px;
+      animation: fadeIn 0.15s ease-out;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      width: 100%;
+      max-width: 520px;
+      box-shadow: var(--shadow-modal);
+      overflow: hidden;
+      position: relative;
+      animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(12px) scale(0.97); opacity: 0; }
+      to { transform: translateY(0) scale(1); opacity: 1; }
+    }
+
+    .modal-top-bar {
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #fafafa;
+    }
+
+    .modal-rank-badge {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .modal-rank-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-xs);
+    }
+
+    .modal-rank-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .modal-rank-points {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .close-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 16px;
+      transition: background 0.15s;
+    }
+
+    .close-btn:hover {
+      background: #f1f5f9;
+      color: var(--text);
+    }
+
+    .modal-content {
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    /* Block: Rank Boss Quest */
+    .quest-box {
+      border: 1.5px solid #c7d2fe;
+      background: #f5f7ff;
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .quest-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .quest-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #312e81;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .quest-status-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #e0e7ff;
+      color: #4338ca;
+    }
+
+    .quest-desc {
+      font-size: 13px;
+      color: #475569;
+      line-height: 1.4;
+    }
+
+    .quest-tracker {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    /* Block: Smart Personal Reward */
+    .reward-box {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      background: #ffffff;
+      box-shadow: var(--shadow-xs);
+    }
+
+    .reward-box-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .reward-box-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .smart-ai-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #ecfdf5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+    }
+
+    .reward-input-wrap {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .reward-input {
+      flex: 1;
+      padding: 9px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      font-size: 13px;
+      color: var(--text);
+      background: #fafafa;
+    }
+
+    .reward-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: #ffffff;
+    }
+
+    .reward-suggestions-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 8px;
+      font-weight: 600;
+    }
+
+    .reward-chips {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+
+    .reward-chip {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      color: #334155;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.15s;
+    }
+
+    .reward-chip:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+
+    /* Block: In-App Power-up Perk */
+    .perk-box {
+      border: 1px solid #fed7aa;
+      background: #fffaf5;
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .perk-icon-circle {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: #fff;
+      border: 1px solid #fdba74;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .perk-info-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #9a3412;
+    }
+
+    .perk-info-desc {
+      font-size: 12px;
+      color: #7c2d12;
+    }
+
+    /* Modal Action Button */
+    .modal-btn {
+      width: 100%;
+      padding: 12px;
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.15s;
+    }
+
+    .btn-claim {
+      background: var(--primary);
+      color: #ffffff;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+    }
+
+    .btn-claim:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-in-progress {
+      background: #f1f5f9;
+      color: #64748b;
+      cursor: default;
+    }
+
+    /* 4. EXPLANATION / DESIGN DECISIONS GUIDE */
+    .design-guide-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .guide-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .guide-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 640px) {
+      .guide-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .guide-item {
+      background: #f8fafc;
+      border: 1px solid #edf2f7;
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+    }
+
+    .guide-item-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .guide-item-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-viewport">
+    
+    <!-- Top Interactive Switcher (Shows how it dynamically adapts to goal) -->
+    <div class="controls-banner">
+      <div class="goal-selector-group">
+        <span class="control-label">اختر نوع الهدف لتجربة تكيّف المكافآت:</span>
+        <button type="button" class="goal-chip active" onclick="switchGoal('coding')">
+          💻 تعلّم البرمجة وتطوير البرمجيات
+        </button>
+        <button type="button" class="goal-chip" onclick="switchGoal('fitness')">
+          🏃‍♂️ خسارة الوزن واللياقة البدنية
+        </button>
+        <button type="button" class="goal-chip" onclick="switchGoal('study')">
+          📚 دراسة لغة جديدة وقراءة كتب
+        </button>
+      </div>
+      <span class="meta-tag">🎨 نموذج واجهة حي (Light Mode)</span>
+    </div>
+
+    <!-- ========================================================
+         MAIN SECTION (EXACT COMPONENT IN METRIX)
+         ======================================================== -->
+    <section class="metrix-section">
+      
+      <!-- Section Header -->
+      <div class="section-header">
+        <div class="header-leading">
+          <div class="header-icon">👑</div>
+          <div class="header-title-wrap">
+            <div class="header-title">
+              <span>مسار الرتب والمكافآت</span>
+              <span style="font-size: 11px; background: #e0f2fe; color: #0284c7; padding: 1px 7px; border-radius: 99px; font-weight: 700;">الماتريكس</span>
+            </div>
+            <span class="header-subtitle">تقدمك الحقيقي: 3,450 نقطة · رتبتك الحالية: الملتزم</span>
+          </div>
+        </div>
+        
+        <div class="header-actions">
+          <div class="points-pill">
+            7 رتب ومكافآت
+          </div>
+        </div>
+      </div>
+
+      <!-- 1. COMPACT MOMENTUM BAR (Doesn't waste space - pure high-impact utility) -->
+      <div class="momentum-bar">
+        <div class="momentum-info">
+          <span class="momentum-flame">⚡️</span>
+          <span>
+            متبقي <span class="momentum-highlight" id="points-needed">1,550 نقطة</span> لرتبة <strong>"المنضبط"</strong>
+            <span style="color: #64748b; font-weight: 500; font-size: 11px;">(مهمتان غداً تكفي للوصول)</span>
+          </span>
+        </div>
+        <div class="momentum-progress-wrap">
+          <div class="progress-track">
+            <div class="progress-fill" style="width: 69%;"></div>
+          </div>
+          <span class="progress-percent">69%</span>
+        </div>
+      </div>
+
+      <!-- 2. HOLOGRAPHIC PLAYING CARDS (Preserving aesthetic + each card is interactive) -->
+      <div class="deck-container">
+        <div class="deck-row" id="deck-row">
+          
+          <!-- Card 1: The Sleeper (Unlocked) -->
+          <div class="card-slot" onclick="openCardModal(0)" style="transform: rotate(-3.5deg);">
+            <div class="card-body card-unlocked">
+              <div class="card-holo-sheen"></div>
+              <div class="card-top">
+                <span class="card-number">01</span>
+                <span class="card-badge-icon">⭐️</span>
+              </div>
+              <div class="card-center">
+                <div class="card-icon-emblem">🌱</div>
+                <div class="card-title">النائم</div>
+                <span class="card-status-pill">مفتوحة ✓</span>
+              </div>
+              <div class="card-bottom">
+                <span class="card-points-val">0</span>
+                <span class="card-points-label">نقطة</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: The Committed (Unlocked & Reward Claimed) -->
+          <div class="card-slot" onclick="openCardModal(1)" style="transform: rotate(-1.5deg);">
+            <span class="card-perk-hint">🛡️ درع</span>
+            <div class="card-body card-unlocked">
+              <div class="card-holo-sheen"></div>
+              <div class="card-top">
+                <span class="card-number">02</span>
+                <span class="card-badge-icon">⭐️</span>
+              </div>
+              <div class="card-center">
+                <div class="card-icon-emblem">🎯</div>
+                <div class="card-title">الملتزم</div>
+                <span class="card-status-pill">مفتوحة ✓</span>
+              </div>
+              <div class="card-bottom">
+                <span class="card-points-val">2,000</span>
+                <span class="card-points-label">نقطة</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: The Disciplined (CURRENT ACTIVE CHALLENGE) -->
+          <div class="card-slot" onclick="openCardModal(2)" style="transform: rotate(0deg); z-index: 10;">
+            <span class="card-perk-hint" style="background: #4f46e5;">⚡️ جاري التحدي</span>
+            <div class="card-body card-active-challenge">
+              <div class="card-holo-sheen"></div>
+              <div class="card-top">
+                <span class="card-number">03</span>
+                <span class="card-badge-icon">🔥</span>
+              </div>
+              <div class="card-center">
+                <div class="card-icon-emblem">⚡️</div>
+                <div class="card-title">المنضبط</div>
+                <span class="card-status-pill">تحدي 2/3</span>
+              </div>
+              <div class="card-bottom">
+                <span class="card-points-val">5,000</span>
+                <span class="card-points-label">نقطة</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 4: The Warrior (Locked) -->
+          <div class="card-slot" onclick="openCardModal(3)" style="transform: rotate(1.8deg);">
+            <div class="card-body card-locked">
+              <div class="card-holo-sheen"></div>
+              <div class="card-top">
+                <span class="card-number">04</span>
+                <span class="card-badge-icon">🔒</span>
+              </div>
+              <div class="card-center">
+                <div class="card-icon-emblem">⚔️</div>
+                <div class="card-title">المحارب</div>
+                <span class="card-status-pill">مغلقة</span>
+              </div>
+              <div class="card-bottom">
+                <span class="card-points-val">15,000</span>
+                <span class="card-points-label">نقطة</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 5: The Architect (Locked) -->
+          <div class="card-slot" onclick="openCardModal(4)" style="transform: rotate(3deg);">
+            <div class="card-body card-locked">
+              <div class="card-holo-sheen"></div>
+              <div class="card-top">
+                <span class="card-number">05</span>
+                <span class="card-badge-icon">🔒</span>
+              </div>
+              <div class="card-center">
+                <div class="card-icon-emblem">📐</div>
+                <div class="card-title">المهندس</div>
+                <span class="card-status-pill">مغلقة</span>
+              </div>
+              <div class="card-bottom">
+                <span class="card-points-val">50,000</span>
+                <span class="card-points-label">نقطة</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 6: The Elite (Locked) -->
+          <div class="card-slot" onclick="openCardModal(5)" style="transform: rotate(4.2deg);">
+            <div class="card-body card-locked">
+              <div class="card-holo-sheen"></div>
+              <div class="card-top">
+                <span class="card-number">06</span>
+                <span class="card-badge-icon">🔒</span>
+              </div>
+              <div class="card-center">
+                <div class="card-icon-emblem">💎</div>
+                <div class="card-title">النخبة</div>
+                <span class="card-status-pill">مغلقة</span>
+              </div>
+              <div class="card-bottom">
+                <span class="card-points-val">100,000</span>
+                <span class="card-points-label">نقطة</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 7: The Exceptional (Locked) -->
+          <div class="card-slot" onclick="openCardModal(6)" style="transform: rotate(5.5deg);">
+            <div class="card-body card-locked">
+              <div class="card-holo-sheen"></div>
+              <div class="card-top">
+                <span class="card-number">07</span>
+                <span class="card-badge-icon">🔒</span>
+              </div>
+              <div class="card-center">
+                <div class="card-icon-emblem">🌌</div>
+                <div class="card-title">الاستثنائي</div>
+                <span class="card-status-pill">مغلقة</span>
+              </div>
+              <div class="card-bottom">
+                <span class="card-points-val">1M</span>
+                <span class="card-points-label">نقطة</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </section>
+
+    <!-- 3. DESIGN RATIONALE & ANSWERS TO YOUR EXACT QUESTIONS -->
+    <div class="design-guide-card">
+      <div class="guide-title">
+        <span>💡 كيف حلت هذه الواجهة النقاط التي ذكرتها بالتحديد؟</span>
+      </div>
+
+      <div class="guide-grid">
+        
+        <div class="guide-item">
+          <div class="guide-item-title">
+            <span>🎁</span>
+            <span>حل حيرة: "كيف نعرف المكافأة المناسبة للهدف؟"</span>
+          </div>
+          <p class="guide-item-desc">
+            التطبيق يعرف نوع الهدف، فيقترح تلقائياً مكافآت تناسبه (مثل أدوات برمجية أو وجبات صحية أو كتب)، مع إمكانية اختيار مقترح بنقرة واحدة أو كتابة رغبته الشخصية. لا داعي للتفكير في فراغ!
+          </p>
+        </div>
+
+        <div class="guide-item">
+          <div class="guide-item-title">
+            <span>⚡️</span>
+            <span>شريط الزخم: خفيف ولا يأخذ أي مساحة</span>
+          </div>
+          <p class="guide-item-desc">
+            مدمج كسطر أنيق بارتفاع 36px فقط تحت العنوان، يربط مهمة الغد فوراً بالرتبة القادمة بنسبة مئوية واضحة ودقيقة.
+          </p>
+        </div>
+
+        <div class="guide-item">
+          <div class="guide-item-title">
+            <span>🛡️</span>
+            <span>قوى الاستمرارية: متناسقة تماماً مع الموقع</span>
+          </div>
+          <p class="guide-item-desc">
+            كل رتبة تمنح "درع ستريك" (Streak Freeze) أو يوم مضاعفة نقاط، مصممة بنفس ألوان وأيقونات نظام METRIX.
+          </p>
+        </div>
+
+        <div class="guide-item">
+          <div class="guide-item-title">
+            <span>⚔️</span>
+            <span>تحديات كسر الرتبة (Rank Quests)</span>
+          </div>
+          <p class="guide-item-desc">
+            الرتبة لا تفتح بنقاط سلبية فقط؛ بل يجب تحقيق شرط التزام (مثل الحفاظ على ستريك 3 أيام) ليكون لها هيبة حقيقية وفخر عند فك قفلها.
+          </p>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ========================================================
+       MODAL: CARD DETAILS & INTERACTIVE REWARD CONTRACT
+       ======================================================== -->
+  <div id="card-modal" class="modal-backdrop" onclick="handleBackdropClick(event)">
+    <div class="modal-card">
+      
+      <!-- Modal Top -->
+      <div class="modal-top-bar">
+        <div class="modal-rank-badge">
+          <div class="modal-rank-icon" id="m-icon">⚡️</div>
+          <div>
+            <div class="modal-rank-title" id="m-title">رتبة: المنضبط (The Disciplined)</div>
+            <div class="modal-rank-points" id="m-points">الهدف: 5,000 نقطة (لديك 3,450 نقطة)</div>
+          </div>
+        </div>
+        <button type="button" class="close-btn" onclick="closeCardModal()">✕</button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="modal-content">
+        
+        <!-- 1. Rank Boss Quest -->
+        <div class="quest-box" id="m-quest-box">
+          <div class="quest-header">
+            <span class="quest-title">⚔️ تحدي كسر الرتبة المطلوب:</span>
+            <span class="quest-status-badge" id="m-quest-badge">جاري (2 من 3 أيام)</span>
+          </div>
+          <div class="quest-desc" id="m-quest-desc">
+            لفتح هذه الرتبة، يجب الحفاظ على سلسلة إنجاز يومي لمدة 3 أيام متتالية دون انقطاع.
+          </div>
+          <div class="quest-tracker">
+            <span style="font-size: 14px;">🔥</span>
+            <div class="progress-track" style="flex: 1;">
+              <div class="progress-fill" id="m-quest-bar" style="width: 66%;"></div>
+            </div>
+            <span id="m-quest-ratio">يومان مكتملان / 3 أيام</span>
+          </div>
+        </div>
+
+        <!-- 2. Smart Goal-Aligned Reward (Solves user's dilemma!) -->
+        <div class="reward-box">
+          <div class="reward-box-header">
+            <span class="reward-box-title">🎁 مكافأتك الواقعية عند الإنجاز:</span>
+            <span class="smart-ai-badge">💡 مقترحة لهدفك الذكي</span>
+          </div>
+          <div class="reward-input-wrap">
+            <input type="text" id="m-reward-input" class="reward-input" value="شراء كورس برمجي متقدم كنت أؤجله">
+          </div>
+          <div class="reward-suggestions-label">أو اختر مقترحاً سريعاً يناسب هدفك:</div>
+          <div class="reward-chips" id="m-chips">
+            <!-- Dynamically populated chips -->
+          </div>
+        </div>
+
+        <!-- 3. In-App Power-Up Perk -->
+        <div class="perk-box">
+          <div class="perk-icon-circle" id="m-perk-icon">🛡️</div>
+          <div>
+            <div class="perk-info-title" id="m-perk-title">ميزة الاستمرارية: درع تجميد الستريك (Streak Shield)</div>
+            <div class="perk-info-desc" id="m-perk-desc">يُضاف لحسابك تلقائياً عند فتح الرتبة لحماية تقدمك في الأيام الطارئة.</div>
+          </div>
+        </div>
+
+        <!-- Modal CTA -->
+        <button type="button" class="modal-btn btn-claim" id="m-action-btn" onclick="claimAction()">
+          <span>احتفل بالمكافأة واستلم القوة! 🎉</span>
+        </button>
+
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // Goal Templates to solve the user's question: "How do we know which reward is appropriate?"
+    const GOAL_TEMPLATES = {
+      coding: {
+        name: "تعلّم البرمجة",
+        ranks: [
+          {
+            title: "النائم",
+            icon: "🌱",
+            points: "0",
+            status: "unlocked",
+            questTitle: "مكتمل تلقائياً عند البداية",
+            questDesc: "الخطوة الأولى في كسر حلقة التسويف وتحديد مسارك البرمجي.",
+            questProgress: "100%",
+            reward: "كوب قهوة مختصة لبداية أول سطر كود ☕️",
+            suggestions: ["فيديو وثائقي ملهم عن التكنولوجيا", "ساعة راحة بدون تفكير", "كوب قهوة مميز"],
+            perk: "شارة الانطلاقة الأولى",
+            perkIcon: "🎖️",
+            perkDesc: "توثيق تاريخ بداية رحلتك البرمجية."
+          },
+          {
+            title: "الملتزم",
+            icon: "🎯",
+            points: "2,000",
+            status: "unlocked",
+            questTitle: "إنهاء 5 مهام برمجية أساسية",
+            questDesc: "إثبات الالتزام العملي بإتمام مهام الكود بدون انقطاع.",
+            questProgress: "100%",
+            reward: "شراء كتاب برمجي تقني ممتاز أو كورس 📚",
+            suggestions: ["شراء كيبورد مريح أو ماوس", "اشتراك شهر في أداة تطوير", "عشاء مكافأة في نهاية الأسبوع"],
+            perk: "درع تجميد الستريك (Streak Shield)",
+            perkIcon: "🛡️",
+            perkDesc: "يمنحك يوماً آمناً في الحالات الطارئة دون كسر التزامك."
+          },
+          {
+            title: "المنضبط",
+            icon: "⚡️",
+            points: "5,000",
+            status: "active",
+            questTitle: "الحفاظ على سلسلة إنجاز 3 أيام متتالية",
+            questDesc: "الاستمرارية هي جوهر البرمجة. أكمل 3 أيام دون تفويت أي مهمة.",
+            questProgress: "66%",
+            questRatio: "يومان مكتملان / 3 أيام",
+            reward: "ملحق مكتبي مريح (حامل لابتوب / إضاءة شاشة)",
+            suggestions: ["ملحق مكتبي مريح", "يوم راحة كامل بدون شاشات", "كتاب متقدم في هندسة البرمجيات"],
+            perk: "مضاعف نقاط التركيز (2x Focus Boost)",
+            perkIcon: "⚡️",
+            perkDesc: "يوم تختاره لمضاعفة نقاط التركيز وسرعة التقدم."
+          },
+          {
+            title: "المحارب",
+            icon: "⚔️",
+            points: "15,000",
+            status: "locked",
+            questTitle: "إتمام مشروع عملي كامل (Capstone)",
+            questDesc: "تطبيق ما تعلمته في مشروع واقعي منشور ومكتمل.",
+            questProgress: "0%",
+            reward: "شراء جهاز إلكتروني أو شاشة كنت أطمح لها",
+            suggestions: ["سماعة عازلة للضوضاء", "شاشة إضافية", "رحلة استجمام نهاية الأسبوع"],
+            perk: "تدقيق استراتيجي عميق بالذكاء الاصطناعي (AI Deep Audit)",
+            perkIcon: "🤖",
+            perkDesc: "جلسة تحليل ذكية وشاملة لخطة مسارك البرمجي وتطويره."
+          }
+        ]
+      },
+      fitness: {
+        name: "اللياقة وخسارة الوزن",
+        ranks: [
+          {
+            title: "النائم",
+            icon: "🌱",
+            points: "0",
+            status: "unlocked",
+            questTitle: "أول خطوة في الالتزام",
+            questDesc: "تحديد خطة التمارين وقياس الوزن المبدئي.",
+            questProgress: "100%",
+            reward: "شراء زجاجة ماء رياضية مميزة 💧",
+            suggestions: ["زجاجة ماء رياضية", "مشروب صحي منعش", "قائمة أغاني محفزة للتمارين"],
+            perk: "شارة البداية الصحية",
+            perkIcon: "🎖️",
+            perkDesc: "توثيق قرار التغيير الجذري."
+          },
+          {
+            title: "الملتزم",
+            icon: "🎯",
+            points: "2,000",
+            status: "unlocked",
+            questTitle: "الالتزام بـ 4 تمارين متواصلة",
+            questDesc: "إنهاء 4 تمارين أسبوعية وفق الجدول المحدد.",
+            questProgress: "100%",
+            reward: "ملابس تمارين مريحة وجديدة 🎽",
+            suggestions: ["حبل قفز أو مطاط مقاومة", "ملابس رياضية جديدة", "سماعات رياضية مريحة"],
+            perk: "درع يوم الراحة الطارئ",
+            perkIcon: "🛡️",
+            perkDesc: "حماية سلسلة التزامك عند الشعور بالإجهاد الشديد."
+          },
+          {
+            title: "المنضبط",
+            icon: "⚡️",
+            points: "5,000",
+            status: "active",
+            questTitle: "الالتزام بالدايت 7 أيام بدون تخريب",
+            questDesc: "الانضباط الغذائي هو 80% من النتيجة الحقيقية.",
+            questProgress: "66%",
+            questRatio: "5 أيام ملتزمة / 7 أيام",
+            reward: "وجبة غش مفتوحة فاخرة (Cheat Meal) بدون تأنيب ضمير 🍔",
+            suggestions: ["وجبة مفتوحة فاخرة ومستحقة", "جلسة مساج استشفائي للعضلات", "حذاء جري احترافي"],
+            perk: "مضاعف نقاط التحدي الرياضي",
+            perkIcon: "⚡️",
+            perkDesc: "مضاعفة نقاط حرق السعرات والتمارين الشاقة."
+          },
+          {
+            title: "المحارب",
+            icon: "⚔️",
+            points: "15,000",
+            status: "locked",
+            questTitle: "كسر رقم قياسي شخصي (New PR)",
+            questDesc: "تحقيق وزن جديد أو رقم قياسي في الجري / رفع الأوزان.",
+            questProgress: "0%",
+            reward: "ساعة ذكية لمتابعة التمارين أو رحلة سفاري ⌚️",
+            suggestions: ["ساعة لياقة ذكية", "ملابس بمقاس أصغر جديد", "رحلة تخييم ومغامرة"],
+            perk: "خطة تغذية وتمرين مخصصة بالذكاء الاصطناعي",
+            perkIcon: "🤖",
+            perkDesc: "تطوير أرقامك الرياضية بشكل علمي دقيق."
+          }
+        ]
+      },
+      study: {
+        name: "الدراسة والقراءة",
+        ranks: [
+          {
+            title: "النائم",
+            icon: "🌱",
+            points: "0",
+            status: "unlocked",
+            questTitle: "تجهيز بيئة المذاكرة",
+            questDesc: "ترتيب المكتب وتحديد قائمة الكتب والمقررات.",
+            questProgress: "100%",
+            reward: "شراء دفتر ملاحظات فخم مع قلم خاص ✍️",
+            suggestions: ["دفتر ملاحظات جلدي", "إضاءة مكتب دافئة", "فهرس كتب جديد"],
+            perk: "شارة طالب المعرفة",
+            perkIcon: "🎖️",
+            perkDesc: "توثيق عهد القراءة والتعلم."
+          },
+          {
+            title: "الملتزم",
+            icon: "🎯",
+            points: "2,000",
+            status: "unlocked",
+            questTitle: "قراءة 50 صفحة وإتمام ملخصها",
+            questDesc: "الالتزام بالقراءة اليومية المركزة بدون تشتت.",
+            questProgress: "100%",
+            reward: "شراء كتابين جديدين في مجالك المفضل 📚",
+            suggestions: ["شراء كتب جديدة", "جلسة قراءة في مقهى هادئ", "تطبيق تنظيم ملاحظات مدفوع"],
+            perk: "درع يوم المراجعة الحر",
+            perkIcon: "🛡️",
+            perkDesc: "يوم هادئ بدون أن ينكسر معدل دراستك."
+          },
+          {
+            title: "المنضبط",
+            icon: "⚡️",
+            points: "5,000",
+            status: "active",
+            questTitle: "إنهاء 10 ساعات تركيز عميق (Pomodoro)",
+            questDesc: "دراسة عميقة دون لمس الهاتف أو تشتيت الانتباه.",
+            questProgress: "66%",
+            questRatio: "7 ساعات مكتملة / 10 ساعات",
+            reward: "اشتراك في مكتبة رقمية أو جهاز قارئ إلكتروني (Kindle) 📖",
+            suggestions: ["جهاز قارئ كيندل", "سماعات عازلة للمذاكرة", "يوم راحة كامل للتنزه في الطبيعة"],
+            perk: "جلسة اختبار ذكية بالذكاء الاصطناعي",
+            perkIcon: "🤖",
+            perkDesc: "توليد أسئلة واختبارات لترسيخ المعلومات المقروءة."
+          }
+        ]
+      }
+    };
+
+    let currentGoalKey = 'coding';
+
+    function switchGoal(key) {
+      currentGoalKey = key;
+      document.querySelectorAll('.goal-chip').forEach(chip => chip.classList.remove('active'));
+      event.target.classList.add('active');
+
+      const template = GOAL_TEMPLATES[key];
+      const pNeeded = document.getElementById('points-needed');
+      if (pNeeded) {
+        pNeeded.innerText = key === 'fitness' ? "1,550 نقطة (تمرينان باقيان)" : "1,550 نقطة";
+      }
+    }
+
+    function openCardModal(rankIndex) {
+      const template = GOAL_TEMPLATES[currentGoalKey];
+      const rank = template.ranks[rankIndex] || template.ranks[2];
+
+      document.getElementById('m-icon').innerText = rank.icon;
+      document.getElementById('m-title').innerText = `رتبة: ${rank.title}`;
+      document.getElementById('m-points').innerText = `الشرط: ${rank.points} نقطة`;
+
+      // Quest Box
+      const qDesc = document.getElementById('m-quest-desc');
+      const qBadge = document.getElementById('m-quest-badge');
+      const qBar = document.getElementById('m-quest-bar');
+      const qRatio = document.getElementById('m-quest-ratio');
+
+      qDesc.innerText = rank.questDesc;
+      qBar.style.width = rank.questProgress;
+      qRatio.innerText = rank.questRatio || (rank.questProgress === '100%' ? "مكتمل ✓" : "قيد الإنجاز");
+
+      if (rank.status === 'unlocked') {
+        qBadge.innerText = "مكتمل ✓";
+        qBadge.style.background = "#dcfce7";
+        qBadge.style.color = "#15803d";
+      } else if (rank.status === 'active') {
+        qBadge.innerText = "جاري التحدي 🔥";
+        qBadge.style.background = "#e0e7ff";
+        qBadge.style.color = "#4338ca";
+      } else {
+        qBadge.innerText = "مغلق 🔒";
+        qBadge.style.background = "#f1f5f9";
+        qBadge.style.color = "#64748b";
+      }
+
+      // Reward Box
+      const rInput = document.getElementById('m-reward-input');
+      rInput.value = rank.reward;
+
+      const chipsContainer = document.getElementById('m-chips');
+      chipsContainer.innerHTML = '';
+      if (rank.suggestions) {
+        rank.suggestions.forEach(s => {
+          const chip = document.createElement('div');
+          chip.className = 'reward-chip';
+          chip.innerText = s;
+          chip.onclick = () => { rInput.value = s; };
+          chipsContainer.appendChild(chip);
+        });
+      }
+
+      // Perk Box
+      document.getElementById('m-perk-icon').innerText = rank.perkIcon;
+      document.getElementById('m-perk-title').innerText = `ميزة الاستمرارية: ${rank.perk}`;
+      document.getElementById('m-perk-desc').innerText = rank.perkDesc;
+
+      // CTA Button
+      const btn = document.getElementById('m-action-btn');
+      if (rank.status === 'unlocked') {
+        btn.className = 'modal-btn btn-claim';
+        btn.innerHTML = '<span>تم استلام المكافأة والقوة بنجاح ✓</span>';
+      } else if (rank.status === 'active') {
+        btn.className = 'modal-btn btn-claim';
+        btn.innerHTML = '<span>إكمال مهمة اليوم لتخطي التحدي! 🚀</span>';
+      } else {
+        btn.className = 'modal-btn btn-in-progress';
+        btn.innerHTML = '<span>تفتح عند الوصول للنقاط المطلوبة وإتمام التحدي 🔒</span>';
+      }
+
+      document.getElementById('card-modal').classList.add('open');
+    }
+
+    function closeCardModal() {
+      document.getElementById('card-modal').classList.remove('open');
+    }
+
+    function handleBackdropClick(e) {
+      if (e.target.id === 'card-modal') {
+        closeCardModal();
+      }
+    }
+
+    function claimAction() {
+      alert("🎉 ممتاز! عند تطبيق هذا في METRIX، سيتم حفظ مكافأتك، ومنحك درع الاستمرارية مباشرة في حسابك!");
+      closeCardModal();
+    }
+  </script>
+</body>
+</html>

@@ -8,11 +8,9 @@ import {
   Send,
   Trophy,
   AlertCircle,
+  ArrowRight,
   ArrowUpRight,
   Bot,
-  Hand,
-  Check,
-  Clock,
   ChevronDown,
   ImageIcon,
   Copy,
@@ -66,13 +64,23 @@ interface ProgressLogDialogProps {
     current_points?: number;
     target_points?: number;
   };
+  goals?: Array<{
+    id: string;
+    title: string;
+    ai_summary?: string;
+    created_at?: string;
+    estimated_completion_date?: string | null;
+    current_points?: number;
+    target_points?: number;
+  }>;
   tasks: TaskRow[];
+  initialMode?: LogMode;
   onClose: () => void;
   onSuccess: () => void;
   language?: Language;
 }
 
-type LogMode = "select" | "ai" | "manual" | "milestone";
+type LogMode = "select" | "ai" | "milestone";
 
 /** Distinct calendar days present in a set of logs. */
 function countDistinctLoggedDays(
@@ -91,11 +99,6 @@ interface PendingMilestoneImage {
   score: number;
   message: string;
   imagePrompt: string;
-}
-
-interface SelectedTask {
-  taskId: string;
-  timeSpentMinutes?: number;
 }
 
 interface EvaluationResult {
@@ -249,14 +252,18 @@ function mergeDailyBreakdownItems(
 
 export default function ProgressLogDialog({
   goal,
+  goals,
   tasks,
+  initialMode = "select",
   onClose,
   onSuccess,
   language = "ar",
 }: ProgressLogDialogProps) {
   const t = translations[language];
   const supabase = createClient();
-  const [mode, setMode] = useState<LogMode>("select");
+  const isMultiGoal = Boolean(goals && goals.length > 1);
+  const effectiveInitialMode = isMultiGoal ? "ai" : initialMode;
+  const [mode, setMode] = useState<LogMode>(effectiveInitialMode);
   const [logText, setLogText] = useState("");
   const [loading, setLoading] = useState(false);
   const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null);
@@ -264,9 +271,6 @@ export default function ProgressLogDialog({
     type: "error" | "warning";
     message: string;
   } | null>(null);
-  const [selectedTasks, setSelectedTasks] = useState<Map<string, SelectedTask>>(
-    new Map(),
-  );
   const [loggedTodayTaskIds, setLoggedTodayTaskIds] = useState<Set<string>>(
     new Set(),
   );
@@ -275,6 +279,12 @@ export default function ProgressLogDialog({
   const [showTaskDetails, setShowTaskDetails] = useState(false);
   const [updatesStepData, setUpdatesStepData] = useState<ProgressUpdatesData | null>(null);
   const [showUpdatesScreen, setShowUpdatesScreen] = useState(false);
+
+  useEffect(() => {
+    if (isMultiGoal && mode === "select") {
+      setMode("ai");
+    }
+  }, [isMultiGoal, mode]);
 
   // Milestone specific state
   const [milestoneName, setMilestoneName] = useState("");
@@ -612,248 +622,9 @@ export default function ProgressLogDialog({
 
 
 
-  const toggleTaskSelection = (taskId: string) => {
-    setSelectedTasks((prev) => {
-      const newMap = new Map(prev);
-      if (newMap.has(taskId)) {
-        newMap.delete(taskId);
-      } else {
-        newMap.set(taskId, { taskId });
-      }
-      return newMap;
-    });
-  };
 
-  const updateTaskTime = (taskId: string, minutes: number) => {
-    setSelectedTasks((prev) => {
-      const newMap = new Map(prev);
-      const existing = newMap.get(taskId);
-      if (existing) {
-        newMap.set(taskId, { ...existing, timeSpentMinutes: minutes });
-      }
-      return newMap;
-    });
-  };
 
-  const handleManualSubmit = useCallback(async () => {
-    if (selectedTasks.size === 0 || submittedRef.current) return;
-    submittedRef.current = true;
-    setLoading(true);
 
-    try {
-      const [previousLogs, todaySession] = await Promise.all([
-        fetchPreviousLogsForAnalysis(),
-        fetchTodaySessionLog(),
-      ]);
-      const breakdown: DailyLogBreakdownItem[] = [];
-
-      // Calculate points for each selected task
-      selectedTasks.forEach((selected, taskId) => {
-        const task = tasks.find((t) => t.id === taskId);
-        if (!task) return;
-
-        const basePoints = task.impact_weight || 0;
-        let taskBonus = 0;
-
-        // Calculate bonus if time exceeded expected time
-        if (selected.timeSpentMinutes && task.time_required_minutes) {
-          if (selected.timeSpentMinutes > task.time_required_minutes) {
-            const ratio =
-              selected.timeSpentMinutes / task.time_required_minutes;
-            taskBonus = Math.floor(basePoints * (ratio - 1) * 0.5); // 50% bonus for extra time
-          }
-        }
-
-        breakdown.push({
-          task_id: taskId,
-          points: basePoints,
-          status: "done",
-          time_bonus: taskBonus > 0 ? taskBonus : undefined,
-        });
-      });
-
-      const existingSessionBreakdown = todaySession
-        ? parseDailyLogBreakdown(todaySession.breakdown)
-        : null;
-      const mergedBreakdown = mergeDailyBreakdownItems(
-        existingSessionBreakdown?.items || [],
-        breakdown,
-      );
-      const mergedBasePoints = mergedBreakdown.reduce(
-        (sum, item) => sum + (Number(item.points) || 0),
-        0,
-      );
-      const mergedBonusPoints = mergedBreakdown.reduce(
-        (sum, item) => sum + (Number(item.time_bonus) || 0),
-        0,
-      );
-      const previousAwarded = getAwardedPointsSoFar(
-        existingSessionBreakdown?.meta,
-        todaySession?.ai_score || 0,
-      );
-      const reevaluatedTotal = mergedBasePoints + mergedBonusPoints;
-      const sessionTotalPoints = Math.max(previousAwarded, reevaluatedTotal);
-      const deltaAwarded = Math.max(0, sessionTotalPoints - previousAwarded);
-      const previousSessionBonus =
-        Number(existingSessionBreakdown?.meta?.bonus_points) || 0;
-      const deltaBonusPoints = Math.max(
-        0,
-        mergedBonusPoints - previousSessionBonus,
-      );
-      const deltaBasePoints = Math.max(0, deltaAwarded - deltaBonusPoints);
-      const nextEntriesCount =
-        (existingSessionBreakdown?.meta?.entries_count ??
-          (todaySession ? 1 : 0)) + 1;
-      const nowIso = new Date().toISOString();
-      const combinedManualInput = mergeDaySessionInput(
-        todaySession?.user_input,
-        `Manual check-in: ${selectedTasks.size} task(s) completed`,
-        language,
-      );
-
-      const performance = analyzeDailyPerformance({
-        source: "manual",
-        language,
-        items: mergedBreakdown,
-        totalPoints: sessionTotalPoints,
-        basePoints: mergedBasePoints,
-        bonusPoints: Math.max(0, sessionTotalPoints - mergedBasePoints),
-        dailyCap,
-        maxBasePoints,
-        totalTasks: totalScorableTasks,
-        previousLogs,
-      });
-
-      const sessionMeta: DailyLogPerformanceMeta = {
-        ...performance.meta,
-        session_state: "open",
-        entries_count: nextEntriesCount,
-        last_update_at: nowIso,
-        last_evaluated_score: reevaluatedTotal,
-        awarded_points_so_far: sessionTotalPoints,
-        delta_awarded: deltaAwarded,
-      };
-
-      const result: EvaluationResult = {
-        total_points_awarded: deltaAwarded,
-        base_points: deltaBasePoints,
-        bonus_points: deltaBonusPoints,
-        session_total_points: sessionTotalPoints,
-        session_entries_count: nextEntriesCount,
-        coach_message: performance.copy.coach_message,
-        full_feedback: performance.copy.full_feedback,
-        day_label: performance.copy.day_label,
-        comparison_message: performance.copy.comparison_message,
-        warning_message: performance.copy.warning_message,
-        performance_meta: sessionMeta,
-        task_breakdown: mergedBreakdown,
-        bonus:
-          mergedBonusPoints > 0
-            ? {
-                points: mergedBonusPoints,
-                reason: t.exceededTimeBonus,
-              }
-            : undefined,
-      };
-
-      setShowTaskDetails(false);
-      setEvaluation(result);
-
-      const logPayload = {
-        goal_id: goal.id,
-        user_input: combinedManualInput,
-        ai_score: sessionTotalPoints,
-        ai_feedback: result.full_feedback || result.coach_message,
-        breakdown: buildDailyLogBreakdown(
-          mergedBreakdown,
-          result.performance_meta,
-        ),
-      };
-
-      const logResponse = todaySession
-        ? await supabase
-            .from("daily_logs")
-            .update(logPayload)
-            .eq("id", todaySession.id)
-        : await supabase.from("daily_logs").insert(logPayload);
-
-      if (logResponse.error) throw logResponse.error;
-
-      // Update goal points using only the real delta added in this check-in
-      if (deltaAwarded > 0) {
-        const { error: updateError } = await supabase.rpc(
-          "increment_goal_points",
-          {
-            goal_uuid: goal.id,
-            points_to_add: deltaAwarded,
-          },
-        );
-
-        if (updateError) throw updateError;
-      }
-
-      try {
-        const completedTaskIds = mergedBreakdown
-          .filter(
-            (item) =>
-              (Number(item.points) || 0) > 0 ||
-              item.status === "done" ||
-              item.status === "partial",
-          )
-          .map((item) => item.task_id)
-          .filter(Boolean);
-
-        await syncTaskCheckins(completedTaskIds);
-        await calculateUpdatesSnapshot(deltaAwarded, completedTaskIds);
-      } catch (syncError) {
-        console.error(
-          "Failed to sync task checkins after manual log:",
-          syncError,
-        );
-      }
-
-      // Check if goal is now complete
-      const newPoints = (goal.current_points ?? 0) + deltaAwarded;
-      if (goal.target_points && newPoints >= goal.target_points) {
-        setShowCelebration(true);
-      }
-
-      // Notify challenge listeners
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(
-          new CustomEvent("challenge-log-updated", {
-            detail: { goalId: goal.id, createdAt: new Date().toISOString() },
-          }),
-        );
-      }
-
-    } catch (error: unknown) {
-      console.error(error);
-      submittedRef.current = false;
-      const errorMsg =
-        language === "ar"
-          ? `فشل في حفظ السجل: ${getErrorMessage(error, "Unknown error")}`
-          : `Failed to save log: ${getErrorMessage(error, "Unknown error")}`;
-      setNotification({ type: "error", message: errorMsg });
-    } finally {
-      setLoading(false);
-    }
-  }, [
-    selectedTasks,
-    tasks,
-    goal.id,
-    language,
-    supabase,
-    t,
-    goal.current_points,
-    goal.target_points,
-    syncTaskCheckins,
-    fetchPreviousLogsForAnalysis,
-    fetchTodaySessionLog,
-    dailyCap,
-    maxBasePoints,
-    totalScorableTasks,
-  ]);
 
   const handleAISubmit = useCallback(async () => {
     if (!logText.trim() || submittedRef.current) return;
@@ -861,6 +632,146 @@ export default function ProgressLogDialog({
     setLoading(true);
 
     try {
+      if (goals && goals.length > 1) {
+        // Multi-goal evaluation for selected goals
+        const { data: allTasksData } = await supabase
+          .from("sub_layers")
+          .select("id, goal_id, task_description, impact_weight")
+          .in(
+            "goal_id",
+            goals.map((g) => g.id),
+          );
+
+        const goalsPayload = goals.map((g) => ({
+          id: g.id,
+          title: g.title,
+          description: g.ai_summary || "",
+          current_points: g.current_points || 0,
+          target_points: g.target_points || 0,
+          tasks: (allTasksData || [])
+            .filter((t) => t.goal_id === g.id)
+            .map((t) => ({
+              id: t.id,
+              title: t.task_description,
+              impact_weight: t.impact_weight,
+            })),
+        }));
+
+        const persona =
+          typeof window !== "undefined"
+            ? localStorage.getItem("metrix:coach_persona") || "balanced"
+            : "balanced";
+
+        const res = await fetch(apiUrl("/api/goal/evaluate-multi"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            goals: goalsPayload,
+            userInput: logText.trim(),
+            language: language === "ar" ? "ar" : "en",
+            coachPersona: persona,
+          }),
+        });
+
+        const multiData = await res.json().catch(() => null);
+        if (!res.ok) {
+          if (multiData?.error === "quota_exceeded") {
+            submittedRef.current = false;
+            setNotification({
+              type: "warning",
+              message:
+                language === "ar"
+                  ? multiData.message_ar
+                  : multiData.message_en,
+            });
+            return;
+          }
+          throw new Error(multiData?.error || "Failed to evaluate multi goals");
+        }
+
+        const evaluatedGoals = multiData.goals || [];
+        const nowIso = new Date().toISOString();
+        let totalPointsAdded = 0;
+
+        for (const item of evaluatedGoals) {
+          if (item.mentioned || item.points_to_award > 0) {
+            totalPointsAdded += item.points_to_award;
+            await supabase.from("daily_logs").insert({
+              goal_id: item.goal_id,
+              user_input: item.extracted_activity || logText,
+              ai_score: item.points_to_award,
+              ai_feedback: item.feedback,
+              coaching_message: item.feedback,
+              breakdown: {
+                source: "multi_goal_ai_log",
+                extracted_activity: item.extracted_activity,
+                completed_task_ids: item.completed_task_ids || [],
+                full_session_log: logText,
+                goal_title: item.goal_title,
+              },
+            });
+
+            if (item.points_to_award > 0) {
+              await supabase.rpc("increment_goal_points", {
+                goal_uuid: item.goal_id,
+                points_to_add: item.points_to_award,
+              });
+            }
+
+            if (item.completed_task_ids && item.completed_task_ids.length > 0) {
+              const checkinRows = item.completed_task_ids.map(
+                (taskId: string) => ({
+                  goal_id: item.goal_id,
+                  task_id: taskId,
+                  completed: true,
+                  completed_at: nowIso,
+                }),
+              );
+              await supabase.from("task_checkins").upsert(checkinRows, {
+                onConflict: "goal_id,task_id,period_type,period_start",
+              });
+            }
+
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(
+                new CustomEvent("challenge-log-updated", {
+                  detail: { goalId: item.goal_id, createdAt: nowIso },
+                }),
+              );
+            }
+          }
+        }
+
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("metrix-refresh-goals"));
+        }
+
+        const breakdownItems: DailyLogBreakdownItem[] = evaluatedGoals.map(
+          (eg: any) => ({
+            task_id: eg.goal_id,
+            task_description: `${eg.goal_title}: ${eg.extracted_activity}`,
+            points: eg.points_to_award,
+            status: eg.mentioned ? "done" : "skipped",
+            evidence: eg.feedback,
+          }),
+        );
+
+        setEvaluation({
+          total_points_awarded: totalPointsAdded,
+          base_points: totalPointsAdded,
+          bonus_points: 0,
+          coach_message:
+            multiData.overall_summary ||
+            (language === "ar"
+              ? "تم تحليل وتوزيع إنجازاتك بنجاح!"
+              : "Achievements evaluated successfully!"),
+          subtask_breakdown: breakdownItems,
+          task_breakdown: breakdownItems,
+        });
+
+        return;
+      }
+
       const [previousLogs, todaySession] = await Promise.all([
         fetchPreviousLogsForAnalysis(),
         fetchTodaySessionLog(),
@@ -911,6 +822,10 @@ export default function ProgressLogDialog({
             days_since_start: daysSinceStart,
             open_day_session: Boolean(todaySession),
             session_entries_count: nextEntriesCount,
+            coach_persona:
+              typeof window !== "undefined"
+                ? localStorage.getItem("metrix:coach_persona") || "balanced"
+                : "balanced",
           },
           calculateTimeBonus: true, // New flag for time-based bonus
         }),
@@ -1114,6 +1029,7 @@ export default function ProgressLogDialog({
   }, [
     logText,
     goal,
+    goals,
     tasks,
     language,
     supabase,
@@ -1389,6 +1305,8 @@ export default function ProgressLogDialog({
       const status = item.status || "unknown";
       const taskLabel =
         tasks.find((tk: TaskRow) => tk.id === item.task_id)?.task_description ||
+        (item as { task_description?: string }).task_description ||
+        item.reason ||
         t.generalProgress;
       const statusLabel =
         status === "done"
@@ -1834,14 +1752,14 @@ export default function ProgressLogDialog({
 
             <button
               onClick={() => setMode("ai")}
-              className="w-full p-5 bg-primary/12 border-2 border-primary/15 rounded-2xl hover:bg-primary/12 hover:border-primary/25 transition-all duration-200 active:scale-[0.98] group shadow-sm hover:shadow-md"
+              className="w-full p-5 bg-primary/[0.08] border border-primary/20 rounded-xl hover:bg-primary/[0.12] hover:border-primary/30 transition-all duration-200 active:scale-[0.98] group shadow-xs"
             >
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-primary/12 rounded-xl flex items-center justify-center shrink-0 border border-primary/15 group-hover:border-primary/25 transition-colors">
+                <div className="w-12 h-12 bg-primary/12 rounded-lg flex items-center justify-center shrink-0 border border-primary/20 group-hover:border-primary/30 transition-colors">
                   <Bot className="w-6 h-6 text-primary" />
                 </div>
                 <div className="flex-1 text-start">
-                  <h4 className="font-bold text-foreground text-base mb-1">
+                  <h4 className="font-semibold text-foreground text-base mb-1">
                     {t.aiMode}
                   </h4>
                   <p className="text-sm text-muted-foreground/75 leading-relaxed">
@@ -1852,30 +1770,11 @@ export default function ProgressLogDialog({
             </button>
 
             <button
-              onClick={() => setMode("manual")}
-              className="w-full p-5 bg-chart-2/[0.04] border-2 border-chart-2/15 rounded-2xl hover:bg-chart-2/[0.08] hover:border-chart-2/30 transition-all duration-200 active:scale-[0.98] group shadow-sm hover:shadow-md"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-chart-2/10 rounded-xl flex items-center justify-center shrink-0 border border-chart-2/10 group-hover:border-chart-2/20 transition-colors">
-                  <Hand className="w-6 h-6 text-chart-2" />
-                </div>
-                <div className="flex-1 text-start">
-                  <h4 className="font-bold text-foreground text-base mb-1">
-                    {t.manualMode}
-                  </h4>
-                  <p className="text-sm text-muted-foreground/75 leading-relaxed">
-                    {t.manualModeDesc}
-                  </p>
-                </div>
-              </div>
-            </button>
-
-            <button
               onClick={() => setMode("milestone")}
-              className="w-full p-5 bg-primary/12 border-2 border-primary/15 rounded-2xl hover:bg-primary/12 hover:border-primary/25 transition-all duration-200 active:scale-[0.98] group shadow-sm hover:shadow-md"
+              className="w-full p-5 bg-primary/[0.08] border border-primary/20 rounded-xl hover:bg-primary/[0.12] hover:border-primary/30 transition-all duration-200 active:scale-[0.98] group shadow-xs"
             >
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-primary/12 rounded-xl flex items-center justify-center shrink-0 border border-primary/15 group-hover:border-primary/25 transition-colors">
+                <div className="w-12 h-12 bg-primary/12 rounded-lg flex items-center justify-center shrink-0 border border-primary/20 group-hover:border-primary/30 transition-colors">
                   <Trophy className="w-6 h-6 text-primary" />
                 </div>
                 <div className="flex-1 text-start">
@@ -1907,16 +1806,30 @@ export default function ProgressLogDialog({
           <div className="p-6 border-b border-border/70 flex justify-between items-center shrink-0">
             <div className="flex-1" dir={language === "ar" ? "rtl" : "ltr"}>
               <h3 className="text-xl font-extrabold text-foreground tracking-tight">{t.aiMode}</h3>
-              <p className="text-xs text-muted-foreground/75 font-semibold mt-1.5 uppercase tracking-wider">
-                {goal.title}
+              <p className="text-xs text-muted-foreground/75 font-semibold mt-1.5 uppercase tracking-wider truncate">
+                {goals && goals.length > 1
+                  ? goals.map((g) => g.title).join(" • ")
+                  : goal.title}
               </p>
             </div>
-            <button
-              onClick={() => setMode("select")}
-              className="p-2.5 hover:bg-muted/60 rounded-xl transition-all duration-200 active:scale-95 border border-border/45 hover:border-border/70"
-            >
-              <X className="w-5 h-5 text-muted-foreground" />
-            </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {!isMultiGoal && (
+                <button
+                  type="button"
+                  onClick={() => setMode("select")}
+                  className="p-2.5 hover:bg-muted/60 rounded-xl transition-all duration-200 active:scale-95 border border-border/45 hover:border-border/70 text-muted-foreground hover:text-foreground"
+                  title={language === "ar" ? "تغيير طريقة التسجيل" : "Change mode"}
+                >
+                  <ArrowRight className={cn("w-5 h-5", language === "ar" ? "rotate-0" : "rotate-180")} />
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="p-2.5 hover:bg-muted/60 rounded-xl transition-all duration-200 active:scale-95 border border-border/45 hover:border-border/70"
+              >
+                <X className="w-5 h-5 text-muted-foreground" />
+              </button>
+            </div>
           </div>
 
           {notification && (
@@ -1952,7 +1865,7 @@ export default function ProgressLogDialog({
                   value={logText}
                   onChange={(e) => setLogText(e.target.value)}
                   placeholder={t.progressPlaceholder}
-                  className="w-full h-48 p-4 border-2 rounded-2xl resize-none transition-all duration-200 placeholder:text-muted-foreground/50 bg-muted/20 text-foreground border-border/45 focus:border-primary/45 focus:bg-card focus:shadow-sm focus:shadow-primary/12"
+                  className="w-full h-48 p-4 border rounded-xl resize-none transition-all duration-200 placeholder:text-muted-foreground/50 bg-muted/20 text-foreground border-border/70 focus:border-primary/50 focus:bg-card focus:shadow-xs focus:ring-1 focus:ring-primary/20"
                   dir={language === "ar" ? "rtl" : "ltr"}
                 />
                 <div className="absolute bottom-4 end-4">
@@ -2002,12 +1915,22 @@ export default function ProgressLogDialog({
                 {goal.title}
               </p>
             </div>
-            <button
-              onClick={() => setMode("select")}
-              className="p-2.5 hover:bg-muted/60 rounded-xl transition-all duration-200 active:scale-95 border border-border/45 hover:border-border/70 shrink-0"
-            >
-              <X className="w-5 h-5 text-muted-foreground" />
-            </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setMode("select")}
+                className="p-2.5 hover:bg-muted/60 rounded-xl transition-all duration-200 active:scale-95 border border-border/45 hover:border-border/70 text-muted-foreground hover:text-foreground"
+                title={language === "ar" ? "تغيير طريقة التسجيل" : "Change mode"}
+              >
+                <ArrowRight className={cn("w-5 h-5", language === "ar" ? "rotate-0" : "rotate-180")} />
+              </button>
+              <button
+                onClick={onClose}
+                className="p-2.5 hover:bg-muted/60 rounded-xl transition-all duration-200 active:scale-95 border border-border/45 hover:border-border/70"
+              >
+                <X className="w-5 h-5 text-muted-foreground" />
+              </button>
+            </div>
           </div>
 
           {notification && (
@@ -2062,12 +1985,12 @@ export default function ProgressLogDialog({
                     ? "مثال: إطلاق التطبيق، اجتياز الاختبار النهائي..."
                     : "e.g. Launched App, Passed Final Exam..."
                 }
-                className="w-full p-4 border-2 rounded-2xl transition-all duration-200 placeholder:text-muted-foreground/50 bg-muted/20 text-foreground border-border/45 focus:border-primary/45 focus:bg-card focus:shadow-sm focus:shadow-primary/12 font-bold text-[15px]"
+                className="w-full p-4 border rounded-xl transition-all duration-200 placeholder:text-muted-foreground/50 bg-muted/20 text-foreground border-border/70 focus:border-primary/50 focus:bg-card focus:shadow-xs focus:ring-1 focus:ring-primary/20 font-semibold text-[15px]"
               />
             </div>
 
             <div className="space-y-2.5">
-              <label className="text-sm font-bold text-muted-foreground/75 uppercase tracking-wider">
+              <label className="text-sm font-semibold text-muted-foreground/75 uppercase tracking-wider">
                 {t.describeWhatYouDid}
               </label>
               <div className="relative">
@@ -2079,7 +2002,7 @@ export default function ProgressLogDialog({
                       ? "اشرح بالتفصيل لماذا يعتبر هذا الإنجاز قفزة استثنائية في هدفك..."
                       : "Explain in detail why this is an exceptional leap in your goal..."
                   }
-                  className="w-full h-36 p-4 border-2 rounded-2xl resize-none transition-all duration-200 placeholder:text-muted-foreground/50 bg-muted/20 text-foreground border-border/45 focus:border-primary/45 focus:bg-card focus:shadow-sm focus:shadow-primary/12 text-[15px] leading-relaxed"
+                  className="w-full h-36 p-4 border rounded-xl resize-none transition-all duration-200 placeholder:text-muted-foreground/50 bg-muted/20 text-foreground border-border/70 focus:border-primary/50 focus:bg-card focus:shadow-xs focus:ring-1 focus:ring-primary/20 text-[15px] leading-relaxed"
                 />
                 <div className="absolute bottom-4 end-4">
                   <VoiceRecorder
@@ -2105,324 +2028,6 @@ export default function ProgressLogDialog({
     );
   }
 
-  // Manual mode screen
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-md z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="bg-card rounded-t-[1.5rem] sm:rounded-3xl w-full max-w-lg max-h-[90vh] overflow-hidden animate-in slide-in-from-bottom duration-300 border border-border shadow-2xl shadow-black/10 flex flex-col">
-        <div className="p-6 border-b border-border/70 flex justify-between items-center shrink-0">
-          <div className="flex-1" dir={language === "ar" ? "rtl" : "ltr"}>
-            <h3 className="text-xl font-extrabold text-foreground tracking-tight">
-              {t.manualMode}
-            </h3>
-            <p className="text-xs text-muted-foreground/75 font-semibold uppercase tracking-wider mt-1.5">
-              {goal.title}
-            </p>
-          </div>
-          <button
-            onClick={() => setMode("select")}
-            className="p-2.5 hover:bg-muted/60 rounded-xl transition-all duration-200 active:scale-95 border border-border/45 hover:border-border/70 shrink-0"
-          >
-            <X className="w-5 h-5 text-muted-foreground" />
-          </button>
-        </div>
-
-        {notification && (
-          <div
-            className={`mx-6 mt-4 p-3.5 rounded-xl flex items-center gap-3 shadow-sm ${notification.type === "error" ? "bg-destructive/12 border border-destructive/15 text-destructive" : "bg-primary/12 border border-primary/15 text-primary"}`}
-          >
-            <AlertCircle className="w-5 h-5 flex-shrink-0" />
-            <p className="text-sm flex-1">{notification.message}</p>
-            <button
-              onClick={() => setNotification(null)}
-              className="p-1 hover:bg-muted rounded-full"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          <p className="text-sm text-muted-foreground font-medium">
-            {loggedTodayTaskIds.size > 0
-              ? language === "ar"
-                ? `المسجّلة مسبقًا (${loggedTodayTaskIds.size}) معلّمة — اختر ما تبقى`
-                : `Already logged (${loggedTodayTaskIds.size}) are marked — select the rest`
-              : t.selectCompletedTasks}
-          </p>
-
-          {mainTasks.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              {t.noTasksToSelect}
-            </div>
-          ) : (
-            mainTasks.map((main) => {
-              // If main task has subtasks, show them
-              if (main.subtasks && main.subtasks.length > 0) {
-                return (
-                  <div key={main.id} className="space-y-2.5">
-                    <div
-                      className="font-extrabold text-sm text-foreground/75 px-1 flex items-center gap-2"
-                      dir={language === "ar" ? "rtl" : "ltr"}
-                    >
-                      <span className="h-1.5 w-1.5 rounded-full bg-primary/60 shrink-0" />
-                      {main.task_description}
-                    </div>
-                    {main.subtasks.map((sub) => {
-                      const isSelected = selectedTasks.has(sub.id);
-                      const selectedData = selectedTasks.get(sub.id);
-                      const alreadyLogged = loggedTodayTaskIds.has(sub.id);
-
-                      return (
-                        <div
-                          key={sub.id}
-                          className={`rounded-2xl p-4 space-y-3 transition-all duration-200 select-none ${
-                            alreadyLogged
-                              ? "bg-chart-2/[0.06] border-2 border-chart-2/30 opacity-90"
-                              : isSelected
-                                ? "bg-primary/12 border-2 border-primary/25 shadow-md shadow-primary/12 cursor-pointer active:scale-[0.99]"
-                                : "bg-muted/12 border-2 border-border/45 hover:border-primary/25 hover:bg-muted/12 hover:shadow-sm cursor-pointer"
-                          }`}
-                          onClick={() => {
-                            if (alreadyLogged) return;
-                            toggleTaskSelection(sub.id);
-                          }}
-                        >
-                          <div
-                            className="w-full flex items-center gap-3"
-                            dir={language === "ar" ? "rtl" : "ltr"}
-                          >
-                            <div
-                              className={`w-8 h-8 rounded-xl border-2 flex items-center justify-center transition-all duration-200 shrink-0 shadow-sm ${
-                                alreadyLogged
-                                  ? "bg-chart-2 border-chart-2"
-                                  : isSelected
-                                    ? "bg-primary border-primary scale-105 shadow-primary/20"
-                                    : "border-border bg-card hover:border-primary/45"
-                              }`}
-                            >
-                              {alreadyLogged ? (
-                                <Check className="w-5 h-5 text-background stroke-[2.5]" />
-                              ) : (
-                                isSelected && (
-                                  <Check className="w-5 h-5 text-primary-foreground stroke-[2.5]" />
-                                )
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p
-                                className="font-semibold text-[15px] text-foreground leading-snug"
-                                dir={language === "ar" ? "rtl" : "ltr"}
-                              >
-                                {sub.task_description}
-                              </p>
-                              <div className="flex items-center gap-2 mt-1">
-                                {alreadyLogged && (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-chart-2/12 px-2 py-0.5 text-[11px] font-bold text-chart-2 border border-chart-2/25">
-                                    <Check className="w-2.5 h-2.5" />
-                                    {language === "ar"
-                                      ? "مسجّل اليوم"
-                                      : "Logged today"}
-                                  </span>
-                                )}
-                                <span className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-2 py-0.5 text-[11px] font-bold text-muted-foreground/75 border border-border/45">
-                                  {t.weight}: {sub.impact_weight}
-                                </span>
-                                {sub.time_required_minutes && (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-2 py-0.5 text-[11px] font-bold text-muted-foreground/75 border border-border/45">
-                                    <Clock className="w-2.5 h-2.5" />
-                                    {sub.time_required_minutes} {t.minutes}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          {isSelected && sub.time_required_minutes && (
-                            <div
-                              className={`space-y-2.5 ${language === "ar" ? "pe-9" : "ps-9"}`}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <label
-                                className="text-[11px] font-bold text-muted-foreground/75 uppercase tracking-wider flex items-center gap-2"
-                                dir={language === "ar" ? "rtl" : "ltr"}
-                              >
-                                <Clock className="w-3.5 h-3.5 text-primary/75" />
-                                {t.timeSpent}
-                              </label>
-                              <input
-                                type="number"
-                                min="0"
-                                placeholder={`${t.expectedTime}: ${sub.time_required_minutes} ${t.minutes}`}
-                                value={selectedData?.timeSpentMinutes || ""}
-                                onChange={(e) =>
-                                  updateTaskTime(
-                                    sub.id,
-                                    parseInt(e.target.value) || 0,
-                                  )
-                                }
-                                className="w-full px-4 py-2.5 bg-card border-2 border-border/70 rounded-xl text-sm focus:border-primary/45 focus:shadow-sm focus:shadow-primary/12 transition-all duration-200"
-                                dir={language === "ar" ? "rtl" : "ltr"}
-                              />
-                              {selectedData?.timeSpentMinutes &&
-                                selectedData.timeSpentMinutes >
-                                  sub.time_required_minutes && (
-                                  <div className="flex items-center gap-1.5 text-xs font-bold text-chart-1 bg-chart-1/[0.08] px-3 py-1.5 rounded-lg border border-chart-1/15 w-fit">
-                                    <ArrowUpRight className="w-3.5 h-3.5" />
-                                    +{Math.floor(
-                                      (sub.impact_weight || 0) *
-                                        (selectedData.timeSpentMinutes /
-                                          sub.time_required_minutes -
-                                          1) *
-                                        0.5,
-                                    )}{" "}
-                                    {t.bonusPoints}
-                                  </div>
-                                )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              }
-
-              // If no subtasks, show the main task itself as selectable
-              const isSelected = selectedTasks.has(main.id);
-              const selectedData = selectedTasks.get(main.id);
-              const alreadyLogged = loggedTodayTaskIds.has(main.id);
-
-              return (
-                <div
-                  key={main.id}
-                  className={`rounded-2xl p-4 space-y-3 transition-all duration-200 select-none ${
-                    alreadyLogged
-                      ? "bg-chart-2/[0.06] border-2 border-chart-2/30 opacity-90"
-                      : isSelected
-                        ? "bg-primary/12 border-2 border-primary/25 shadow-md shadow-primary/12 cursor-pointer active:scale-[0.99]"
-                        : "bg-muted/12 border-2 border-border/45 hover:border-primary/25 hover:bg-muted/12 hover:shadow-sm cursor-pointer"
-                  }`}
-                  onClick={() => {
-                    if (alreadyLogged) return;
-                    toggleTaskSelection(main.id);
-                  }}
-                >
-                  <div
-                    className="w-full flex items-center gap-3"
-                    dir={language === "ar" ? "rtl" : "ltr"}
-                  >
-                    <div
-                      className={`w-8 h-8 rounded-xl border-2 flex items-center justify-center transition-all duration-200 shrink-0 shadow-sm ${
-                        alreadyLogged
-                          ? "bg-chart-2 border-chart-2"
-                          : isSelected
-                            ? "bg-primary border-primary scale-105 shadow-primary/20"
-                            : "border-border bg-card hover:border-primary/45"
-                      }`}
-                    >
-                      {alreadyLogged ? (
-                        <Check className="w-5 h-5 text-background stroke-[2.5]" />
-                      ) : (
-                        isSelected && (
-                          <Check className="w-5 h-5 text-primary-foreground stroke-[2.5]" />
-                        )
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p
-                        className="font-semibold text-[15px] text-foreground leading-snug"
-                        dir={language === "ar" ? "rtl" : "ltr"}
-                      >
-                        {main.task_description}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1">
-                        {alreadyLogged && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-chart-2/12 px-2 py-0.5 text-[11px] font-bold text-chart-2 border border-chart-2/25">
-                            <Check className="w-2.5 h-2.5" />
-                            {language === "ar"
-                              ? "مسجّل اليوم"
-                              : "Logged today"}
-                          </span>
-                        )}
-                        <span className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-2 py-0.5 text-[11px] font-bold text-muted-foreground/75 border border-border/45">
-                          {t.weight}: {main.impact_weight}
-                        </span>
-                        {main.time_required_minutes && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-2 py-0.5 text-[11px] font-bold text-muted-foreground/75 border border-border/45">
-                            <Clock className="w-2.5 h-2.5" />
-                            {main.time_required_minutes} {t.minutes}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {isSelected && main.time_required_minutes && (
-                    <div
-                      className={`space-y-2.5 ${language === "ar" ? "pe-9" : "ps-9"}`}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <label
-                        className="text-[11px] font-bold text-muted-foreground/75 uppercase tracking-wider flex items-center gap-2"
-                        dir={language === "ar" ? "rtl" : "ltr"}
-                      >
-                        <Clock className="w-3.5 h-3.5 text-primary/75" />
-                        {t.timeSpent}
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        placeholder={`${t.expectedTime}: ${main.time_required_minutes} ${t.minutes}`}
-                        value={selectedData?.timeSpentMinutes || ""}
-                        onChange={(e) =>
-                          updateTaskTime(main.id, parseInt(e.target.value) || 0)
-                        }
-                        className="w-full px-4 py-2.5 bg-card border-2 border-border/70 rounded-xl text-sm focus:border-primary/45 focus:shadow-sm focus:shadow-primary/12 transition-all duration-200"
-                        dir={language === "ar" ? "rtl" : "ltr"}
-                      />
-                      {selectedData?.timeSpentMinutes &&
-                        selectedData.timeSpentMinutes >
-                          main.time_required_minutes && (
-                          <div className="flex items-center gap-1.5 text-xs font-bold text-chart-1 bg-chart-1/[0.08] px-3 py-1.5 rounded-lg border border-chart-1/15 w-fit">
-                            <ArrowUpRight className="w-3.5 h-3.5" />
-                            +{Math.floor(
-                              (main.impact_weight || 0) *
-                                (selectedData.timeSpentMinutes /
-                                  main.time_required_minutes -
-                                  1) *
-                                0.5,
-                            )}{" "}
-                            {t.bonusPoints}
-                          </div>
-                        )}
-                    </div>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
-
-        <div className="border-t border-border/70 shrink-0 px-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-6">
-          <button
-            onClick={handleManualSubmit}
-            disabled={loading || selectedTasks.size === 0}
-            className="w-full py-4 bg-foreground text-background rounded-2xl font-extrabold text-lg transition-all duration-200 flex items-center justify-center gap-2.5 disabled:opacity-50 disabled:hover:translate-y-0 hover:-translate-y-px shadow-lg shadow-foreground/12 active:scale-[0.98]"
-          >
-            {loading ? (
-              <Loader2 className="animate-spin w-5 h-5" />
-            ) : (
-              <>
-                <Send className="w-5 h-5" />
-                <span>{t.submitLog}</span>
-                <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-white/20 text-xs font-black">
-                  {selectedTasks.size}
-                </span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+  return null;
 }
+

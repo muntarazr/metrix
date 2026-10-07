@@ -7,7 +7,7 @@ import Dashboard from "@/components/dashboard/Dashboard";
 import GoalsList from "@/components/goal/GoalsList";
 import HomePage from "@/components/HomePage";
 import GoalCreatorPage from "@/components/goal/GoalCreatorPage";
-import ManualGoalCreator from "@/components/goal/ManualGoalCreator";
+import ManualGoalCreatorPage from "@/components/goal/ManualGoalCreatorPage";
 import OrbitShell from "@/components/OrbitShell";
 import OrbitDock from "@/components/OrbitDock";
 import SettingsPage from "@/components/settings/SettingsPage";
@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 import { getCachedItem, setCachedItem, STORAGE_KEYS } from "@/lib/storage-cache";
 import type { User } from "@supabase/supabase-js";
 
-type AppView = "home" | "dashboard" | "settings" | "goals" | "create-goal";
+type AppView = "home" | "dashboard" | "settings" | "goals" | "create-goal" | "create-goal-manual";
 
 export interface GoalTaskStats {
   completed: number;
@@ -55,7 +55,6 @@ export default function Home() {
   const router = useRouter();
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<AppView>("home");
-  const [createGoalMode, setCreateGoalMode] = useState<"ai" | "manual">("ai");
   const [createGoalText, setCreateGoalText] = useState("");
   const [goals, setGoals] = useState<Goal[]>(() => {
     return getCachedItem<Goal[]>(STORAGE_KEYS.GOALS) || [];
@@ -219,7 +218,6 @@ export default function Home() {
 
   const resetAiGoalCreationState = useCallback(() => {
     setCreateGoalText("");
-    setCreateGoalMode("ai");
     setIsAiGoalCreationGuardActive(false);
     setPendingNavigation(null);
   }, []);
@@ -245,10 +243,9 @@ export default function Home() {
   const requestNavigation = useCallback(
     (navigation: PendingNavigation) => {
       const shouldGuardNavigation =
-        currentView === "create-goal" &&
-        createGoalMode === "ai" &&
+        (currentView === "create-goal" || currentView === "create-goal-manual") &&
         isAiGoalCreationGuardActive &&
-        navigation.view !== "create-goal";
+        navigation.view !== currentView;
 
       if (shouldGuardNavigation) {
         setPendingNavigation(navigation);
@@ -258,7 +255,6 @@ export default function Home() {
       executeNavigation(navigation);
     },
     [
-      createGoalMode,
       currentView,
       executeNavigation,
       isAiGoalCreationGuardActive,
@@ -267,8 +263,7 @@ export default function Home() {
 
   useEffect(() => {
     const shouldWarnBeforeUnload =
-      currentView === "create-goal" &&
-      createGoalMode === "ai" &&
+      (currentView === "create-goal" || currentView === "create-goal-manual") &&
       isAiGoalCreationGuardActive;
 
     if (!shouldWarnBeforeUnload) return;
@@ -282,7 +277,7 @@ export default function Home() {
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [createGoalMode, currentView, isAiGoalCreationGuardActive]);
+  }, [currentView, isAiGoalCreationGuardActive]);
 
   const refetchUser = async () => {
     const {
@@ -325,11 +320,11 @@ export default function Home() {
       <div
         className={`mx-auto flex min-h-0 w-full max-w-7xl 2xl:max-w-[1600px] flex-col items-center px-2 min-[400px]:px-3 sm:px-6 lg:px-12 pt-[max(0.75rem,env(safe-area-inset-top))] sm:pt-6 lg:pt-8 lg:pl-28 rtl:lg:pl-12 rtl:lg:pr-28
           ${
-            currentView === "home"
+            currentView === "home" || currentView === "create-goal"
               ? "min-h-[100dvh] flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:pb-24 lg:pb-12"
               : isDashboardView
                 ? "h-[calc(100dvh_-_5rem_-_env(safe-area-inset-bottom))] shrink-0 overflow-hidden pb-0 sm:h-[calc(100dvh_-_6rem)] lg:h-[100dvh] lg:pb-12"
-                : "flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:pb-24 lg:pb-12"
+                : "min-h-[100dvh] flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:pb-24 lg:pb-12"
           }
           ${loading ? "justify-center" : "justify-start"}`}
       >
@@ -360,8 +355,11 @@ export default function Home() {
                   setPendingNavigation(null);
                   setIsAiGoalCreationGuardActive(false);
                   setCreateGoalText(goalText);
-                  setCreateGoalMode(mode);
-                  setCurrentView("create-goal");
+                  if (mode === "manual") {
+                    setCurrentView("create-goal-manual");
+                  } else {
+                    setCurrentView("create-goal");
+                  }
                 }}
                 onGoalUpdated={fetchGoals}
                 language={language}
@@ -371,46 +369,27 @@ export default function Home() {
             {/* Other Views (Rendered on demand) */}
             {currentView === "create-goal" ? (
               <div
-                className={`w-full ${createGoalMode === "manual" ? "max-w-4xl" : "max-w-2xl"} mx-auto`}
+                className="w-full max-w-2xl mx-auto my-auto flex flex-col justify-center"
               >
-                {createGoalMode === "manual" ? (
-                  <ManualGoalCreator
-                    initialData={{ title: createGoalText }}
-                    language={language}
-                    onComplete={() => {
-                      fetchGoals();
-                      setCreateGoalText("");
-                      setCreateGoalMode("ai");
-                      setTimeout(async () => {
-                        const { data } = await supabase
-                          .from("goals")
-                          .select("*")
-                          .order("created_at", { ascending: false })
-                          .limit(1);
-                        if (data && data[0]) {
-                          setSelectedGoalId(data[0].id);
-                          setCurrentView("dashboard");
-                        } else {
-                          setCurrentView("home");
-                        }
-                      }, 500);
-                    }}
-                    onCancel={() => {
-                      setCreateGoalText("");
-                      setCreateGoalMode("ai");
-                      setIsAiGoalCreationGuardActive(false);
-                      setCurrentView("home");
-                    }}
-                  />
-                ) : (
-                  <GoalCreatorPage
-                    initialGoalText={createGoalText}
-                    language={language}
-                    onGuardStateChange={setIsAiGoalCreationGuardActive}
-                    onComplete={handleGoalCreationComplete}
-                    onCancel={() => requestNavigation({ view: "home" })}
-                  />
-                )}
+                <GoalCreatorPage
+                  initialGoalText={createGoalText}
+                  language={language}
+                  onGuardStateChange={setIsAiGoalCreationGuardActive}
+                  onComplete={handleGoalCreationComplete}
+                  onCancel={() => requestNavigation({ view: "home" })}
+                />
+              </div>
+            ) : currentView === "create-goal-manual" ? (
+              <div
+                className="w-full max-w-3xl mx-auto my-auto flex flex-col justify-center"
+              >
+                <ManualGoalCreatorPage
+                  initialGoalText={createGoalText}
+                  language={language}
+                  onGuardStateChange={setIsAiGoalCreationGuardActive}
+                  onComplete={handleGoalCreationComplete}
+                  onCancel={() => requestNavigation({ view: "goals" })}
+                />
               </div>
             ) : currentView === "goals" ? (
               <GoalsList
@@ -435,8 +414,13 @@ export default function Home() {
                   setPendingNavigation(null);
                   setIsAiGoalCreationGuardActive(false);
                   setCreateGoalText("");
-                  setCreateGoalMode("ai");
                   setCurrentView("create-goal");
+                }}
+                onNavigateToManualCreate={() => {
+                  setPendingNavigation(null);
+                  setIsAiGoalCreationGuardActive(false);
+                  setCreateGoalText("");
+                  setCurrentView("create-goal-manual");
                 }}
                 language={language}
               />
@@ -447,22 +431,42 @@ export default function Home() {
                 setLanguage={setLanguage}
                 goals={goals}
                 onProfileUpdated={refetchUser}
+                onSelectGoal={(id) => {
+                  setSelectedGoalId(id);
+                  setCurrentView("dashboard");
+                }}
+                onNavigateToCreate={() => {
+                  setPendingNavigation(null);
+                  setIsAiGoalCreationGuardActive(false);
+                  setCreateGoalText("");
+                  setCurrentView("create-goal");
+                }}
                 onGoalsDeleted={() => {
                   fetchGoals();
                   setSelectedGoalId(null);
                   setCurrentView("home");
                 }}
               />
-            ) : currentView === "dashboard" && selectedGoal ? (
-              <div className="flex min-h-0 w-full flex-1">
+            ) : null}
+
+            {/* Persistent Dashboard View (Kept mounted to eliminate remount delay, flicker, and keep focus timer ticking) */}
+            {selectedGoal && (
+              <div
+                className={cn(
+                  "flex min-h-0 w-full flex-1",
+                  currentView === "dashboard" ? "flex flex-col" : "hidden"
+                )}
+              >
                 <Dashboard
+                  key={selectedGoal.id}
                   goal={selectedGoal}
                   language={language}
                   onGoalUpdated={fetchGoals}
                   onLogModalChange={setIsProgressLogOpen}
+                  isActive={currentView === "dashboard"}
                 />
               </div>
-            ) : null}
+            )}
           </>
         )}
       </div>

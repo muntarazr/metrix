@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Clock, Target, Trash2, MoreVertical, Pin, PinOff, Edit2, ListChecks, BarChart3, Plus } from 'lucide-react';
+import { Clock, Target, Trash2, MoreVertical, Pin, PinOff, Edit2, ListChecks, BarChart3, Plus, ChevronDown, Edit3, Sparkles } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { translations, type Language } from '@/lib/translations';
 import {
     DropdownMenu,
@@ -42,10 +43,11 @@ interface GoalsListProps {
     onSelectGoal: (id: string) => void;
     onGoalChanged?: () => void;
     onNavigateToCreate?: () => void;
+    onNavigateToManualCreate?: () => void;
     language?: Language;
 }
 
-export default function GoalsList({ goals, taskStatsMap = {}, selectedGoalId, onSelectGoal, onGoalChanged, onNavigateToCreate, language = 'ar' }: GoalsListProps) {
+export default function GoalsList({ goals, taskStatsMap = {}, selectedGoalId, onSelectGoal, onGoalChanged, onNavigateToCreate, onNavigateToManualCreate, language = 'ar' }: GoalsListProps) {
     const t = translations[language];
     const isArabic = language === 'ar';
     const supabase = createClient();
@@ -128,24 +130,92 @@ export default function GoalsList({ goals, taskStatsMap = {}, selectedGoalId, on
                         </button>
                     </div>
 
-                    {onNavigateToCreate && (
-                        <button
-                            onClick={onNavigateToCreate}
-                            className="flex h-11 items-center gap-1.5 px-3 sm:px-4 rounded-xl border border-primary/20 bg-primary/10 text-primary hover:bg-primary/15 active:scale-95 text-xs sm:text-sm font-bold transition-all shrink-0 shadow-2xs"
-                        >
-                            <Plus className="w-4 h-4" />
-                            <span>{isArabic ? "هدف جديد" : "New Goal"}</span>
-                        </button>
+                    {/* New Goal Dropdown (Manual or AI) */}
+                    {(onNavigateToManualCreate || onNavigateToCreate) && (
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <button
+                                    type="button"
+                                    className="h-11 px-3 sm:px-4 rounded-xl font-bold flex items-center gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm active:scale-95 transition-all text-xs sm:text-sm cursor-pointer select-none shrink-0"
+                                    aria-label={isArabic ? 'إضافة هدف جديد' : 'New Goal'}
+                                >
+                                    <Plus className="w-4 h-4 shrink-0" />
+                                    <span>{t.newGoal || (isArabic ? 'هدف جديد' : 'New Goal')}</span>
+                                    <ChevronDown className="w-3.5 h-3.5 opacity-70 shrink-0" />
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align={isArabic ? 'start' : 'end'} className="w-56 p-1.5">
+                                {onNavigateToManualCreate && (
+                                    <DropdownMenuItem
+                                        onClick={onNavigateToManualCreate}
+                                        className="cursor-pointer gap-2.5 font-medium py-2 rounded-lg"
+                                    >
+                                        <div className="w-7 h-7 rounded-lg bg-primary/12 text-primary flex items-center justify-center shrink-0">
+                                            <Edit3 className="w-4 h-4" />
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="font-bold text-xs sm:text-sm text-foreground">{t.addManualGoal || (isArabic ? 'إضافة هدف يدوي' : 'Add Manual Goal')}</span>
+                                            <span className="text-[10px] text-muted-foreground">{isArabic ? 'أنت تحدد المعايير والمهام' : 'Set your own criteria & tasks'}</span>
+                                        </div>
+                                    </DropdownMenuItem>
+                                )}
+                                {onNavigateToCreate && (
+                                    <>
+                                        {onNavigateToManualCreate && <DropdownMenuSeparator className="my-1" />}
+                                        <DropdownMenuItem
+                                            onClick={onNavigateToCreate}
+                                            className="cursor-pointer gap-2.5 font-medium py-2 rounded-lg"
+                                        >
+                                            <div className="w-7 h-7 rounded-lg bg-primary/12 text-primary flex items-center justify-center shrink-0">
+                                                <Sparkles className="w-4 h-4" />
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-xs sm:text-sm text-foreground">{isArabic ? 'هدف بالذكاء الاصطناعي' : 'AI Goal Plan'}</span>
+                                                <span className="text-[10px] text-muted-foreground">{isArabic ? 'توليد واستكشاف ذكي' : 'Intelligent plan generation'}</span>
+                                            </div>
+                                        </DropdownMenuItem>
+                                    </>
+                                )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     )}
                 </div>
 
                 {goals.length === 0 && activeTab === 'goals' ? (
                     <div className="flex-1 min-h-0 flex items-center justify-center">
-                        <div className="flex flex-col items-center justify-center text-center p-8 sm:p-12 bg-card/12 rounded-2xl border border-dashed border-border gap-3">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-border/70 bg-muted/20">
-                                <Target className="w-6 h-6 text-muted-foreground/75" />
+                        <div className="flex flex-col items-center justify-center text-center p-8 sm:p-12 bg-card/12 rounded-2xl border border-dashed border-border gap-4 max-w-md mx-auto">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border/70 bg-muted/20">
+                                <Target className="w-7 h-7 text-muted-foreground/75" />
                             </div>
-                            <p className="text-muted-foreground/75 font-medium text-base">{t.noGoalsYet}</p>
+                            <div className="space-y-1">
+                                <p className="text-foreground font-bold text-base sm:text-lg">{t.noGoalsYet}</p>
+                                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                                    {isArabic
+                                        ? 'ابدأ الآن بإنشاء هدفك الأول سواء بتحديد معاييرك يدوياً أو بمساعدة الذكاء الاصطناعي.'
+                                        : 'Start your journey by defining your goal manually or with AI guidance.'}
+                                </p>
+                            </div>
+                            <div className="flex flex-col sm:flex-row items-center gap-2 w-full pt-1">
+                                {onNavigateToManualCreate && (
+                                    <Button
+                                        onClick={onNavigateToManualCreate}
+                                        className="w-full sm:flex-1 h-10 rounded-xl font-bold gap-2 text-xs sm:text-sm"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        <span>{t.addManualGoal || (isArabic ? 'إضافة هدف يدوي' : 'Add Manual Goal')}</span>
+                                    </Button>
+                                )}
+                                {onNavigateToCreate && (
+                                    <Button
+                                        onClick={onNavigateToCreate}
+                                        variant="outline"
+                                        className="w-full sm:flex-1 h-10 rounded-xl font-bold gap-2 text-xs sm:text-sm"
+                                    >
+                                        <Sparkles className="w-4 h-4 text-primary" />
+                                        <span>{isArabic ? 'بالذكاء الاصطناعي' : 'With AI'}</span>
+                                    </Button>
+                                )}
+                            </div>
                         </div>
                     </div>
                 ) : activeTab === 'goals' ? (

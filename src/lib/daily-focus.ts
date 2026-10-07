@@ -43,7 +43,7 @@ export interface DailyFocusEntryRow {
   answered_at?: string | null;
 }
 
-export type DailyFocusSupportType = 'goal_task' | 'external_booster';
+export type DailyFocusSupportType = 'goal_task' | 'external_booster' | 'task_adjustment';
 
 export interface DailyFocusSuggestion {
   id: string;
@@ -55,7 +55,9 @@ export interface DailyFocusSuggestion {
   impact_weight: number;
   target_type: DailyFocusSuggestionTarget;
   parent_task_id: string | null;
+  target_task_id?: string | null;
   support_type: DailyFocusSupportType;
+  adjusted_time_required?: number | null;
 }
 
 export interface DailyFocusResult {
@@ -65,6 +67,7 @@ export interface DailyFocusResult {
   question: string;
   question_why: string;
   answer_coaching: string;
+  quick_options?: string[];
   suggestions: DailyFocusSuggestion[];
   suggestions_unlocked: boolean;
   answered_days_count: number;
@@ -131,7 +134,21 @@ function normalizeSuggestion(
 
   const rawSupport = value.support_type;
   const supportType: DailyFocusSupportType =
-    rawSupport === 'external_booster' ? 'external_booster' : 'goal_task';
+    rawSupport === 'task_adjustment'
+      ? 'task_adjustment'
+      : rawSupport === 'external_booster'
+        ? 'external_booster'
+        : 'goal_task';
+
+  const targetTaskId =
+    typeof value.target_task_id === 'string' && value.target_task_id.trim()
+      ? value.target_task_id.trim()
+      : null;
+
+  const adjustedTime =
+    typeof value.adjusted_time_required === 'number'
+      ? value.adjusted_time_required
+      : null;
 
   return {
     id:
@@ -148,7 +165,11 @@ function normalizeSuggestion(
     emoji:
       typeof value.emoji === 'string' && value.emoji.trim()
         ? value.emoji.trim()
-        : supportType === 'external_booster' ? '⚡' : '🎯',
+        : supportType === 'task_adjustment'
+          ? '🛠️'
+          : supportType === 'external_booster'
+            ? '⚡'
+            : '🎯',
     frequency: normalizeFrequency(value.frequency),
     impact_weight: clamp(rawWeight, 1, maxWeight),
     target_type: supportType === 'external_booster' ? 'main' : targetType,
@@ -158,7 +179,9 @@ function normalizeSuggestion(
         : targetType === 'sub' && typeof value.parent_task_id === 'string'
           ? value.parent_task_id
           : null,
+    target_task_id: targetTaskId,
     support_type: supportType,
+    adjusted_time_required: adjustedTime,
   };
 }
 
@@ -178,7 +201,21 @@ export function normalizeDailyFocusResult(
     ? value.suggestions
     : Array.isArray(value.suggested_tasks)
       ? value.suggested_tasks
-      : [];
+      : isRecord(value.suggestions) && Array.isArray(value.suggestions.items)
+        ? value.suggestions.items
+        : [];
+
+  const rawQuickOptions = Array.isArray(value.quick_options)
+    ? value.quick_options
+    : Array.isArray(value.options)
+      ? value.options
+      : isRecord(value.suggestions) && Array.isArray(value.suggestions.quick_options)
+        ? value.suggestions.quick_options
+        : [];
+
+  const quick_options = rawQuickOptions
+    .filter((opt): opt is string => typeof opt === 'string' && opt.trim().length > 0)
+    .map((opt) => opt.trim());
 
   return {
     status,
@@ -199,6 +236,7 @@ export function normalizeDailyFocusResult(
       typeof value.answer_coaching === 'string'
         ? value.answer_coaching.trim()
         : '',
+    quick_options,
     suggestions_unlocked: Boolean(value.suggestions_unlocked),
     answered_days_count: Math.max(0, Number(value.answered_days_count) || 0),
     required_answer_days: Math.max(
@@ -278,10 +316,27 @@ export function buildDailyFocusSessionFromRow(
     requiredAnswerDays?: number;
   },
 ): DailyFocusSession {
-  const normalizedSuggestions =
-    (Array.isArray(row.suggestions) ? row.suggestions : []).map((item, index) =>
-      normalizeSuggestion(item, index),
-    ).filter((item): item is DailyFocusSuggestion => Boolean(item));
+  let rawSuggestions: unknown[] = [];
+  let quickOptions: string[] = [];
+
+  if (Array.isArray(row.suggestions)) {
+    rawSuggestions = row.suggestions;
+  } else if (isRecord(row.suggestions)) {
+    if (Array.isArray(row.suggestions.items)) {
+      rawSuggestions = row.suggestions.items;
+    } else if (Array.isArray(row.suggestions.suggestions)) {
+      rawSuggestions = row.suggestions.suggestions;
+    }
+    if (Array.isArray(row.suggestions.quick_options)) {
+      quickOptions = row.suggestions.quick_options
+        .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+        .map((item) => item.trim());
+    }
+  }
+
+  const normalizedSuggestions = rawSuggestions
+    .map((item, index) => normalizeSuggestion(item, index))
+    .filter((item): item is DailyFocusSuggestion => Boolean(item));
 
   const requiredAnswerDays = Math.max(
     1,
@@ -297,6 +352,7 @@ export function buildDailyFocusSessionFromRow(
     question: row.question,
     question_why: row.question_why || '',
     answer_coaching: row.answer_coaching || '',
+    quick_options: quickOptions,
     suggestions: normalizedSuggestions,
     suggestions_unlocked: answeredDaysCount >= requiredAnswerDays,
     answered_days_count: answeredDaysCount,

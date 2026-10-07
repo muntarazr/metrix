@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { requireUser } from '@/lib/api-auth';
-import { GeminiService, GeminiQuotaError } from '@/lib/gemini';
+import { GeminiQuotaError } from '@/lib/gemini';
+import { PlanArchitectService } from '@/lib/plan-architect.service';
 import { requireAiQuota } from '@/lib/ai-quota';
 import { rejectIfContentLengthTooLarge, rejectIfJsonBodyTooLarge } from '@/lib/request-limits';
 
@@ -16,13 +17,15 @@ export async function POST(req: NextRequest) {
         const bodyGuard = rejectIfJsonBodyTooLarge(body);
         if (bodyGuard) return bodyGuard;
 
-        const { goal, answers, targetDeadline, structured_input } = body;
+        const { goal, answers, structured_input } = body;
+        const targetDeadline = body.targetDeadline || body.target_deadline || undefined;
         const quotaResponse = await requireAiQuota(auth.supabase, 'gemini', 'plan');
         if (quotaResponse) return quotaResponse;
 
-        const result = await GeminiService.createPlan(goal, answers, targetDeadline, structured_input);
+        const result = await PlanArchitectService.createSequentialPlan(goal, answers, targetDeadline, structured_input);
         return NextResponse.json(result);
     } catch (error: any) {
+        console.error("API plan error:", error);
         if (error instanceof GeminiQuotaError) {
             return NextResponse.json({
                 error: 'quota_exceeded',
@@ -31,6 +34,6 @@ export async function POST(req: NextRequest) {
                 retryAfterSeconds: error.retryAfterSeconds
             }, { status: 429 });
         }
-        return NextResponse.json({ error: 'Failed to create plan' }, { status: 500 });
+        return NextResponse.json({ error: error?.message || 'Failed to create plan' }, { status: 500 });
     }
 }

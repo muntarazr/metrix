@@ -66,3 +66,37 @@ export function getGoalEndDaysChip(
       : `${lateLabel} day${late === 1 ? '' : 's'} past goal end (${endDateLabel})`,
   };
 }
+
+export const SUGGESTIONS_REQUIRED_DAYS = 5;
+
+/** Calendar-day difference: today minus goal created_at date (negative or 0 = today). */
+export function calendarDaysSinceGoalCreation(createdIsoDate: string | undefined | null): number {
+  if (!createdIsoDate) return 0;
+  const created = new Date(createdIsoDate);
+  if (Number.isNaN(created.getTime())) return 0;
+  created.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diffDays = Math.floor((today.getTime() - created.getTime()) / 86400000);
+  return Math.max(0, diffDays);
+}
+
+export function getSuggestionsUnlockStatus(createdIsoDate: string | undefined | null): {
+  isLocked: boolean;
+  daysPassed: number;
+  daysRemaining: number;
+  requiredDays: number;
+} {
+  const daysPassed = calendarDaysSinceGoalCreation(createdIsoDate);
+  const requiredDays = SUGGESTIONS_REQUIRED_DAYS;
+  const isLocked = daysPassed < requiredDays;
+  const daysRemaining = Math.max(0, requiredDays - daysPassed);
+
+  return {
+    isLocked,
+    daysPassed,
+    daysRemaining,
+    requiredDays,
+  };
+}
+

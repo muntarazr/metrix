@@ -98,6 +98,6 @@ export const config = {
      * visitor, and the browser gets an HTML page where it expects JSON — so
      * the install metadata (name, icons, theme colour) silently never loads.
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|webmanifest)$).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|webmanifest|html)$).*)',
   ],
 };

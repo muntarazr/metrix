@@ -42,15 +42,14 @@
 export const PANEL_BASE = "bg-card shadow-sm transition-shadow";
 
 /**
- * Chrome for a panel: border, surface, elevation in Duolingo style (border-2, clean shadow).
+ * Chrome for a panel: crisp 1px border, refined surface, subtle elevation in Rare UI minimalist style.
  */
-export const PANEL_SURFACE = "border-2 border-border/80 bg-card shadow-sm transition-shadow";
+export const PANEL_SURFACE = "border border-border/70 bg-card shadow-xs transition-shadow";
 
 /**
- * A recessed slot inside a panel. Uses the bg-surface token so it is genuinely
- * recessed below the raised pure white card in light mode, and darker in dark mode.
+ * A recessed slot inside a panel. Uses the bg-surface token with clean 1px border.
  */
-export const WELL_SURFACE = "border-2 border-border/70 bg-surface";
+export const WELL_SURFACE = "border border-border/60 bg-surface";
 
 /** Same recess without its own border, for slots that are separated by spacing alone. */
 export const WELL_SURFACE_BARE = "bg-surface";

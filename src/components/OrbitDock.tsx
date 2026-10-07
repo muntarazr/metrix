@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Home, Settings, Target } from 'lucide-react';
+import { Home, User, Target } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getIconComponent } from './goal/IconPicker';
 import {
@@ -28,13 +28,13 @@ const DockItem = ({ icon: Icon, label, isActive, onClick }: DockItemProps) => {
                         onClick={onClick}
                         aria-label={label}
                         className={cn(
-                              "group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl transition-all duration-150 ease-out after:absolute after:-inset-1 cursor-pointer select-none",
+                              "group relative flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-150 ease-out cursor-pointer select-none active:scale-95",
                               isActive
-                                  ? "bg-primary text-primary-foreground shadow-[0_3px_0_0_color-mix(in_oklch,var(--primary)_70%,black)] active:translate-y-[2px]"
-                                  : "bg-card text-muted-foreground border-2 border-border/70 shadow-[0_2px_0_0_var(--border)] hover:-translate-y-0.5 hover:bg-muted/60 hover:text-foreground active:translate-y-[1px]"
+                                  ? "bg-primary text-primary-foreground shadow-xs shadow-primary/25 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)]"
+                                  : "bg-card text-muted-foreground border border-border/70 shadow-xs hover:bg-muted/80 hover:text-foreground"
                         )}
                     >
-                        <Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
+                        <Icon className="h-[18px] w-[18px] sm:h-5 sm:w-5" />
                     </button>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="bg-popover text-popover-foreground border-border shadow-md">
@@ -78,7 +78,7 @@ export default function OrbitDock({
 
     return (
         <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex h-[calc(5rem+env(safe-area-inset-bottom))] w-full items-end justify-center px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] transition-all duration-500 sm:h-24 lg:inset-x-auto lg:bottom-auto lg:left-6 lg:top-1/2 lg:h-auto lg:w-auto lg:max-w-none lg:-translate-y-1/2 lg:px-0 lg:pb-0 rtl:lg:left-auto rtl:lg:right-6 rtl:lg:translate-x-0">
-            <div className="pointer-events-auto relative flex max-w-full items-center gap-1.5 overflow-x-auto rounded-[2rem] border-2 border-border/80 bg-card/95 px-2 pb-2.5 pt-2 shadow-lg backdrop-blur-xl transition-all duration-300 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden min-[400px]:gap-2 min-[400px]:px-2.5 min-[480px]:w-full min-[480px]:justify-center sm:w-auto sm:justify-start sm:gap-2.5 sm:px-3 sm:pb-3 sm:pt-2.5 lg:max-h-[calc(100dvh-4rem)] lg:flex-col lg:overflow-x-hidden lg:overflow-y-auto lg:px-2.5 lg:py-3">
+            <div className="pointer-events-auto relative flex max-w-full items-center gap-1.5 overflow-x-auto rounded-2xl border border-border/70 bg-card/95 px-2 pb-2 pt-2 shadow-md backdrop-blur-xl transition-all duration-300 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden min-[400px]:gap-2 min-[400px]:px-2.5 min-[480px]:w-full min-[480px]:justify-center sm:w-auto sm:justify-start sm:gap-2.5 sm:px-3 sm:pb-2.5 sm:pt-2 lg:max-h-[calc(100dvh-4rem)] lg:flex-col lg:overflow-x-hidden lg:overflow-y-auto lg:px-2 lg:py-2.5">
                 <DockItem
                     icon={Home}
                     label={language === 'ar' ? 'الرئيسية' : 'Home'}
@@ -89,7 +89,7 @@ export default function OrbitDock({
                 <DockItem
                     icon={Target}
                     label={t.myGoals}
-                    isActive={activeTab === 'goals'}
+                    isActive={activeTab === 'goals' || activeTab === 'create-goal-manual'}
                     onClick={() => handleTabChange('goals')}
                 />
 
@@ -119,8 +119,8 @@ export default function OrbitDock({
                 )}
 
                 <DockItem
-                    icon={Settings}
-                    label={t.orbitSettings}
+                    icon={User}
+                    label={t.orbitProfile}
                     isActive={activeTab === 'settings'}
                     onClick={() => handleTabChange('settings')}
                 />

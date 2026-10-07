@@ -109,7 +109,7 @@ export default function WeeklyReviewCard({
 
   return (
     <div
-      className={cn(PANEL_SURFACE, "rounded-2xl p-3.5")}
+      className={cn(PANEL_SURFACE, "rounded-2xl p-2.5")}
       dir={isArabic ? "rtl" : "ltr"}
     >
       <div className="flex items-center justify-between gap-2">
@@ -126,10 +126,10 @@ export default function WeeklyReviewCard({
           onClick={generate}
           disabled={generating || loading}
           className={cn(
-            "inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-extrabold transition-all duration-150 cursor-pointer active:translate-y-[1px] disabled:opacity-50",
+            "inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-all duration-150 cursor-pointer active:scale-95 disabled:opacity-50",
             review
-              ? "border-2 border-border/80 bg-card text-foreground shadow-[0_2px_0_0_var(--border)] active:shadow-none hover:bg-accent"
-              : "bg-primary text-primary-foreground shadow-[0_2px_0_0_color-mix(in_oklch,var(--primary)_70%,black)] hover:brightness-105 active:shadow-none",
+              ? "border border-border/70 bg-card text-foreground shadow-xs hover:bg-accent"
+              : "bg-primary text-primary-foreground shadow-xs shadow-primary/20 hover:bg-primary/90",
           )}
         >
           {generating ? (
@@ -173,7 +173,7 @@ export default function WeeklyReviewCard({
               {review.patterns.map((pattern, index) => (
                 <li
                   key={`${pattern.label}-${index}`}
-                  className="rounded-xl border-2 border-border/80 bg-muted/30 px-3 py-2 shadow-xs"
+                  className="rounded-lg border border-border/70 bg-muted/30 px-3 py-2 shadow-xs"
                 >
                   <p className="text-[11px] font-black text-foreground">
                     {pattern.label}
@@ -189,7 +189,7 @@ export default function WeeklyReviewCard({
           )}
 
           {review.suggestion && (
-            <p className="rounded-xl border-2 border-primary/30 bg-primary/10 px-3 py-2 text-xs font-bold leading-relaxed text-primary shadow-xs">
+            <p className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs font-medium leading-relaxed text-primary shadow-xs">
               {review.suggestion}
             </p>
           )}

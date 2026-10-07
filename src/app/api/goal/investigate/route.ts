@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { requireUser } from '@/lib/api-auth';
-import { GeminiService, GeminiQuotaError } from '@/lib/gemini';
+import { GeminiQuotaError } from '@/lib/gemini';
+import { PlanArchitectService } from '@/lib/plan-architect.service';
 import { requireAiQuota } from '@/lib/ai-quota';
 import { rejectIfContentLengthTooLarge, rejectIfJsonBodyTooLarge } from '@/lib/request-limits';
 
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest) {
         const quotaResponse = await requireAiQuota(auth.supabase, 'gemini', 'investigate');
         if (quotaResponse) return quotaResponse;
 
-        const result = await GeminiService.investigateGoal(goal, context, structured_input);
+        const result = await PlanArchitectService.investigateGoal(goal, context, structured_input);
         return NextResponse.json(result);
     } catch (error: any) {
         console.error("API investigate error:", error);

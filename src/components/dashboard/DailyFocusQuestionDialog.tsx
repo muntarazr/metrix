@@ -209,32 +209,84 @@ export default function DailyFocusQuestionDialog({
 
             {/* Answer area */}
             <div className="px-5 pt-3 pb-2 sm:px-7">
-              <label 
-                htmlFor="daily-focus-dialog-answer"
-                className="mb-1.5 block text-start text-[10px] font-bold ltr:uppercase ltr:tracking-[0.18em] rtl:tracking-normal text-muted-foreground/90 sm:text-[11px]"
-              >
-                {t.answerQuestion}
-              </label>
+              {/* Dynamic Quick Options Chips */}
+              {dailyFocus?.quick_options && dailyFocus.quick_options.length > 0 && (
+                <div className="mb-3 space-y-1.5">
+                  <p className="text-start text-[10px] font-bold ltr:uppercase ltr:tracking-wider rtl:tracking-normal text-muted-foreground/80 sm:text-[11px]">
+                    {isArabic ? "خيارات سريعة (اختر مباشرة أو اكتب أدناه):" : "Quick Options (tap to pick or write below):"}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {dailyFocus.quick_options.map((option, idx) => {
+                      const isSelected = answer.trim() === option.trim();
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            if (isSelected) {
+                              onAnswerChange("");
+                            } else {
+                              onAnswerChange(option);
+                            }
+                          }}
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all active:scale-95 text-start cursor-pointer",
+                            isSelected
+                              ? "border-primary bg-primary text-primary-foreground shadow-xs ring-2 ring-primary/20"
+                              : "border-border/80 bg-muted/30 hover:bg-muted/60 text-foreground/90 hover:border-primary/40",
+                          )}
+                        >
+                          <span>{option}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between mb-1.5">
+                <label 
+                  htmlFor="daily-focus-dialog-answer"
+                  className="block text-start text-[10px] font-bold ltr:uppercase ltr:tracking-[0.18em] rtl:tracking-normal text-muted-foreground/90 sm:text-[11px]"
+                >
+                  {t.answerQuestion}
+                </label>
+                <span className="text-[10px] font-medium text-muted-foreground/60">
+                  {isArabic ? "بحد أقصى 5 أسطر" : "Max 5 lines"}
+                </span>
+              </div>
 
               <div className="relative">
                 <textarea
                   id="daily-focus-dialog-answer"
                   value={answer}
-                  onChange={(e) => onAnswerChange(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const lines = val.split("\n");
+                    if (lines.length > 5) {
+                      onAnswerChange(lines.slice(0, 5).join("\n"));
+                    } else {
+                      onAnswerChange(val);
+                    }
+                  }}
                   onKeyDown={(e) => {
                     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
                       e.preventDefault();
                       if (!submitDisabled) onSubmit();
                     }
                   }}
-                  placeholder={t.answerQuestionPlaceholder}
+                  placeholder={
+                    isArabic
+                      ? "اكتب جوابك باختصار (حتى 5 أسطر) أو اختر من الخيارات أعلاه..."
+                      : "Write your answer briefly (up to 5 lines) or choose an option above..."
+                  }
                   disabled={loading || submitting}
                   rows={3}
                   className={cn(
-                    "w-full resize-none rounded-2xl border-2 border-border/70 bg-muted/20",
-                    "min-h-[7.5rem] sm:min-h-[9rem]",
-                    "px-4 py-3.5 pb-14 pe-14",
-                    "text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/50 sm:text-[15px]",
+                    "w-full resize-none rounded-xl border border-border/70 bg-muted/20",
+                    "min-h-[6.5rem] sm:min-h-[7.5rem]",
+                    "px-4 py-3 pb-12 pe-14",
+                    "text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/50 sm:text-[14px]",
                     "text-start outline-none transition-all duration-200",
                     "focus:border-primary/25 focus:bg-background focus:ring-4 focus:ring-primary/15",
                     "dark:bg-white/5 dark:border-white/5 dark:focus:bg-white/10",
@@ -246,7 +298,7 @@ export default function DailyFocusQuestionDialog({
                 {/* Mic: inset-inline-end follows RTL/LTR */}
                 <div
                   className={cn(
-                    "absolute bottom-3 end-3 flex flex-col",
+                    "absolute bottom-2.5 end-2.5 flex flex-col",
                     isArabic ? "items-start" : "items-end",
                   )}
                 >

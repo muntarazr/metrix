@@ -1,752 +1,315 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
-import { ChevronDown, ChevronUp, Crown, LockKeyhole, Star } from 'lucide-react';
-import { BrandMark } from '@/components/brand/Logo';
+import { useMemo, useState } from 'react';
+import {
+  Crown,
+  Lock,
+  Check,
+  Gift,
+  Snowflake,
+  Zap,
+  ChevronDown,
+  ChevronUp,
+  Sparkles,
+  Trophy,
+} from 'lucide-react';
 import type { Language } from '@/lib/translations';
 import { cn } from '@/lib/utils';
-import { cardClass } from './challenge-types';
 
-interface RewardsSectionProps {
+export interface RewardsSectionProps {
   goalId: string;
   currentPoints: number;
   targetPoints: number;
   language: Language;
   numberFormatter: Intl.NumberFormat;
   t: {
-    challengeRewards: string;
-    challengeRewardsDesc: string;
-    challengeRewardsCurrentPoints: string;
-    challengeRewardsGoalScale: string;
-    challengeRewardsCurrentRank: string;
-    challengeRewardsNextReward: string;
-    challengeRewardsOpened: string;
-    challengeRewardsTapToOpen: string;
-    challengeRewardsLockedHint: string;
-    challengeRewardsUnknown: string;
-    challengeRewardsReady: string;
-    challengeRewardsDeckComplete: string;
-    challengeRewardsOpenedHint: string;
-    points: string;
+    challengeRewards?: string;
+    points?: string;
+    [key: string]: any;
   };
 }
 
-interface RankDefinition {
-  key: string;
-  basePoints: number;
-  title: Record<Language, string>;
-  description: Record<Language, string>;
-  palette: {
-    accent: string;
-    secondary: string;
-    ink: string;
-    metal: string;
-  };
+interface LevelStep {
+  level: number;
+  percent: number;
+  titleAr: string;
+  titleEn: string;
+  descAr: string;
+  descEn: string;
+  icon: 'spark' | 'reward' | 'freeze' | 'surge' | 'momentum' | 'mastery';
+  badgeAr?: string;
+  badgeEn?: string;
 }
 
-interface RewardStage extends RankDefinition {
-  id: string;
-  threshold: number;
-  isUnlocked: boolean;
-}
-
-const MATRIX_RANKS: RankDefinition[] = [
+const LEVEL_STEPS: LevelStep[] = [
   {
-    key: 'sleeper',
-    basePoints: 0,
-    title: { en: 'The Sleeper', ar: 'النائم' },
-    description: { en: 'Still caught in old habits.', ar: 'عالق في العادات القديمة.' },
-    palette: { accent: '148, 163, 184', secondary: '71, 85, 105', ink: '15, 23, 42', metal: '226, 232, 240' },
+    level: 1,
+    percent: 0,
+    titleAr: 'الشرارة الأولى',
+    titleEn: 'The Spark',
+    descAr: 'بداية الرحلة والانطلاق نحو النتيجة المرجوة',
+    descEn: 'The journey begins towards your target',
+    icon: 'spark',
   },
   {
-    key: 'committed',
-    basePoints: 2000,
-    title: { en: 'The Committed', ar: 'الملتزم' },
-    description: { en: 'Taking your goal seriously.', ar: 'تأخذ أهدافك بجدية.' },
-    palette: { accent: '96, 165, 250', secondary: '59, 130, 246', ink: '30, 64, 175', metal: '219, 234, 254' },
+    level: 2,
+    percent: 15,
+    titleAr: 'المكافأة الذاتية',
+    titleEn: 'Self-Reward',
+    descAr: 'استحقاق أول مكافأة شخصية للاحتفال بالتزامك',
+    descEn: 'Unlock your first personal celebration treat',
+    icon: 'reward',
+    badgeAr: '🎁 مكافأة ذاتية',
+    badgeEn: '🎁 Self-Reward',
   },
   {
-    key: 'disciplined',
-    basePoints: 5000,
-    title: { en: 'The Disciplined', ar: 'المنضبط' },
-    description: { en: 'True discipline takes over.', ar: 'يبدأ الانضباط الحقيقي.' },
-    palette: { accent: '52, 211, 153', secondary: '16, 185, 129', ink: '6, 78, 59', metal: '209, 250, 229' },
+    level: 3,
+    percent: 30,
+    titleAr: 'درع الانضباط',
+    titleEn: 'Tactical Shield',
+    descAr: 'كسب تصريح يوم راحة تكتيكي لحماية الاستمرارية',
+    descEn: 'Earn a tactical rest day freeze pass',
+    icon: 'freeze',
+    badgeAr: '❄️ يوم راحة',
+    badgeEn: '❄️ Rest Pass',
   },
   {
-    key: 'warrior',
-    basePoints: 15000,
-    title: { en: 'The Warrior', ar: 'المحارب' },
-    description: { en: 'Fighting excuses daily.', ar: 'تقاتل أعذارك يومياً.' },
-    palette: { accent: '251, 113, 133', secondary: '244, 63, 94', ink: '136, 19, 55', metal: '255, 228, 230' },
+    level: 4,
+    percent: 50,
+    titleAr: 'نقطة التحول',
+    titleEn: 'The Turning Point',
+    descAr: 'تجاوز منتصف الطريق والاقتراب من النتيجة الفعلية',
+    descEn: 'Crossed the halfway threshold with proven grit',
+    icon: 'surge',
   },
   {
-    key: 'architect',
-    basePoints: 50000,
-    title: { en: 'The Architect', ar: 'المهندس' },
-    description: { en: 'Designing your own future.', ar: 'تصمم مستقبلك بنفسك.' },
-    palette: { accent: '45, 212, 191', secondary: '13, 148, 136', ink: '19, 78, 74', metal: '204, 251, 241' },
+    level: 5,
+    percent: 70,
+    titleAr: 'تسارع الكفاءة',
+    titleEn: 'Efficiency Surge',
+    descAr: 'العادة أصبحت راسخة والوتيرة تتسارع بثقة',
+    descEn: 'Routine is locked in and momentum is rising',
+    icon: 'surge',
   },
   {
-    key: 'elite',
-    basePoints: 100000,
-    title: { en: 'The Elite', ar: 'النخبة' },
-    description: { en: 'Only 1% reach this level.', ar: '1% فقط يصلون هنا.' },
-    palette: { accent: '167, 139, 250', secondary: '139, 92, 246', ink: '76, 29, 149', metal: '237, 233, 254' },
+    level: 6,
+    percent: 85,
+    titleAr: 'زخم النخبة',
+    titleEn: 'Elite Momentum',
+    descAr: 'الأمتار الأخيرة، أعلى تركيز وأقوى أثر',
+    descEn: 'Final sprint with unmatched discipline',
+    icon: 'momentum',
   },
   {
-    key: 'exceptional',
-    basePoints: 1000000,
-    title: { en: 'The Exceptional', ar: 'الاستثنائي' },
-    description: { en: 'You broke through the Matrix.', ar: 'اخترقت الماتريكس.' },
-    palette: { accent: '244, 114, 182', secondary: '168, 85, 247', ink: '88, 28, 135', metal: '250, 232, 255' },
+    level: 7,
+    percent: 100,
+    titleAr: 'سيادة الهدف',
+    titleEn: 'Apex Mastery',
+    descAr: 'تحقيق الهدف بالكامل واختراق سقف الإنجاز',
+    descEn: 'Complete mastery and full goal breakthrough',
+    icon: 'mastery',
+    badgeAr: '🏆 التتويج الأسطوري',
+    badgeEn: '🏆 Apex Crown',
   },
 ];
 
-const MAX_BASE_POINTS = MATRIX_RANKS[MATRIX_RANKS.length - 1]?.basePoints || 1000000;
-
-function seededRandom(seed: number) {
-  const x = Math.sin(seed + 1) * 10000;
-  return x - Math.floor(x);
-}
-
-function getBaseRotation(index: number): number {
-  return (seededRandom(index * 3) - 0.5) * 14;
-}
-
-function buildRewardStages(targetPoints: number, currentPoints: number) {
-  const safeTarget = Math.max(1000, Math.round(targetPoints) || 1000);
-  const safeCurrent = Math.max(0, Math.round(currentPoints) || 0);
-  let previousThreshold = -1;
-
-  return MATRIX_RANKS.map<RewardStage>((rank, index) => {
-    if (index === 0) {
-      previousThreshold = 0;
-      return { ...rank, id: `${rank.key}:0`, threshold: 0, isUnlocked: true };
-    }
-    const remainingRanks = MATRIX_RANKS.length - index - 1;
-    const scaledThreshold = Math.round((rank.basePoints / MAX_BASE_POINTS) * safeTarget);
-    const maxAllowed = safeTarget - remainingRanks;
-    const threshold =
-      index === MATRIX_RANKS.length - 1
-        ? safeTarget
-        : Math.max(previousThreshold + 1, Math.min(maxAllowed, scaledThreshold));
-    previousThreshold = threshold;
-    return { ...rank, id: `${rank.key}:${threshold}`, threshold, isUnlocked: safeCurrent >= threshold };
-  });
-}
-
-function buildCardFace(rank: RewardStage): CSSProperties {
-  return {
-    background: `linear-gradient(160deg,
-      rgba(${rank.palette.secondary}, 1) 0%,
-      rgba(${rank.palette.ink}, 1) 55%,
-      rgba(${rank.palette.secondary}, 0.85) 100%)`,
-  };
-}
-
-function buildHoloStyle(rank: RewardStage): CSSProperties {
-  return {
-    background: `
-      radial-gradient(ellipse at 30% 20%, rgba(${rank.palette.metal}, 0.38) 0%, transparent 52%),
-      radial-gradient(ellipse at 70% 80%, rgba(${rank.palette.accent}, 0.28) 0%, transparent 52%),
-      linear-gradient(135deg, rgba(255,255,255,0.14) 0%, transparent 42%, rgba(255,255,255,0.07) 100%)
-    `,
-  };
-}
-
-function buildBorderStyle(rank: RewardStage, locked = false): CSSProperties {
-  return {
-    boxShadow: locked
-      ? '0 6px 20px rgba(0,0,0,0.5)'
-      : `0 0 0 1.5px rgba(${rank.palette.metal}, 0.55),
-         0 12px 40px -10px rgba(${rank.palette.ink}, 0.85),
-         0 4px 12px rgba(${rank.palette.accent}, 0.25)`,
-    border: `1.5px solid rgba(${rank.palette.metal}, ${locked ? '0.15' : '0.45'})`,
-  };
-}
-
-function buildAccentColor(rank: RewardStage): CSSProperties {
-  return { color: `rgba(${rank.palette.metal}, 0.92)` };
-}
-
-function CardLogo({ rank, size = 32 }: { rank: RewardStage; size?: number }) {
-  // The card face is a fixed RGB gradient (buildCardFace) and stays dark in both
-  // themes, so a theme token like `text-primary` would swing to its darker light
-  // -mode value against an unchanged dark surface. Paint in the rank's own metal,
-  // exactly like buildAccentColor and CardCorner do on this same surface.
-  return (
-    <BrandMark
-      width={size}
-      height={size}
-      style={{
-        width: size,
-        height: "auto",
-        color: `rgba(${rank.palette.metal}, 0.97)`,
-      }}
-    />
-  );
-}
-
-function CardCorner({
-  index,
-  rank,
-  flip = false,
-}: {
-  index: number;
-  rank: RewardStage;
-  flip?: boolean;
-}) {
-  return (
-    <div
-      className={cn('flex flex-col items-start', flip && 'rotate-180')}
-      style={buildAccentColor(rank)}
-    >
-      <span className="text-[11px] font-black leading-none">
-        {String(index + 1).padStart(2, '0')}
-      </span>
-      <Star className="mt-0.5 h-[7px] w-[7px] fill-current" />
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════
-   Revealed card face (opened / unlocked)
-══════════════════════════════════════ */
-function RevealedCardFace({
-  reward,
-  index,
-  numberFormatter,
-  t,
-  language,
-  logoSize,
-  isMobile,
-}: {
-  reward: RewardStage;
-  index: number;
-  numberFormatter: Intl.NumberFormat;
-  t: RewardsSectionProps['t'];
-  language: Language;
-  logoSize: number;
-  isMobile: boolean;
-}) {
-  return (
-    <>
-      <div className="absolute inset-0" style={buildCardFace(reward)} />
-      <div className="absolute inset-0" style={buildHoloStyle(reward)} />
-      <div className="absolute inset-[3px] rounded-[10px] border border-white/12" />
-
-      {/* top-left corner */}
-      <div className="relative z-10 p-1.5">
-        <CardCorner index={index} rank={reward} />
-      </div>
-
-      {/* center: logo + title */}
-      <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-1 px-1">
-        <CardLogo rank={reward} size={logoSize} />
-        <div
-          className="text-center font-black uppercase leading-tight tracking-wide"
-          style={{
-            color: `rgba(${reward.palette.metal}, 0.97)`,
-            fontSize: isMobile ? '9px' : 'clamp(8px, 1.8vw, 11px)',
-          }}
-        >
-          {reward.title[language]}
-        </div>
-      </div>
-
-      {/* bottom strip: points — bigger on mobile */}
-      <div
-        className="relative z-10 mx-1 mb-1 rounded-[5px] px-1.5 py-1"
-        style={{
-          background: `rgba(${reward.palette.ink}, 0.75)`,
-          border: `1px solid rgba(${reward.palette.metal}, 0.2)`,
-        }}
-      >
-        <div
-          className="text-center font-black tracking-wide"
-          style={{
-            color: `rgba(${reward.palette.metal}, 0.92)`,
-            fontSize: isMobile ? '11px' : 'clamp(8px, 1.6vw, 11px)',
-          }}
-        >
-          {numberFormatter.format(reward.threshold)}
-        </div>
-        <div
-          className="text-center font-semibold text-white/50"
-          style={{ fontSize: isMobile ? '9px' : 'clamp(6px, 1.3vw, 8px)' }}
-        >
-          {t.points}
-        </div>
-      </div>
-
-      {/* bottom-right corner */}
-      <div className="absolute bottom-1 right-1 z-10">
-        <CardCorner index={index} rank={reward} flip />
-      </div>
-    </>
-  );
-}
-
-/* ══════════════════════════════════════
-   Locked card face
-══════════════════════════════════════ */
-function LockedCardFace({
-  reward,
-  index,
-  numberFormatter,
-  t,
-  isMobile,
-}: {
-  reward: RewardStage;
-  index: number;
-  numberFormatter: Intl.NumberFormat;
-  t: RewardsSectionProps['t'];
-  isMobile: boolean;
-}) {
-  return (
-    <>
-      <div
-        className="absolute inset-0"
-        style={{
-          background: `linear-gradient(160deg,
-            rgba(${reward.palette.ink}, 0.95) 0%,
-            rgba(${reward.palette.secondary}, 0.7) 100%)`,
-          filter: 'saturate(0.35) brightness(0.6)',
-        }}
-      />
-      <div
-        className="absolute inset-0 opacity-[0.07]"
-        style={{
-          backgroundImage: `repeating-linear-gradient(
-            45deg,
-            rgba(255,255,255,0.5) 0px,
-            rgba(255,255,255,0.5) 1px,
-            transparent 1px,
-            transparent 9px
-          )`,
-        }}
-      />
-      <div className="absolute inset-0 bg-black/38" />
-      <div className="absolute inset-[3px] rounded-[10px] border border-white/8" />
-
-      <div className="relative z-10 p-1.5 text-white/30">
-        <span className="text-[11px] font-black leading-none">
-          {String(index + 1).padStart(2, '0')}
-        </span>
-      </div>
-
-      <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-1 px-1">
-        <LockKeyhole className="h-5 w-5 text-white/25" />
-        <div
-          className="text-center font-black uppercase tracking-wider text-white/25"
-          style={{ fontSize: isMobile ? '8px' : 'clamp(7px, 1.6vw, 10px)' }}
-        >
-          {t.challengeRewardsUnknown}
-        </div>
-      </div>
-
-      <div className="relative z-10 mx-1 mb-1 rounded-[5px] border border-white/8 bg-black/25 px-1.5 py-1">
-        <div
-          className="text-center font-black text-white/30"
-          style={{ fontSize: isMobile ? '11px' : 'clamp(8px, 1.6vw, 11px)' }}
-        >
-          {numberFormatter.format(reward.threshold)}
-        </div>
-        <div
-          className="text-center font-semibold text-white/20"
-          style={{ fontSize: isMobile ? '9px' : 'clamp(6px, 1.3vw, 8px)' }}
-        >
-          {t.points}
-        </div>
-      </div>
-    </>
-  );
-}
-
-/* ══════════════════════════════════════
-   Single card wrapper
-══════════════════════════════════════ */
-function RewardCard({
-  reward,
-  index,
-  isOpened,
-  isOpening,
-  activeId,
-  isMobile,
-  numberFormatter,
-  t,
-  language,
-  logoSize,
-  onOpen,
-  onActivate,
-  onDeactivate,
-}: {
-  reward: RewardStage;
-  index: number;
-  isOpened: boolean;
-  isOpening: boolean;
-  activeId: string | null;
-  isMobile: boolean;
-  numberFormatter: Intl.NumberFormat;
-  t: RewardsSectionProps['t'];
-  language: Language;
-  logoSize: number;
-  onOpen: (r: RewardStage) => void;
-  onActivate: (id: string) => void;
-  onDeactivate: () => void;
-}) {
-  const isActive = activeId === reward.id;
-  const baseRot = getBaseRotation(index);
-  const cardLabel = `${reward.title[language]} - ${numberFormatter.format(reward.threshold)} ${t.points}`;
-
-  /*
-    On mobile: tap lifts the card (translateY -28px, scale 1.12).
-    On desktop: hover does the same.
-    Animation is snappy: 0.18s ease-out — fast but not jarring.
-  */
-  const wrapperStyle: CSSProperties = {
-    flex: '1 1 0%',
-    minWidth: 0,
-    position: 'relative',
-    zIndex: isActive ? 50 : index,
-  };
-
-  const innerStyle: CSSProperties = {
-    transform: isActive
-      ? 'rotate(0deg) translateY(-28px) scale(1.12)'
-      : `rotate(${baseRot}deg)`,
-    transition: 'transform 0.18s ease-out',
-    transformOrigin: 'bottom center',
-  };
-
-  const sharedClass =
-    'relative flex aspect-[0.69] w-full flex-col overflow-hidden rounded-[11px] text-white';
-
-  const faceProps = {
-    reward,
-    index,
-    numberFormatter,
-    t,
-    language,
-    logoSize,
-    isMobile,
-  };
-
-  const content =
-    isOpened || reward.isUnlocked ? (
-      <RevealedCardFace {...faceProps} />
-    ) : (
-      <LockedCardFace {...faceProps} />
-    );
-
-  /* Mobile: onTouchStart activates, onTouchEnd deactivates + opens */
-  const mobileHandlers = isMobile
-    ? {
-        onTouchStart: () => onActivate(reward.id),
-        onTouchEnd: () => {
-          onDeactivate();
-          if (reward.isUnlocked && !isOpened) onOpen(reward);
-        },
-      }
-    : {};
-
-  /* Desktop: hover activates */
-  const desktopHandlers = !isMobile
-    ? {
-        onMouseEnter: () => onActivate(reward.id),
-        onMouseLeave: onDeactivate,
-      }
-    : {};
-
-  return (
-    <div style={wrapperStyle} {...mobileHandlers} {...desktopHandlers}>
-      <div style={innerStyle}>
-        {reward.isUnlocked && !isOpened ? (
-          <button
-            type="button"
-            onClick={!isMobile ? () => onOpen(reward) : undefined}
-            aria-label={cardLabel}
-            data-opening={isOpening ? 'true' : 'false'}
-            className={cn(sharedClass, 'cursor-pointer outline-none')}
-            style={buildBorderStyle(reward)}
-          >
-            {content}
-          </button>
-        ) : (
-          <div
-            className={cn(sharedClass, !reward.isUnlocked && 'cursor-default')}
-            style={buildBorderStyle(reward, !reward.isUnlocked)}
-          >
-            {content}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════
-   Deck row
-══════════════════════════════════════ */
-function DeckRow({
-  rewards,
-  startIndex,
-  openedRewardSet,
-  openingRewardId,
-  activeId,
-  isMobile,
-  numberFormatter,
-  t,
-  language,
-  logoSize,
-  topPad,
-  onOpen,
-  onActivate,
-  onDeactivate,
-}: {
-  rewards: RewardStage[];
-  startIndex: number;
-  openedRewardSet: Set<string>;
-  openingRewardId: string | null;
-  activeId: string | null;
-  isMobile: boolean;
-  numberFormatter: Intl.NumberFormat;
-  t: RewardsSectionProps['t'];
-  language: Language;
-  logoSize: number;
-  topPad: number;
-  onOpen: (r: RewardStage) => void;
-  onActivate: (id: string) => void;
-  onDeactivate: () => void;
-}) {
-  return (
-    <div
-      className="flex w-full items-end justify-between overflow-visible"
-      style={{ paddingTop: `${topPad}px`, paddingBottom: '8px' }}
-    >
-      {rewards.map((reward, i) => (
-        <RewardCard
-          key={reward.id}
-          reward={reward}
-          index={startIndex + i}
-          isOpened={reward.isUnlocked && openedRewardSet.has(reward.id)}
-          isOpening={openingRewardId === reward.id}
-          activeId={activeId}
-          isMobile={isMobile}
-          numberFormatter={numberFormatter}
-          t={t}
-          language={language}
-          logoSize={logoSize}
-          onOpen={onOpen}
-          onActivate={onActivate}
-          onDeactivate={onDeactivate}
-        />
-      ))}
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════
-   MAIN EXPORT
-══════════════════════════════════════ */
 export function RewardsSection({
-  goalId,
   currentPoints,
   targetPoints,
-  language,
+  language = 'ar',
   numberFormatter,
   t,
 }: RewardsSectionProps) {
-  const rewards = useMemo(
-    () => buildRewardStages(targetPoints, currentPoints),
-    [currentPoints, targetPoints],
-  );
+  const isArabic = language === 'ar';
+  const [selectedLevel, setSelectedLevel] = useState<number | null>(null);
 
-  const storageKey = useMemo(
-    () => `metrix:challenge-rewards:${goalId}:${Math.max(1000, Math.round(targetPoints) || 1000)}`,
-    [goalId, targetPoints],
-  );
+  const safeTarget = Math.max(1, Math.round(targetPoints) || 100);
+  const safeCurrent = Math.max(0, Math.round(currentPoints) || 0);
+  const progressRatio = Math.min(1, safeCurrent / safeTarget);
+  const progressPercent = Math.round(progressRatio * 100);
 
-  const [openedRewardIds, setOpenedRewardIds] = useState<string[]>([]);
-  const [openingRewardId, setOpeningRewardId] = useState<string | null>(null);
-  const [storageReady, setStorageReady] = useState(false);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(true);
-  const mqlRef = useRef<MediaQueryList | null>(null);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const mql = window.matchMedia('(max-width: 639px)');
-    mqlRef.current = mql;
-    setIsMobile(mql.matches);
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mql.addEventListener('change', handler);
-    return () => mql.removeEventListener('change', handler);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    setStorageReady(false);
-    try {
-      const raw = window.localStorage.getItem(storageKey);
-      if (!raw) { setOpenedRewardIds([]); setStorageReady(true); return; }
-      const parsed = JSON.parse(raw);
-      const validIds = Array.isArray(parsed)
-        ? parsed.filter(
-            (item): item is string =>
-              typeof item === 'string' && rewards.some((r) => r.id === item),
-          )
-        : [];
-      setOpenedRewardIds(validIds);
-    } catch {
-      setOpenedRewardIds([]);
-    } finally {
-      setStorageReady(true);
+  // Compute current active level
+  const currentLevelIndex = useMemo(() => {
+    let index = 0;
+    for (let i = 0; i < LEVEL_STEPS.length; i++) {
+      if (progressPercent >= LEVEL_STEPS[i].percent) {
+        index = i;
+      }
     }
-  }, [rewards, storageKey]);
+    return index;
+  }, [progressPercent]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined' || !storageReady) return;
-    window.localStorage.setItem(storageKey, JSON.stringify(openedRewardIds));
-  }, [openedRewardIds, storageKey, storageReady]);
+  const activeLevel = LEVEL_STEPS[currentLevelIndex];
+  const nextLevel = LEVEL_STEPS[currentLevelIndex + 1] || null;
 
-  useEffect(() => {
-    if (!openingRewardId) return;
-    const timer = window.setTimeout(() => {
-      setOpenedRewardIds((prev) =>
-        prev.includes(openingRewardId) ? prev : [...prev, openingRewardId],
-      );
-      setOpeningRewardId(null);
-    }, 500);
-    return () => window.clearTimeout(timer);
-  }, [openingRewardId]);
-
-  const openedRewardSet = useMemo(() => new Set(openedRewardIds), [openedRewardIds]);
-
-  const handleOpenReward = (reward: RewardStage) => {
-    if (!reward.isUnlocked || openedRewardSet.has(reward.id) || openingRewardId) return;
-    setOpeningRewardId(reward.id);
-  };
-
-  /*
-    Mobile layout:
-    - Row 1: cards 1-4, overlap with negative margin
-    - Row 2: cards 5-7, overlap, centered under row 1
-    The two rows overlap vertically by ~30% of card height
-    to save vertical space while still showing both rows.
-  */
-  const row1 = isMobile ? rewards.slice(0, 4) : rewards;
-  const row2 = isMobile ? rewards.slice(4) : [];
-
-  const logoSize = isMobile ? 24 : 30;
-
-  /* Shared props for DeckRow */
-  const sharedRowProps = {
-    openedRewardSet,
-    openingRewardId,
-    activeId,
-    isMobile,
-    numberFormatter,
-    t,
-    language,
-    logoSize,
-    onOpen: handleOpenReward,
-    onActivate: (id: string) => setActiveId(id),
-    onDeactivate: () => setActiveId(null),
-  };
+  // Selected level for detail card (defaults to next level or active level)
+  const selectedStep = useMemo(() => {
+    if (selectedLevel !== null) {
+      const found = LEVEL_STEPS.find((s) => s.level === selectedLevel);
+      if (found) return found;
+    }
+    return nextLevel || activeLevel;
+  }, [selectedLevel, nextLevel, activeLevel]);
 
   return (
-    <section className={cn('rounded-xl border border-border bg-card p-3 shadow-sm shadow-black/[0.02] relative overflow-hidden sm:p-4')}>
-      {/* Ambient */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{ background: 'transparent' }}
-      />
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-border/60" />
+    <section
+      className="rounded-2xl border border-border/70 bg-card p-3 sm:p-3.5 shadow-xs relative overflow-hidden transition-all"
+      dir={isArabic ? 'rtl' : 'ltr'}
+    >
+      {/* Background Accent Gradient */}
+      <div className="pointer-events-none absolute -top-12 -end-12 w-32 h-32 rounded-full bg-primary/10 blur-2xl" />
 
       {/* Header */}
-      <div className="relative z-10 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-muted/60 border border-border/70 text-muted-foreground">
-            <Crown className="h-4 w-4" />
+      <div className="flex items-center justify-between gap-2 mb-2 relative z-10">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 border border-primary/20 text-primary shadow-xs">
+            <Crown className="h-3.5 w-3.5" />
           </div>
-          <span className="text-sm font-bold tracking-tight text-foreground">{t.challengeRewards}</span>
+          <div className="flex items-baseline gap-1.5 truncate">
+            <h3 className="text-xs sm:text-sm font-extrabold text-foreground tracking-tight truncate">
+              {isArabic ? 'مستويات الهدف والجوائز' : 'Goal Levels & Rewards'}
+            </h3>
+            <span className="inline-flex items-center rounded-full bg-primary/15 border border-primary/25 px-2 py-0.2 text-[10px] font-black text-primary shrink-0">
+              Level {activeLevel.level}
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="rounded-full border border-border/70 bg-muted/20 px-3 py-1 text-[10px] font-semibold text-muted-foreground">
-            {numberFormatter.format(rewards.length)} {t.challengeRewards}
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsCollapsed((prev) => !prev)}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-muted px-2.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:opacity-90 active:scale-[0.98]"
-            aria-expanded={!isCollapsed}
-          >
-            {isCollapsed ? (
-              <>
-                <ChevronDown className="h-3.5 w-3.5" />
-                {language === 'ar' ? 'إظهار' : 'Show'}
-              </>
-            ) : (
-              <>
-                <ChevronUp className="h-3.5 w-3.5" />
-                {language === 'ar' ? 'إخفاء' : 'Hide'}
-              </>
-            )}
-          </button>
+
+        <div className="shrink-0 text-end">
+          <span className="text-xs font-black text-foreground tabular-nums">
+            {progressPercent}%
+          </span>
+          <span className="text-[10px] text-muted-foreground ms-1 hidden min-[440px]:inline">
+            ({numberFormatter.format(safeCurrent)} / {numberFormatter.format(safeTarget)} {isArabic ? 'نقطة' : 'pts'})
+          </span>
         </div>
       </div>
 
-      {!isCollapsed && (
-        <div className="relative z-10 mt-2 w-full overflow-visible">
-          {/* Row 1 */}
-          <DeckRow
-            rewards={row1}
-            startIndex={0}
-            topPad={isMobile ? 28 : 32}
-            {...sharedRowProps}
+      {/* Horizontal Stepper Track */}
+      <div className="relative px-2 py-1 my-1 z-10">
+        {/* Connecting Progress Rail */}
+        <div className="absolute top-[13px] sm:top-[15px] inset-x-5 sm:inset-x-6 h-1 bg-muted/80 rounded-full overflow-hidden border border-border/40">
+          <div
+            className="h-full bg-gradient-to-r from-primary to-primary/85 transition-all duration-500 ease-out shadow-xs shadow-primary/30"
+            style={{ width: `${progressPercent}%` }}
           />
+        </div>
 
-          {/* Row 2 — mobile only, overlaps row 1 slightly */}
-          {row2.length > 0 && (
-            <div
-              className="flex justify-center overflow-visible"
-              style={{ marginTop: '-12px' }}
-            >
-              <div
-                className="flex items-end justify-center overflow-visible"
-                style={{
-                  width: `${(row2.length / row1.length) * 100}%`,
-                  paddingTop: '28px',
-                  paddingBottom: '8px',
-                  gap: '0px',
-                }}
+        {/* 7 Checkpoint Nodes */}
+        <div className="relative z-10 flex items-center justify-between">
+          {LEVEL_STEPS.map((step) => {
+            const isUnlocked = progressPercent >= step.percent;
+            const isCurrent = step.level === activeLevel.level;
+            const isSelected = selectedStep.level === step.level;
+
+            return (
+              <button
+                key={step.level}
+                type="button"
+                onClick={() => setSelectedLevel(step.level)}
+                className="flex flex-col items-center gap-1 group cursor-pointer active:scale-95 transition-transform"
+                title={`Level ${step.level}: ${isArabic ? step.titleAr : step.titleEn}`}
               >
-                {row2.map((reward, i) => (
-                  <RewardCard
-                    key={reward.id}
-                    reward={reward}
-                    index={row1.length + i}
-                    isOpened={reward.isUnlocked && openedRewardSet.has(reward.id)}
-                    isOpening={openingRewardId === reward.id}
-                    activeId={activeId}
-                    isMobile={isMobile}
-                    numberFormatter={numberFormatter}
-                    t={t}
-                    language={language}
-                    logoSize={logoSize}
-                    onOpen={handleOpenReward}
-                    onActivate={(id) => setActiveId(id)}
-                    onDeactivate={() => setActiveId(null)}
-                  />
-                ))}
-              </div>
+                <div
+                  className={cn(
+                    'w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-[10px] font-black border transition-all duration-200',
+                    isSelected
+                      ? 'ring-2 ring-primary ring-offset-1 ring-offset-background'
+                      : '',
+                    isCurrent
+                      ? 'bg-primary text-primary-foreground border-primary shadow-xs shadow-primary/30 scale-105'
+                      : isUnlocked
+                        ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/40'
+                        : 'bg-card text-muted-foreground border-border/70 group-hover:border-primary/40',
+                  )}
+                >
+                  {isUnlocked && !isCurrent ? (
+                    <Check className="w-3 h-3 stroke-[3]" />
+                  ) : isCurrent ? (
+                    <Zap className="w-3 h-3 fill-primary-foreground stroke-[2.5]" />
+                  ) : (
+                    <span>{step.level}</span>
+                  )}
+                </div>
+
+                <span
+                  className={cn(
+                    'text-[9px] sm:text-[10px] font-bold tabular-nums',
+                    isCurrent
+                      ? 'text-primary font-black'
+                      : isUnlocked
+                        ? 'text-foreground'
+                        : 'text-muted-foreground/60',
+                  )}
+                >
+                  {step.percent}%
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Compact Active/Selected Level Card */}
+      <div className="mt-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl border border-border/70 bg-muted/20 flex items-center justify-between gap-2.5 relative z-10 transition-all">
+        <div className="flex items-center gap-2 min-w-0">
+          <div
+            className={cn(
+              'flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-[11px] font-black',
+              selectedStep.level === activeLevel.level
+                ? 'bg-primary text-primary-foreground border-primary shadow-2xs'
+                : progressPercent >= selectedStep.percent
+                  ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                  : 'bg-card text-muted-foreground border-border/70',
+            )}
+          >
+            {selectedStep.level}
+          </div>
+
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-extrabold text-xs text-foreground truncate">
+                Level {selectedStep.level}: {isArabic ? selectedStep.titleAr : selectedStep.titleEn}
+              </span>
+              {(selectedStep.badgeAr || selectedStep.badgeEn) && (
+                <span className="inline-flex items-center text-[10px] font-bold rounded-md bg-amber-500/12 text-amber-600 dark:text-amber-400 border border-amber-500/25 px-1.5 py-0.2 shrink-0">
+                  {isArabic ? selectedStep.badgeAr : selectedStep.badgeEn}
+                </span>
+              )}
+              {selectedStep.level === activeLevel.level && (
+                <span className="inline-flex items-center text-[9px] font-black rounded-md bg-primary/15 text-primary border border-primary/25 px-1.5 py-0.2 shrink-0">
+                  {isArabic ? 'المستوى الحالي' : 'Current'}
+                </span>
+              )}
+            </div>
+            <p className="text-[10px] text-muted-foreground truncate leading-tight mt-0.5">
+              {isArabic ? selectedStep.descAr : selectedStep.descEn}
+            </p>
+          </div>
+        </div>
+
+        <div className="shrink-0 text-end">
+          {Math.round((selectedStep.percent / 100) * safeTarget) <= safeCurrent ? (
+            <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+              <Check className="w-3 h-3 stroke-[3]" />
+              <span>{isArabic ? 'مكتمل' : 'Unlocked'}</span>
+            </span>
+          ) : (
+            <div className="flex flex-col items-end">
+              <span className="text-[11px] font-black text-foreground tabular-nums">
+                {numberFormatter.format(Math.round((selectedStep.percent / 100) * safeTarget))} {isArabic ? 'نقطة' : 'pts'}
+              </span>
+              <span className="text-[9px] font-semibold text-muted-foreground tabular-nums">
+                {isArabic
+                  ? `متبقي ${numberFormatter.format(Math.max(0, Math.round((selectedStep.percent / 100) * safeTarget) - safeCurrent))}`
+                  : `${numberFormatter.format(Math.max(0, Math.round((selectedStep.percent / 100) * safeTarget) - safeCurrent))} left`}
+              </span>
             </div>
           )}
         </div>
-      )}
+      </div>
     </section>
   );
 }
+
+export default RewardsSection;
