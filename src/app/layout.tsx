@@ -101,12 +101,13 @@ export const metadata: Metadata = {
  */
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f7f7f7" },
-    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
+    { media: "(prefers-color-scheme: dark)", color: "#09090b" },
   ],
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({
@@ -121,9 +122,7 @@ export default function RootLayout({
       className={`${fontArabic.variable} ${fontLatin.variable}`}
       suppressHydrationWarning
     >
-      <body
-        className="font-sans antialiased bg-canvas text-foreground selection:bg-primary/20"
-      >
+      <head>
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -142,6 +141,10 @@ export default function RootLayout({
             `,
           }}
         />
+      </head>
+      <body
+        className="font-sans antialiased bg-canvas text-foreground selection:bg-primary/20 overflow-x-clip"
+      >
         {children}
       </body>
     </html>

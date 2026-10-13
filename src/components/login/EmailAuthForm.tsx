@@ -222,10 +222,11 @@ export function EmailAuthForm({ language = 'ar' }: EmailAuthFormProps) {
             id="name"
             type="text"
             autoComplete="name"
+            enterKeyHint="next"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t.namePlaceholder}
-            className="h-11"
+            className="h-11 text-base sm:text-sm"
             required
           />
         </div>
@@ -236,12 +237,17 @@ export function EmailAuthForm({ language = 'ar' }: EmailAuthFormProps) {
         <Input
           id="email"
           type="email"
+          inputMode="email"
           dir="ltr"
           autoComplete="email"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          enterKeyHint="next"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@example.com"
-          className="h-11 text-start"
+          className="h-11 text-base sm:text-sm text-start"
           required
         />
       </div>
@@ -254,7 +260,7 @@ export function EmailAuthForm({ language = 'ar' }: EmailAuthFormProps) {
               type="button"
               onClick={handleForgotPassword}
               disabled={pending}
-              className="text-xs font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline disabled:opacity-50"
+              className="-my-1.5 py-1.5 px-1 text-xs font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline disabled:opacity-50"
             >
               {t.forgotPassword}
             </button>
@@ -273,17 +279,20 @@ export function EmailAuthForm({ language = 'ar' }: EmailAuthFormProps) {
             type={showPassword ? 'text' : 'password'}
             dir="ltr"
             autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+            autoCapitalize="none"
+            autoCorrect="off"
+            enterKeyHint="done"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
-            className="h-11 pe-10 text-start"
+            className="h-11 pe-11 text-base sm:text-sm text-start"
             required
           />
           <button
             type="button"
             onClick={() => setShowPassword((v) => !v)}
             aria-label={showPassword ? t.hidePassword : t.showPassword}
-            className="absolute inset-y-0 end-0 flex items-center px-3 text-muted-foreground transition-colors hover:text-foreground"
+            className="absolute inset-y-0 end-0 flex w-11 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
           >
             {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
           </button>

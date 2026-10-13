@@ -56,22 +56,24 @@ export default function Home() {
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<AppView>("home");
   const [createGoalText, setCreateGoalText] = useState("");
-  const [goals, setGoals] = useState<Goal[]>(() => {
-    return getCachedItem<Goal[]>(STORAGE_KEYS.GOALS) || [];
-  });
+  const [goals, setGoals] = useState<Goal[]>([]);
   const [taskStatsMap, setTaskStatsMap] = useState<
     Record<string, GoalTaskStats>
-  >(() => {
-    return getCachedItem<Record<string, GoalTaskStats>>(STORAGE_KEYS.TASK_STATS) || {};
-  });
-  const [loading, setLoading] = useState(() => {
-    // If we have cached goals, don't show full-page blocking loader
-    if (typeof window !== 'undefined') {
-      const cached = getCachedItem<Goal[]>(STORAGE_KEYS.GOALS);
-      if (cached && cached.length > 0) return false;
+  >({});
+  const [loading, setLoading] = useState(true);
+
+  // Sync cached data on client mount after hydration to prevent HTML mismatch
+  useEffect(() => {
+    const cached = getCachedItem<Goal[]>(STORAGE_KEYS.GOALS);
+    if (cached && cached.length > 0) {
+      setGoals(cached);
+      setLoading(false);
     }
-    return true;
-  });
+    const cachedStats = getCachedItem<Record<string, GoalTaskStats>>(STORAGE_KEYS.TASK_STATS);
+    if (cachedStats) {
+      setTaskStatsMap(cachedStats);
+    }
+  }, []);
   const [language, setLanguage] = useState<Language>("ar");
   const [user, setUser] = useState<User | null>(null);
   const [supabase] = useState(() => createClient());
@@ -318,13 +320,13 @@ export default function Home() {
     <OrbitShell user={user}>
       <WelcomeDialog language={language} />
       <div
-        className={`mx-auto flex min-h-0 w-full max-w-7xl 2xl:max-w-[1600px] flex-col items-center px-2 min-[400px]:px-3 sm:px-6 lg:px-12 pt-[max(0.75rem,env(safe-area-inset-top))] sm:pt-6 lg:pt-8 lg:pl-28 rtl:lg:pl-12 rtl:lg:pr-28
+        className={`mx-auto flex min-h-0 w-full max-w-7xl 2xl:max-w-[1600px] flex-col items-center px-2.5 min-[400px]:px-3 sm:px-6 lg:px-12 pt-[max(0.75rem,env(safe-area-inset-top))] sm:pt-6 lg:pt-8 lg:pl-28 rtl:lg:pl-12 rtl:lg:pr-28
           ${
             currentView === "home" || currentView === "create-goal"
-              ? "min-h-[100dvh] flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:pb-24 lg:pb-12"
+              ? "min-h-[100dvh] flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-12"
               : isDashboardView
-                ? "h-[calc(100dvh_-_5rem_-_env(safe-area-inset-bottom))] shrink-0 overflow-hidden pb-0 sm:h-[calc(100dvh_-_6rem)] lg:h-[100dvh] lg:pb-12"
-                : "min-h-[100dvh] flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:pb-24 lg:pb-12"
+                ? "h-[calc(100dvh_-_5rem_-_env(safe-area-inset-bottom))] min-h-[34rem] lg:min-h-0 shrink-0 overflow-hidden pb-0 sm:h-[calc(100dvh_-_6rem_-_env(safe-area-inset-bottom))] lg:h-[100dvh] lg:pb-12"
+                : "min-h-[100dvh] flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-12"
           }
           ${loading ? "justify-center" : "justify-start"}`}
       >
@@ -340,7 +342,7 @@ export default function Home() {
             {/* Persistent Home View (Kept mounted to eliminate remount delay and flicker) */}
             <div
               className={cn(
-                "w-full flex-1 min-h-0",
+                "w-full min-w-0 flex-1 min-h-0",
                 currentView === "home" ? "flex flex-col" : "hidden"
               )}
             >
@@ -369,7 +371,7 @@ export default function Home() {
             {/* Other Views (Rendered on demand) */}
             {currentView === "create-goal" ? (
               <div
-                className="w-full max-w-2xl mx-auto my-auto flex flex-col justify-center"
+                className="w-full min-w-0 max-w-2xl mx-auto my-auto flex flex-col justify-center"
               >
                 <GoalCreatorPage
                   initialGoalText={createGoalText}
@@ -381,7 +383,7 @@ export default function Home() {
               </div>
             ) : currentView === "create-goal-manual" ? (
               <div
-                className="w-full max-w-3xl mx-auto my-auto flex flex-col justify-center"
+                className="w-full min-w-0 max-w-3xl mx-auto my-auto flex flex-col justify-center"
               >
                 <ManualGoalCreatorPage
                   initialGoalText={createGoalText}
@@ -453,7 +455,7 @@ export default function Home() {
             {selectedGoal && (
               <div
                 className={cn(
-                  "flex min-h-0 w-full flex-1",
+                  "flex min-h-0 min-w-0 w-full flex-1",
                   currentView === "dashboard" ? "flex flex-col" : "hidden"
                 )}
               >

@@ -89,7 +89,7 @@ export default function LoginPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-canvas">
+      <div className="min-h-dvh flex items-center justify-center bg-canvas">
         <div className="flex flex-col items-center justify-center animate-pulse gap-4">
           <div className="w-16 h-16 rounded-full border-4 border-primary/25 border-t-primary animate-spin" />
         </div>
@@ -99,7 +99,7 @@ export default function LoginPage() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center bg-canvas p-4"
+      className="min-h-dvh flex items-center justify-center bg-canvas px-3 sm:px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:py-4"
       dir={isArabic ? 'rtl' : 'ltr'}
     >
       <MatrixManifestoDialog
@@ -108,11 +108,11 @@ export default function LoginPage() {
         language={language}
       />
 
-      <div className="w-full max-w-md">
-        <div className="bg-card border border-border rounded-2xl shadow-2xl p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="w-full max-w-md my-auto">
+        <div className="bg-card border border-border rounded-2xl shadow-xl sm:shadow-2xl p-4 min-[380px]:p-5 sm:p-8 space-y-5 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
           {/* Header with balanced visual alignment */}
           <div className="flex items-center justify-center gap-3">
-            <BrandLockup className="h-auto w-48 text-foreground sm:w-52 shrink-0" />
+            <BrandLockup className="h-auto w-36 min-[380px]:w-40 sm:w-52 text-foreground shrink-0" />
           </div>
 
           {/* Login Button */}
@@ -120,7 +120,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={handleGoogleLogin}
-              className="w-full flex items-center justify-center gap-3 bg-card hover:bg-muted text-foreground font-medium py-3 px-4 rounded-xl border border-border/80 shadow-xs transition-all duration-200 hover:border-primary/40 active:scale-[0.98]"
+              className="w-full flex items-center justify-center gap-3 bg-card hover:bg-muted text-foreground font-medium py-3 px-4 min-h-[44px] rounded-xl border border-border/80 shadow-xs transition-all duration-200 hover:border-primary/40 active:scale-[0.98]"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path
@@ -155,7 +155,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setIsManifestoOpen(true)}
-              className="w-full text-center text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+              className="w-full py-2 sm:py-1 text-center text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
             >
               {t.manifesto}
             </button>

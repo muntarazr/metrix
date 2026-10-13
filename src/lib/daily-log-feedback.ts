@@ -106,21 +106,23 @@ function normalizeBreakdownItem(value: unknown): DailyLogBreakdownItem | null {
       ? status
       : undefined;
 
-  const timeBonus = Math.max(
-    0,
-    Number(
-      row.time_bonus !== undefined
-        ? row.time_bonus
-        : row.bonus !== undefined
-          ? row.bonus
-          : 0,
-    ) || 0,
+  const timeBonus = Math.round(
+    Math.max(
+      0,
+      Number(
+        row.time_bonus !== undefined
+          ? row.time_bonus
+          : row.bonus !== undefined
+            ? row.bonus
+            : 0,
+      ) || 0,
+    ),
   );
 
   return {
     task_id: taskId,
     status: normalizedStatus,
-    points: Math.max(0, Number(row.points) || 0),
+    points: Math.round(Math.max(0, Number(row.points) || 0)),
     reason: typeof row.reason === 'string' ? row.reason : undefined,
     time_bonus: timeBonus > 0 ? timeBonus : undefined,
   };
@@ -168,11 +170,11 @@ function normalizePerformanceMeta(value: unknown): DailyLogPerformanceMeta | und
     badge: normalizedBadge,
     warning_level: normalizedWarningLevel,
     evidence_level: normalizedEvidenceLevel,
-    total_points: Math.max(0, Number(row.total_points) || 0),
-    base_points: Math.max(0, Number(row.base_points) || 0),
-    bonus_points: Math.max(0, Number(row.bonus_points) || 0),
-    daily_cap: Math.max(1, Number(row.daily_cap) || 1),
-    max_base_points: Math.max(1, Number(row.max_base_points) || 1),
+    total_points: Math.round(Math.max(0, Number(row.total_points) || 0)),
+    base_points: Math.round(Math.max(0, Number(row.base_points) || 0)),
+    bonus_points: Math.round(Math.max(0, Number(row.bonus_points) || 0)),
+    daily_cap: Math.max(1, Math.round(Number(row.daily_cap) || 1)),
+    max_base_points: Math.max(1, Math.round(Number(row.max_base_points) || 1)),
     score_ratio: clamp(Number(row.score_ratio) || 0, 0, 1.5),
     completion_ratio: clamp(Number(row.completion_ratio) || 0, 0, 1.5),
     coverage_ratio: clamp(Number(row.coverage_ratio) || 0, 0, 1.5),
@@ -186,9 +188,9 @@ function normalizePerformanceMeta(value: unknown): DailyLogPerformanceMeta | und
     session_state: row.session_state === 'final' ? 'final' : row.session_state === 'open' ? 'open' : undefined,
     entries_count: row.entries_count === undefined ? undefined : Math.max(0, Number(row.entries_count) || 0),
     last_update_at: typeof row.last_update_at === 'string' ? row.last_update_at : null,
-    last_evaluated_score: row.last_evaluated_score === undefined ? null : Math.max(0, Number(row.last_evaluated_score) || 0),
-    awarded_points_so_far: row.awarded_points_so_far === undefined ? undefined : Math.max(0, Number(row.awarded_points_so_far) || 0),
-    delta_awarded: row.delta_awarded === undefined ? undefined : Math.max(0, Number(row.delta_awarded) || 0),
+    last_evaluated_score: row.last_evaluated_score === undefined ? null : Math.round(Math.max(0, Number(row.last_evaluated_score) || 0)),
+    awarded_points_so_far: row.awarded_points_so_far === undefined ? undefined : Math.round(Math.max(0, Number(row.awarded_points_so_far) || 0)),
+    delta_awarded: row.delta_awarded === undefined ? undefined : Math.round(Math.max(0, Number(row.delta_awarded) || 0)),
   };
 }
 
@@ -528,9 +530,9 @@ export function analyzeDailyPerformance({
           : 'none',
     warning_level: warningLevel,
     evidence_level: evidenceLevel,
-    total_points: totalPoints,
-    base_points: basePoints,
-    bonus_points: bonusPoints,
+    total_points: Math.round(totalPoints),
+    base_points: Math.round(basePoints),
+    bonus_points: Math.round(bonusPoints),
     daily_cap: Math.max(dailyCap, 1),
     max_base_points: Math.max(maxBasePoints, 1),
     score_ratio: roundToSingle(scoreRatio),

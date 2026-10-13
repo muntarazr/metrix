@@ -74,7 +74,7 @@ export function BooleanAnswer({ value, onChange, language = 'ar', disabled }: Bo
                             ? 'Explain reason or context (e.g., knee injury, busy schedule)...'
                             : 'Add clarification or details here (optional)...')
                 }
-                className={cn(FREE_TEXT_CLASSES, 'disabled:opacity-50 text-xs sm:text-sm')}
+                className={cn(FREE_TEXT_CLASSES, 'disabled:opacity-50 text-base sm:text-sm')}
                 dir={isAr ? 'rtl' : 'ltr'}
             />
         </div>

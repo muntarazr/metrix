@@ -46,7 +46,7 @@ export default function ReviewTaskCard({
             )}
         >
             {/* Top Task Row */}
-            <div className="flex items-center gap-2.5">
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-2.5">
                 {/* Include / Exclude Checkbox */}
                 <button
                     type="button"
@@ -63,14 +63,14 @@ export default function ReviewTaskCard({
                 </button>
 
                 {/* Task Title Input */}
-                <div className="flex-1 min-w-0 flex items-center gap-1.5 group/title relative">
+                <div className="flex-1 min-w-[calc(100%-2.25rem)] sm:min-w-0 flex items-center gap-1.5 group/title relative">
                     <input
                         value={task.task}
                         onChange={(e) => onUpdate(task.id, { task: e.target.value })}
                         disabled={!task.included}
                         placeholder={isArabic ? 'اسم المهمة...' : 'Task title...'}
                         className={cn(
-                            "w-full bg-transparent border border-transparent hover:border-border/60 focus:border-primary/40 rounded-lg px-2 py-1 outline-hidden text-sm font-semibold transition-all text-start",
+                            "w-full bg-transparent border border-transparent hover:border-border/60 focus:border-primary/40 rounded-lg px-2 py-1 outline-hidden text-base sm:text-sm font-semibold transition-all text-start",
                             !task.included && "line-through text-muted-foreground"
                         )}
                         dir={isArabic ? 'rtl' : 'ltr'}
@@ -78,79 +78,86 @@ export default function ReviewTaskCard({
                     <Edit3 className="w-3.5 h-3.5 text-muted-foreground/30 group-hover/title:text-muted-foreground/70 shrink-0 pointer-events-none transition-colors" />
                 </div>
 
-                {/* Frequency Toggle */}
-                <button
-                    type="button"
-                    onClick={() => onUpdate(task.id, { frequency: task.frequency === 'daily' ? 'weekly' : 'daily' })}
-                    disabled={!task.included}
-                    className={cn(
-                        "text-[10.5px] font-bold px-2 py-1 rounded-lg border transition-all cursor-pointer shrink-0",
-                        task.frequency === 'daily'
-                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
-                            : "bg-sky-500/10 border-sky-500/30 text-sky-600 dark:text-sky-400"
-                    )}
-                    title={isArabic ? 'انقر لتغيير التكرار (يومي / أسبوعي)' : 'Click to toggle frequency'}
-                >
-                    {task.frequency === 'daily' ? (isArabic ? 'يومي' : 'Daily') : (isArabic ? 'أسبوعي' : 'Weekly')}
-                </button>
+                {/* Metadata & Action Controls */}
+                <div className="flex flex-wrap items-center justify-between sm:justify-end gap-1.5 sm:gap-2.5 w-full sm:w-auto ps-8 sm:ps-0">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                        {/* Frequency Toggle */}
+                        <button
+                            type="button"
+                            onClick={() => onUpdate(task.id, { frequency: task.frequency === 'daily' ? 'weekly' : 'daily' })}
+                            disabled={!task.included}
+                            className={cn(
+                                "text-[10.5px] font-bold px-2 py-1 rounded-lg border transition-all cursor-pointer shrink-0",
+                                task.frequency === 'daily'
+                                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                                    : "bg-sky-500/10 border-sky-500/30 text-sky-600 dark:text-sky-400"
+                            )}
+                            title={isArabic ? 'انقر لتغيير التكرار (يومي / أسبوعي)' : 'Click to toggle frequency'}
+                        >
+                            {task.frequency === 'daily' ? (isArabic ? 'يومي' : 'Daily') : (isArabic ? 'أسبوعي' : 'Weekly')}
+                        </button>
 
-                {/* Time Required in Minutes */}
-                <div
-                    className="flex items-center gap-1 bg-muted/60 border border-border/80 rounded-lg px-2 py-1 text-[11px] text-muted-foreground shrink-0"
-                    title={isArabic ? 'الوقت بالدقائق' : 'Time in minutes'}
-                >
-                    <Clock className="w-3 h-3 text-muted-foreground/70 shrink-0" />
-                    <input
-                        type="number"
-                        min={5}
-                        max={300}
-                        step={5}
-                        value={task.time_required_minutes || 20}
-                        onChange={(e) => onUpdate(task.id, { time_required_minutes: Math.max(5, Number(e.target.value) || 5) })}
-                        disabled={!task.included}
-                        className="w-7 text-center bg-transparent border-none outline-hidden font-semibold text-foreground text-xs p-0"
-                    />
-                    <span className="text-[10px] text-muted-foreground">{isArabic ? 'د' : 'm'}</span>
+                        {/* Time Required in Minutes */}
+                        <div
+                            className="flex items-center gap-1 bg-muted/60 border border-border/80 rounded-lg px-2 py-1 text-[11px] text-muted-foreground shrink-0"
+                            title={isArabic ? 'الوقت بالدقائق' : 'Time in minutes'}
+                        >
+                            <Clock className="w-3 h-3 text-muted-foreground/70 shrink-0" />
+                            <input
+                                type="number"
+                                min={5}
+                                max={300}
+                                step={5}
+                                value={task.time_required_minutes || 20}
+                                onChange={(e) => onUpdate(task.id, { time_required_minutes: Math.max(5, Number(e.target.value) || 5) })}
+                                disabled={!task.included}
+                                className="w-7 text-center bg-transparent border-none outline-hidden font-semibold text-foreground text-xs p-0"
+                            />
+                            <span className="text-[10px] text-muted-foreground">{isArabic ? 'د' : 'm'}</span>
+                        </div>
+
+                        {/* Impact Weight */}
+                        <div
+                            className="flex items-center gap-1 bg-muted/60 border border-border/80 rounded-lg px-2 py-1 text-[11px] shrink-0"
+                            title={isArabic ? 'وزن المهمة ونقاطها (1-5)' : 'Impact weight (1-5)'}
+                        >
+                            <Zap className="w-3 h-3 text-primary/80 shrink-0" />
+                            <input
+                                type="number"
+                                min={1}
+                                max={5}
+                                value={task.impact_weight || 1}
+                                onChange={(e) => onUpdate(task.id, { impact_weight: Math.max(1, Math.min(5, Number(e.target.value) || 1)) })}
+                                disabled={!task.included}
+                                className="w-5 text-center bg-transparent border-none outline-hidden font-bold text-foreground text-xs p-0"
+                            />
+                            <span className="text-[10px] text-muted-foreground">{isArabic ? 'ن' : 'pt'}</span>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                        {/* Smart Replace Button */}
+                        <button
+                            type="button"
+                            onClick={() => onRequestReplace(task)}
+                            disabled={!task.included || isReplacingTask}
+                            className="text-muted-foreground/60 hover:text-primary p-1.5 rounded-lg hover:bg-primary/10 transition-colors shrink-0 cursor-pointer"
+                            title={isArabic ? 'استبدال هذه المهمة بملاحظتك' : 'Replace with your custom note'}
+                        >
+                            <RefreshCw className={cn("w-3.5 h-3.5", isReplacingTask && "animate-spin")} />
+                        </button>
+
+                        {/* Delete Button */}
+                        <button
+                            type="button"
+                            onClick={() => onDelete(task.id)}
+                            className="text-muted-foreground/50 hover:text-destructive p-1.5 rounded-lg hover:bg-destructive/10 transition-colors shrink-0 cursor-pointer"
+                            title={isArabic ? 'حذف المهمة' : 'Delete task'}
+                        >
+                            <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
                 </div>
-
-                {/* Impact Weight */}
-                <div
-                    className="flex items-center gap-1 bg-muted/60 border border-border/80 rounded-lg px-2 py-1 text-[11px] shrink-0"
-                    title={isArabic ? 'وزن المهمة ونقاطها (1-5)' : 'Impact weight (1-5)'}
-                >
-                    <Zap className="w-3 h-3 text-primary/80 shrink-0" />
-                    <input
-                        type="number"
-                        min={1}
-                        max={5}
-                        value={task.impact_weight || 1}
-                        onChange={(e) => onUpdate(task.id, { impact_weight: Math.max(1, Math.min(5, Number(e.target.value) || 1)) })}
-                        disabled={!task.included}
-                        className="w-5 text-center bg-transparent border-none outline-hidden font-bold text-foreground text-xs p-0"
-                    />
-                    <span className="text-[10px] text-muted-foreground">{isArabic ? 'ن' : 'pt'}</span>
-                </div>
-
-                {/* Smart Replace Button */}
-                <button
-                    type="button"
-                    onClick={() => onRequestReplace(task)}
-                    disabled={!task.included || isReplacingTask}
-                    className="text-muted-foreground/60 hover:text-primary p-1.5 rounded-lg hover:bg-primary/10 transition-colors shrink-0 cursor-pointer"
-                    title={isArabic ? 'استبدال هذه المهمة بملاحظتك' : 'Replace with your custom note'}
-                >
-                    <RefreshCw className={cn("w-3.5 h-3.5", isReplacingTask && "animate-spin")} />
-                </button>
-
-                {/* Delete Button */}
-                <button
-                    type="button"
-                    onClick={() => onDelete(task.id)}
-                    className="text-muted-foreground/50 hover:text-destructive p-1.5 rounded-lg hover:bg-destructive/10 transition-colors shrink-0 cursor-pointer"
-                    title={isArabic ? 'حذف المهمة' : 'Delete task'}
-                >
-                    <Trash2 className="w-3.5 h-3.5" />
-                </button>
             </div>
 
             {/* Execution Days */}
@@ -201,7 +208,7 @@ export default function ReviewTaskCard({
             </div>
 
             {/* Bottom Criteria Row (Definition of Done) */}
-            <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs">
+            <div className="flex flex-col items-stretch sm:flex-row sm:items-center gap-1 sm:gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 sm:py-1.5 text-xs">
                 <div className="flex items-center gap-1.5 shrink-0 font-bold text-primary">
                     <Target className="w-3.5 h-3.5 shrink-0" />
                     <span>{isArabic ? 'معيار الإنجاز:' : 'Criteria:'}</span>
@@ -211,7 +218,7 @@ export default function ReviewTaskCard({
                     onChange={(e) => onUpdate(task.id, { completion_criteria: e.target.value })}
                     disabled={!task.included}
                     placeholder={isArabic ? 'ما الذي يثبت اكتمال هذه المهمة بدقة؟' : 'What proves this task is completed?'}
-                    className="flex-1 bg-transparent border-none outline-hidden text-xs text-foreground/90 placeholder:text-muted-foreground/45 font-medium"
+                    className="flex-1 min-w-0 w-full bg-transparent border-none outline-hidden text-base sm:text-xs text-foreground/90 placeholder:text-muted-foreground/45 font-medium"
                     dir={isArabic ? 'rtl' : 'ltr'}
                 />
             </div>

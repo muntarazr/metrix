@@ -40,7 +40,7 @@ export function EndChallengeDialog({
           <DialogTitle>{t.challengeEndConfirmTitle}</DialogTitle>
           <DialogDescription>{t.challengeEndConfirmDesc}</DialogDescription>
         </DialogHeader>
-        <DialogFooter className={cn(isArabic && 'sm:flex-row-reverse sm:space-x-reverse')}>
+        <DialogFooter className={cn('gap-2', isArabic && 'sm:flex-row-reverse')}>
           <button
             type="button"
             onClick={() => onOpenChange(false)}

@@ -20,7 +20,7 @@ function CompactStepper({
     disabled?: boolean;
 }) {
     const clamp = (n: number) => Math.min(max, Math.max(min, n));
-    const smallButton = 'w-8 h-8 rounded-xl border border-border bg-muted/60 flex items-center justify-center text-base font-bold hover:bg-muted transition-colors duration-150 cursor-pointer select-none active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed motion-reduce:transition-none motion-reduce:active:scale-100';
+    const smallButton = 'w-8 h-8 rounded-xl border border-border bg-muted/60 flex items-center justify-center text-base font-bold hover:bg-muted transition-colors duration-150 cursor-pointer select-none touch-manipulation active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed motion-reduce:transition-none motion-reduce:active:scale-100';
     return (
         <div className="flex items-center gap-2">
             <button

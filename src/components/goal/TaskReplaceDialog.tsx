@@ -37,16 +37,16 @@ export default function TaskReplaceDialog({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-xs animate-in fade-in duration-200">
             <div
-                className="w-full max-w-lg rounded-2xl border border-border/80 bg-card p-5 sm:p-6 shadow-xl space-y-4"
+                className="w-full max-w-lg max-h-[85dvh] overflow-y-auto overscroll-contain rounded-2xl border border-border/80 bg-card p-4 sm:p-6 shadow-xl space-y-4"
                 dir={isArabic ? 'rtl' : 'ltr'}
             >
                 {/* Header */}
                 <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20">
                             <RefreshCw className={cn("w-5 h-5", isSubmitting && "animate-spin")} />
                         </div>
-                        <div>
+                        <div className="min-w-0 flex-1">
                             <h3 className="font-bold text-base text-foreground leading-snug">
                                 {isArabic ? 'استبدال هذه المهمة بمهمة بديلة' : 'Replace Task with Alternative'}
                             </h3>
@@ -82,7 +82,7 @@ export default function TaskReplaceDialog({
                         rows={4}
                         autoFocus
                         disabled={isSubmitting}
-                        className="w-full text-xs sm:text-sm rounded-xl border border-border/80 bg-muted/20 px-3.5 py-3 text-foreground placeholder:text-muted-foreground/60 focus:outline-hidden focus:border-primary/60 focus:bg-background resize-none leading-relaxed transition-all"
+                        className="w-full text-base sm:text-sm rounded-xl border border-border/80 bg-muted/20 px-3.5 py-3 text-foreground placeholder:text-muted-foreground/60 focus:outline-hidden focus:border-primary/60 focus:bg-background resize-none leading-relaxed transition-all"
                     />
                     <p className="text-[11px] text-muted-foreground leading-relaxed">
                         {isArabic

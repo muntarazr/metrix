@@ -57,11 +57,11 @@ export default function GoalGeneratingStep({
 
     return (
         <div
-            className="w-full max-w-2xl mx-auto my-auto animate-in fade-in duration-300 space-y-6"
+            className="w-full max-w-2xl mx-auto my-auto animate-in fade-in duration-300 space-y-4 sm:space-y-6"
             dir={isArabic ? 'rtl' : 'ltr'}
         >
             {/* Goal Echo */}
-            <div className={cn(PANEL_SURFACE, "rounded-2xl px-5 py-4 border border-border/80 shadow-xs")}>
+            <div className={cn(PANEL_SURFACE, "rounded-2xl px-3.5 py-3 sm:px-5 sm:py-4 border border-border/80 shadow-xs")}>
                 <p className="text-xs font-semibold text-muted-foreground mb-1">
                     {isArabic ? 'هدفك المعتمد' : 'Your Goal'}
                 </p>
@@ -72,7 +72,7 @@ export default function GoalGeneratingStep({
 
             {/* Matrix Orb Center */}
             <div
-                className="flex flex-col items-center justify-center py-6"
+                className="flex flex-col items-center justify-center py-2 sm:py-6"
                 role="status"
                 aria-label={isArabic ? 'جارٍ توليد الخطة المتسلسلة' : 'Generating plan sequentially'}
             >
@@ -89,7 +89,7 @@ export default function GoalGeneratingStep({
             </div>
 
             {/* Sequential Stepper Progress Card */}
-            <div className={cn(PANEL_SURFACE, "rounded-2xl border border-border/80 p-5 space-y-3 shadow-xs")}>
+            <div className={cn(PANEL_SURFACE, "rounded-2xl border border-border/80 p-3.5 sm:p-5 space-y-2.5 sm:space-y-3 shadow-xs")}>
                 <div className="flex items-center gap-2 mb-2">
                     <Sparkles className="w-4 h-4 text-primary shrink-0" />
                     <p className="text-xs font-bold text-foreground uppercase tracking-wide">
@@ -107,7 +107,7 @@ export default function GoalGeneratingStep({
                             <div
                                 key={stage.num}
                                 className={cn(
-                                    "flex items-center gap-3 p-3 rounded-xl border transition-all duration-300",
+                                    "flex items-center gap-2.5 sm:gap-3 p-2.5 sm:p-3 rounded-xl border transition-all duration-300",
                                     isDone
                                         ? "bg-primary/5 border-primary/25 text-foreground"
                                         : isCurrent
@@ -135,21 +135,21 @@ export default function GoalGeneratingStep({
                                 </div>
 
                                 <div className="flex-1 min-w-0">
-                                    <p className={cn("text-xs sm:text-sm font-bold truncate", isCurrent ? "text-primary" : "")}>
+                                    <p className={cn("text-xs sm:text-sm font-bold line-clamp-2 sm:truncate", isCurrent ? "text-primary" : "")}>
                                         {isArabic ? stage.titleAr : stage.titleEn}
                                     </p>
-                                    <p className="text-[11px] text-muted-foreground truncate">
+                                    <p className="text-[11px] text-muted-foreground line-clamp-1 sm:truncate">
                                         {isArabic ? stage.descAr : stage.descEn}
                                     </p>
                                 </div>
 
                                 {isDone && (
-                                    <span className="text-[10.5px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
+                                    <span className="hidden min-[400px]:inline-flex shrink-0 text-[10.5px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
                                         {isArabic ? 'اكتمل ✓' : 'Done ✓'}
                                     </span>
                                 )}
                                 {isCurrent && (
-                                    <span className="text-[10.5px] font-bold text-primary animate-pulse bg-primary/15 px-2 py-0.5 rounded-md">
+                                    <span className="hidden min-[400px]:inline-flex shrink-0 text-[10.5px] font-bold text-primary animate-pulse bg-primary/15 px-2 py-0.5 rounded-md">
                                         {isArabic ? 'جارٍ المعالجة...' : 'In Progress...'}
                                     </span>
                                 )}

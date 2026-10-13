@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Clock, Target, Trash2, MoreVertical, Pin, PinOff, Edit2, ListChecks, BarChart3, Plus, ChevronDown, Edit3, Sparkles } from 'lucide-react';
+import { Clock, Target, Trash2, MoreVertical, Pin, PinOff, Edit2, ListChecks, BarChart3, Plus, ChevronDown, Edit3, Sparkles, Tag, Download, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { translations, type Language } from '@/lib/translations';
 import {
@@ -19,6 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { getGoalEndDaysChip } from '@/lib/goal-dates';
 import { getGoalIcon } from './IconPicker';
 import GoalEditDialog from './GoalEditDialog';
+import { exportGoalMarkdownDirect } from '@/lib/goal-exporter';
 import GoalProgressBar from '@/components/shared/GoalProgressBar';
 import ConfirmModal from '@/components/shared/ConfirmModal';
 
@@ -34,6 +35,7 @@ interface Goal {
     ai_summary?: string;
     icon?: string;
     is_pinned?: boolean;
+    domain?: string;
 }
 
 interface GoalsListProps {
@@ -54,7 +56,20 @@ export default function GoalsList({ goals, taskStatsMap = {}, selectedGoalId, on
     const [activeTab, setActiveTab] = useState<'goals' | 'statistics'>('goals');
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
+    const [exportingGoalId, setExportingGoalId] = useState<string | null>(null);
     const [confirmDeleteGoal, setConfirmDeleteGoal] = useState<{ id: string; title: string } | null>(null);
+
+    const handleExportGoal = async (goalToExport: Goal) => {
+        if (exportingGoalId) return;
+        try {
+            setExportingGoalId(goalToExport.id);
+            await exportGoalMarkdownDirect(supabase, goalToExport, isArabic);
+        } catch (err) {
+            console.error('Error exporting goal:', err);
+        } finally {
+            setExportingGoalId(null);
+        }
+    };
 
     const handleDeleteGoal = async (goalId: string) => {
         setDeletingId(goalId);
@@ -107,26 +122,26 @@ export default function GoalsList({ goals, taskStatsMap = {}, selectedGoalId, on
                         <button
                             onClick={() => setActiveTab('goals')}
                             className={cn(
-                                "flex flex-1 items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200",
+                                "flex flex-1 min-w-0 items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200",
                                 activeTab === 'goals'
                                     ? "bg-card text-foreground shadow-sm ring-1 ring-border/45"
                                     : "text-muted-foreground hover:text-foreground hover:bg-muted/20"
                             )}
                         >
-                            <Target className="w-4 h-4 opacity-80" />
-                            {t.myGoals}
+                            <Target className="w-4 h-4 opacity-80 shrink-0" />
+                            <span className="truncate">{t.myGoals}</span>
                         </button>
                         <button
                             onClick={() => setActiveTab('statistics')}
                             className={cn(
-                                "flex flex-1 items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200",
+                                "flex flex-1 min-w-0 items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200",
                                 activeTab === 'statistics'
                                     ? "bg-card text-foreground shadow-sm ring-1 ring-border/45"
                                     : "text-muted-foreground hover:text-foreground hover:bg-muted/20"
                             )}
                         >
-                            <BarChart3 className="w-4 h-4 opacity-80" />
-                            {t.goalsStatistics}
+                            <BarChart3 className="w-4 h-4 opacity-80 shrink-0" />
+                            <span className="truncate">{t.goalsStatistics}</span>
                         </button>
                     </div>
 
@@ -136,11 +151,11 @@ export default function GoalsList({ goals, taskStatsMap = {}, selectedGoalId, on
                             <DropdownMenuTrigger asChild>
                                 <button
                                     type="button"
-                                    className="h-11 px-3 sm:px-4 rounded-xl font-bold flex items-center gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm active:scale-95 transition-all text-xs sm:text-sm cursor-pointer select-none shrink-0"
+                                    className="h-11 px-2.5 sm:px-4 rounded-xl font-bold flex items-center gap-1 sm:gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm active:scale-95 transition-all text-xs sm:text-sm cursor-pointer select-none shrink-0"
                                     aria-label={isArabic ? 'إضافة هدف جديد' : 'New Goal'}
                                 >
                                     <Plus className="w-4 h-4 shrink-0" />
-                                    <span>{t.newGoal || (isArabic ? 'هدف جديد' : 'New Goal')}</span>
+                                    <span className="hidden min-[400px]:inline">{t.newGoal || (isArabic ? 'هدف جديد' : 'New Goal')}</span>
                                     <ChevronDown className="w-3.5 h-3.5 opacity-70 shrink-0" />
                                 </button>
                             </DropdownMenuTrigger>
@@ -183,7 +198,7 @@ export default function GoalsList({ goals, taskStatsMap = {}, selectedGoalId, on
 
                 {goals.length === 0 && activeTab === 'goals' ? (
                     <div className="flex-1 min-h-0 flex items-center justify-center">
-                        <div className="flex flex-col items-center justify-center text-center p-8 sm:p-12 bg-card/12 rounded-2xl border border-dashed border-border gap-4 max-w-md mx-auto">
+                        <div className="flex flex-col items-center justify-center text-center p-5 sm:p-12 bg-card/12 rounded-2xl border border-dashed border-border gap-4 max-w-md mx-auto">
                             <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border/70 bg-muted/20">
                                 <Target className="w-7 h-7 text-muted-foreground/75" />
                             </div>
@@ -219,7 +234,7 @@ export default function GoalsList({ goals, taskStatsMap = {}, selectedGoalId, on
                         </div>
                     </div>
                 ) : activeTab === 'goals' ? (
-                    <ScrollArea className="flex-1 min-h-0 pr-1" dir={isArabic ? 'rtl' : 'ltr'}>
+                    <ScrollArea className="flex-1 min-h-0 pe-1" dir={isArabic ? 'rtl' : 'ltr'}>
                         <div className="space-y-3 pb-1">
                             {goals.map((goal) => {
                                 const isSelected = selectedGoalId === goal.id;
@@ -282,6 +297,26 @@ export default function GoalsList({ goals, taskStatsMap = {}, selectedGoalId, on
                                                                 <span className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary border border-primary/20 shadow-2xs">
                                                                     <Pin className="h-2.5 w-2.5" />
                                                                     <span>{isArabic ? 'مثبت' : 'Pinned'}</span>
+                                                                </span>
+                                                            )}
+                                                            {goal.domain && (
+                                                                <span
+                                                                    className="flex items-center gap-1 rounded-full bg-muted/60 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground border border-border/70 shadow-2xs"
+                                                                    title={isArabic ? 'تصنيف الهدف' : 'Category'}
+                                                                >
+                                                                    <Tag className="h-2.5 w-2.5 opacity-70 shrink-0" />
+                                                                    <span>
+                                                                        {(() => {
+                                                                            switch (goal.domain) {
+                                                                                case 'skills': return isArabic ? 'تعلّم ومهارات' : 'Skills & Learning';
+                                                                                case 'health': return isArabic ? 'صحة ولياقة' : 'Health & Fitness';
+                                                                                case 'career': return isArabic ? 'عمل ومشاريع' : 'Career & Projects';
+                                                                                case 'habits': return isArabic ? 'عادات ونمط حياة' : 'Habits & Routine';
+                                                                                case 'other': return isArabic ? 'عام' : 'General';
+                                                                                default: return goal.domain;
+                                                                            }
+                                                                        })()}
+                                                                    </span>
                                                                 </span>
                                                             )}
                                                             {daysChip && (
@@ -358,6 +393,25 @@ export default function GoalsList({ goals, taskStatsMap = {}, selectedGoalId, on
                                                             >
                                                                 <Edit2 className="w-4 h-4" />
                                                                 {t.editGoal}
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleExportGoal(goal);
+                                                                }}
+                                                                disabled={exportingGoalId === goal.id}
+                                                                className="cursor-pointer"
+                                                            >
+                                                                {exportingGoalId === goal.id ? (
+                                                                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                                                                ) : (
+                                                                    <Download className="w-4 h-4" />
+                                                                )}
+                                                                <span>
+                                                                    {exportingGoalId === goal.id
+                                                                        ? (language === 'ar' ? 'جارٍ التصدير...' : 'Exporting...')
+                                                                        : (language === 'ar' ? 'تصدير الهدف' : 'Export Goal')}
+                                                                </span>
                                                             </DropdownMenuItem>
                                                             <DropdownMenuSeparator />
                                                             <DropdownMenuItem

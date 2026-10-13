@@ -20,26 +20,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const { data, error } = await supabase
-      .rpc('end_goal_challenge', {
-        p_challenge_id: challengeId,
-      })
-      .single();
+    const { data, error } = await supabase.rpc('end_goal_challenge', {
+      p_challenge_id: challengeId,
+    });
 
     if (error) {
       const parsed = parseChallengeRpcError(error.message);
       return NextResponse.json({ error: parsed.message, code: parsed.code }, { status: parsed.status });
     }
 
-    const row = data as { challenge_id: string; ended_at: string } | null;
-    if (!row) {
-      return NextResponse.json({ error: 'Challenge was not ended' }, { status: 500 });
+    let endedAt = new Date().toISOString();
+    if (data && typeof data === 'object') {
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row?.ended_at) endedAt = row.ended_at;
+    } else {
+      const { data: room } = await supabase
+        .from('challenge_rooms')
+        .select('ended_at')
+        .eq('id', challengeId)
+        .maybeSingle();
+      if (room?.ended_at) endedAt = room.ended_at;
     }
 
     return NextResponse.json({
       data: {
-        challengeId: row.challenge_id,
-        endedAt: row.ended_at,
+        challengeId,
+        endedAt,
       },
     });
   } catch (error: unknown) {

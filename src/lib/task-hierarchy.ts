@@ -168,7 +168,7 @@ export function getScorableTasks(taskRows: TaskRow[]): ScorableTask[] {
   return mains.map((main) => ({
     id: main.id,
     task_description: main.task_description,
-    impact_weight: clamp(Number(main.impact_weight) || 1, 1, 5),
+    impact_weight: clamp(Number(main.impact_weight) || 1, 1, 10),
     frequency: normalizeFrequency(main.frequency),
     parent_task_id: null,
   }));

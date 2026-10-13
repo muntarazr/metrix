@@ -55,7 +55,7 @@ function CalendarMonthCaption({
     <div
       {...props}
       className={cn(
-        "flex w-full items-center gap-2 rounded-2xl border border-border/45 bg-muted/20 p-1 shadow-xs backdrop-blur-[2px]",
+        "flex w-full items-center gap-1 sm:gap-2 rounded-2xl border border-border/45 bg-muted/20 p-1 shadow-xs backdrop-blur-[2px]",
         className
       )}
     >
@@ -105,16 +105,16 @@ function Calendar({
       classNames={{
         root: "w-fit",
         months: "flex w-fit flex-col sm:flex-row gap-4",
-        month: "flex w-[17rem] max-w-full flex-col gap-3",
+        month: "flex w-[17rem] max-w-[calc(100vw-3rem)] flex-col gap-3",
         month_caption: "w-full",
         caption_label:
-          "pointer-events-none inline-flex h-full w-full items-center justify-between gap-2 whitespace-nowrap px-3 text-sm font-semibold tracking-tight text-foreground",
+          "pointer-events-none inline-flex h-full w-full items-center justify-between gap-1.5 whitespace-nowrap px-2 sm:px-3 text-xs sm:text-sm font-semibold tracking-tight text-foreground",
         dropdowns:
-          "flex w-full max-w-[12rem] min-w-0 items-center justify-center gap-1.5 rounded-xl bg-card/60 px-1 py-1 shadow-xs ring-1 ring-border/45 backdrop-blur-sm",
+          "flex w-full max-w-full min-w-0 items-center justify-center gap-1 rounded-xl bg-card/60 px-1 py-1 shadow-xs ring-1 ring-border/45 backdrop-blur-sm",
         dropdown_root:
-          "relative inline-flex h-8 min-w-[4.75rem] items-center rounded-lg border border-border bg-card transition-[background,border-color,box-shadow] hover:bg-accent/60 hover:border-ring/40 focus-within:border-ring/50 focus-within:ring-2 focus-within:ring-ring/20 [&:has(.rdp-months_dropdown)]:min-w-[6.5rem] [&:has(.rdp-years_dropdown)]:min-w-[5rem]",
+          "relative inline-flex h-8 min-w-0 flex-1 sm:flex-initial items-center rounded-lg border border-border bg-card transition-[background,border-color,box-shadow] hover:bg-accent/60 hover:border-ring/40 focus-within:border-ring/50 focus-within:ring-2 focus-within:ring-ring/20 [&:has(.rdp-months_dropdown)]:min-w-[5.25rem] sm:[&:has(.rdp-months_dropdown)]:min-w-[5.75rem] [&:has(.rdp-years_dropdown)]:min-w-[4.25rem] sm:[&:has(.rdp-years_dropdown)]:min-w-[4.5rem]",
         dropdown:
-          "absolute inset-0 z-10 m-0 size-full cursor-pointer appearance-none border-0 bg-transparent opacity-0 focus:outline-none",
+          "absolute inset-0 z-10 m-0 size-full cursor-pointer appearance-none border-0 bg-transparent text-base sm:text-sm opacity-0 focus:outline-none",
         nav: "hidden",
         button_previous: "hidden",
         button_next: "hidden",
@@ -124,7 +124,7 @@ function Calendar({
           "text-muted-foreground flex-1 basis-0 h-8 min-w-0 flex items-center justify-center text-[0.75rem] font-medium",
         weeks: "mt-1 flex w-full flex-col gap-1",
         week: "flex w-full",
-        day: "relative flex h-9 flex-1 basis-0 items-center justify-center p-0 text-sm [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+        day: "relative flex h-9 flex-1 basis-0 items-center justify-center p-0 text-sm [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-s-md last:[&:has([aria-selected])]:rounded-e-md focus-within:relative focus-within:z-20",
         day_button: cn(
           buttonVariants({ variant: "ghost" }),
           "h-9 w-9 p-0 font-normal rounded-md aria-selected:opacity-100 hover:bg-accent hover:text-accent-foreground"
@@ -137,8 +137,8 @@ function Calendar({
         disabled: "text-muted-foreground opacity-30 cursor-not-allowed",
         range_middle:
           "aria-selected:bg-accent aria-selected:text-accent-foreground rounded-none",
-        range_start: "rounded-l-md",
-        range_end: "rounded-r-md",
+        range_start: "rounded-s-md",
+        range_end: "rounded-e-md",
         hidden: "invisible",
         ...classNames,
       }}

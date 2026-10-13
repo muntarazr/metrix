@@ -24,7 +24,7 @@ export default function TaskDeleteConfirmDialog({
       className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-xs animate-in fade-in duration-150"
       dir={isArabic ? "rtl" : "ltr"}
     >
-      <div className="relative flex w-full max-w-sm flex-col rounded-xl border border-destructive/30 bg-card p-5 shadow-lg">
+      <div className="relative flex w-full max-w-sm max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain flex-col rounded-xl border border-destructive/30 bg-card p-4 sm:p-5 shadow-lg">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-destructive/15 text-destructive border border-destructive/25">
             <AlertTriangle className="h-5 w-5" />

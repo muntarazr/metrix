@@ -69,6 +69,37 @@ function formatNumber(value: number) {
   });
 }
 
+/**
+ * 3-letter weekday abbreviation without the Arabic definite article "ال".
+ * e.g., Sunday: "أحد", Monday: "إثن", Tuesday: "ثلا", Wednesday: "أرب",
+ * Thursday: "خمي", Friday: "جمع", Saturday: "سبت".
+ */
+function getShortDayName(date: Date, isArabic: boolean): string {
+  const day = date.getDay();
+  if (isArabic) {
+    switch (day) {
+      case 0:
+        return "أحد";
+      case 1:
+        return "إثن";
+      case 2:
+        return "ثلا";
+      case 3:
+        return "أرب";
+      case 4:
+        return "خمي";
+      case 5:
+        return "جمع";
+      case 6:
+        return "سبت";
+      default:
+        return "";
+    }
+  }
+  const enDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  return enDays[day] || "";
+}
+
 export default function GrowthChart({
   data,
   language = "ar",
@@ -78,7 +109,7 @@ export default function GrowthChart({
 }: GrowthChartProps) {
   const t = translations[language];
   const isArabic = language === "ar";
-  const [timeRange, setTimeRange] = useState<TimeRange>("30d");
+  const [timeRange, setTimeRange] = useState<TimeRange>("7d");
   const [chartType, setChartType] = useState<ChartType>("bar");
   const [isNarrowViewport, setIsNarrowViewport] = useState(false);
   const didApplyMobileDefaultRange = useRef(false);
@@ -166,7 +197,13 @@ export default function GrowthChart({
     }),
     [isArabic],
   );
-  const chartMargin = { top: 8, right: 10, left: 0, bottom: 4 };
+  const chartMargin = useMemo(
+    () =>
+      isArabic
+        ? { top: 8, right: 0, left: 10, bottom: 4 }
+        : { top: 8, right: 10, left: 0, bottom: 4 },
+    [isArabic],
+  );
 
   const rangeDays = RANGE_TO_DAYS[timeRange];
 
@@ -208,7 +245,8 @@ export default function GrowthChart({
       today.setHours(0, 0, 0, 0);
       const totalDays = rangeDays ?? 30;
       for (let i = totalDays - 1; i >= 0; i--) {
-        const d = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
         buckets.set(key, { rawDate: key, points: 0 });
       }
@@ -302,18 +340,24 @@ export default function GrowthChart({
               : 6;
   const showDots = chartData.length <= 18;
   const xAxisInterval = useMemo(() => {
-    if (bucketMode === "day") return 0;
+    if (bucketMode === "day") {
+      return isNarrowViewport && chartData.length > 7
+        ? ("preserveStartEnd" as const)
+        : 0;
+    }
     if (chartData.length <= 12) return 0;
     return "preserveStartEnd" as const;
-  }, [bucketMode, chartData.length]);
+  }, [bucketMode, chartData.length, isNarrowViewport]);
 
   const xAxisMinTickGap = useMemo(() => {
-    if (bucketMode === "day") return 0;
+    if (bucketMode === "day") {
+      return isNarrowViewport && chartData.length > 7 ? 14 : 0;
+    }
     if (chartData.length <= 12) return 0;
     return 24;
-  }, [bucketMode, chartData.length]);
+  }, [bucketMode, chartData.length, isNarrowViewport]);
 
-  const yAxisWidth = isArabic ? 40 : 34;
+  const yAxisWidth = isArabic ? 36 : 34;
 
   const xAxisMetaByDate = useMemo(() => {
     const meta = new Map<string, { primary: string; secondary?: string }>();
@@ -333,21 +377,21 @@ export default function GrowthChart({
         entryDate.getMonth() !== previousDate.getMonth() ||
         entryDate.getFullYear() !== previousDate.getFullYear();
 
-      const secondary =
-        timeRange === "7d"
-          ? weekDayFormatter.format(entryDate)
-          : showMonth
-            ? shortMonthFormatter.format(entryDate)
-            : undefined;
-
-      meta.set(entry.date, {
-        primary: formatNumberEn(entryDate.getDate()),
-        secondary,
-      });
+      if (timeRange === "7d") {
+        meta.set(entry.date, {
+          primary: getShortDayName(entryDate, isArabic),
+          secondary: formatNumberEn(entryDate.getDate()),
+        });
+      } else {
+        meta.set(entry.date, {
+          primary: formatNumberEn(entryDate.getDate()),
+          secondary: showMonth ? shortMonthFormatter.format(entryDate) : undefined,
+        });
+      }
     });
 
     return meta;
-  }, [bucketMode, chartData, shortMonthFormatter, timeRange, weekDayFormatter]);
+  }, [bucketMode, chartData, isArabic, shortMonthFormatter, timeRange]);
 
   const renderXAxisTick = ({
     x = 0,
@@ -373,8 +417,8 @@ export default function GrowthChart({
           className={cn(
             "fill-muted-foreground font-medium select-none tabular-nums",
             isDenseDayMode
-              ? "text-[8.5px] sm:text-[9.5px] md:text-[10px]"
-              : "text-[10.5px] sm:text-[11px]",
+              ? "text-[7.5px] sm:text-[8px] md:text-[8.5px]"
+              : "text-[10px] sm:text-[11px]",
           )}
         >
           <tspan x={0} dy={10}>
@@ -382,9 +426,14 @@ export default function GrowthChart({
           </tspan>
           {secondary ? (
             <tspan
-              x={index === 0 && x < 24 ? 8 : 0}
-              dy={12}
-              className="text-[8px] sm:text-[9px] opacity-75 font-normal"
+              x={index === 0 && x < 24 ? 6 : 0}
+              dy={isDenseDayMode ? 10 : 12}
+              className={cn(
+                "opacity-75 font-normal",
+                isDenseDayMode
+                  ? "text-[6.5px] sm:text-[7px]"
+                  : "text-[8.5px] sm:text-[9.5px]",
+              )}
             >
               {secondary}
             </tspan>
@@ -461,6 +510,7 @@ export default function GrowthChart({
               className="text-[11.5px] fill-muted-foreground"
             />
             <YAxis
+              orientation={isArabic ? "right" : "left"}
               tickLine={false}
               axisLine={false}
               tickMargin={6}
@@ -538,6 +588,7 @@ export default function GrowthChart({
               className="text-[11.5px] fill-muted-foreground"
             />
             <YAxis
+              orientation={isArabic ? "right" : "left"}
               tickLine={false}
               axisLine={false}
               tickMargin={6}
@@ -597,6 +648,7 @@ export default function GrowthChart({
               className="text-[11.5px] fill-muted-foreground"
             />
             <YAxis
+              orientation={isArabic ? "right" : "left"}
               tickLine={false}
               axisLine={false}
               tickMargin={6}
@@ -628,11 +680,11 @@ export default function GrowthChart({
       <div className="pb-1 sm:pb-1.5">
         <div className="flex items-center gap-2 sm:gap-2.5">
           <div
-            className="flex min-w-0 flex-1"
+            className="flex min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             role="tablist"
             aria-label={isArabic ? "النطاق الزمني" : "Time range"}
           >
-            <div className="inline-flex max-w-full shrink-0 gap-1 rounded-lg border border-border/70 bg-muted/60 p-0.5 shadow-xs">
+            <div className="inline-flex w-max shrink-0 gap-0.5 sm:gap-1 rounded-lg border border-border/70 bg-muted/60 p-0.5 shadow-xs">
               {timeRangeOptions.map((option) => (
                 <button
                   key={option.key}
@@ -641,10 +693,10 @@ export default function GrowthChart({
                   onClick={() => setTimeRange(option.key)}
                   aria-selected={timeRange === option.key}
                   className={cn(
-                    "h-7 whitespace-nowrap rounded-md px-2.5 text-[11px] font-medium leading-none transition-all duration-150 cursor-pointer active:scale-95",
+                    "h-7 whitespace-nowrap rounded-md px-1.5 min-[380px]:px-2 sm:px-2.5 text-[10.5px] sm:text-[11px] font-medium leading-none transition-all duration-150 cursor-pointer active:scale-95 touch-manipulation select-none",
                     isArabic
-                      ? "min-w-[2.75rem] tracking-normal"
-                      : "min-w-[2.5rem] tabular-nums",
+                      ? "min-w-[2.25rem] sm:min-w-[2.75rem] tracking-normal"
+                      : "min-w-[2.25rem] sm:min-w-[2.5rem] tabular-nums",
                     timeRange === option.key
                       ? "bg-card text-foreground border border-border/70 shadow-xs"
                       : "text-muted-foreground hover:text-foreground",

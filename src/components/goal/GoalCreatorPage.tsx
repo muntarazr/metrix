@@ -10,6 +10,7 @@ import {
 import { cn } from '@/lib/utils';
 import { translations, type Language } from '@/lib/translations';
 import { createClient } from '@/utils/supabase/client';
+import { persistGoalWithTaskTree } from '@/lib/goal-persistence';
 import { apiUrl } from '@/lib/api';
 import {
     getUnitDisplayLabel,
@@ -85,7 +86,7 @@ export default function GoalCreatorPage({
     const [isRegeneratingPlan, setIsRegeneratingPlan] = useState(false);
 
     const tunerPoints = useMemo(
-        () => Math.max(1000, tunerDuration * (DIFFICULTY_RATES[tunerDifficulty] || 100)),
+        () => Math.max(10, tunerDuration * (DIFFICULTY_RATES[tunerDifficulty] || 100)),
         [tunerDuration, tunerDifficulty],
     );
 
@@ -462,66 +463,22 @@ export default function GoalCreatorPage({
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('Not authenticated');
 
-            const targetPoints = tunerPoints;
-            const totalDays = tunerDuration;
-            const adjustedCompletionDate = new Date(Date.now() + totalDays * 24 * 60 * 60 * 1000).toISOString();
-
             const goalTitle = editableGoalTitle.trim() || planResult.plan?.goal_summary || initialGoalText.trim();
             const goalSummary = planResult.ai_summary || '';
-
-            const { data: goalData, error: goalError } = await supabase
-                .from('goals')
-                .insert({
-                    user_id: user.id,
-                    title: goalTitle,
-                    domain: investigationResult?.goal_understanding?.domain || 'other',
-                    target_points: targetPoints,
-                    current_points: 0,
-                    estimated_completion_date: adjustedCompletionDate,
-                    total_days: totalDays,
-                    ai_summary: goalSummary,
-                    status: 'active',
-                })
-                .select()
-                .single();
-
-            if (goalError) {
-                console.error('Goal insert failed:', JSON.stringify(goalError), goalError);
-                throw new Error(goalError.message || goalError.details || 'فشل إدراج الهدف في قاعدة البيانات');
-            }
 
             const activeTasks = flatTasks.filter(t => t.included);
             const tasksToProcess = activeTasks.length > 0 ? activeTasks : flatTasks;
 
-            const subRows = tasksToProcess.map((task, index) => ({
-                goal_id: goalData.id,
-                task_description: task.task.trim() || `Task ${index + 1}`,
-                frequency: task.frequency === 'weekly' ? 'weekly' : 'daily',
-                schedule_days: task.schedule_days && task.schedule_days.length > 0 ? task.schedule_days : null,
-                impact_weight: Math.max(1, Math.min(5, Number(task.impact_weight) || 1)),
-                completion_criteria: task.completion_criteria.trim() || '',
-                time_required_minutes: Math.max(5, Number(task.time_required_minutes) || 20),
-                task_type: 'main',
-                parent_task_id: null,
-                sort_order: index,
-            }));
-
-            if (subRows.length > 0) {
-                let { error: subError } = await supabase.from('sub_layers').insert(subRows);
-                if (subError && (subError.message || '').includes('schedule_days')) {
-                    const fallbackRows = subRows.map((row) => {
-                        const { schedule_days, ...rest } = row;
-                        return rest;
-                    });
-                    ({ error: subError } = await supabase.from('sub_layers').insert(fallbackRows));
-                }
-                if (subError) {
-                    console.error('Sub_layers insert failed:', JSON.stringify(subError), subError);
-                    // Rollback inserted goal to avoid leaving an orphaned empty goal
-                    await supabase.from('goals').delete().eq('id', goalData.id);
-                    throw new Error(subError.message || subError.details || 'فشل إدراج المهام في قاعدة البيانات');
-                }
-            }
+            await persistGoalWithTaskTree({
+                supabaseClient: supabase,
+                userId: user.id,
+                title: goalTitle,
+                domain: investigationResult?.goal_understanding?.domain || 'other',
+                targetPoints: tunerPoints,
+                totalDays: tunerDuration,
+                aiSummary: goalSummary,
+                tasks: tasksToProcess,
+            });
 
             setNotification({ type: 'info', message: isArabic ? 'تم إنشاء الهدف بنجاح.' : 'Goal created successfully.' });
             setGuardDismissed(true);
@@ -539,7 +496,7 @@ export default function GoalCreatorPage({
     };
 
     return (
-        <div className="w-full flex-1 flex flex-col justify-center min-h-[calc(100vh-140px)] py-6 px-4">
+        <div className="w-full flex-1 flex flex-col justify-start sm:justify-center min-h-0 sm:min-h-[calc(100dvh-120px)] py-2 sm:py-6 px-1 sm:px-4">
             {/* Global Notification Banner */}
             {notification && (
                 <div className={cn(

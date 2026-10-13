@@ -45,6 +45,8 @@ export async function POST(req: NextRequest) {
                 retryAfterSeconds: error.retryAfterSeconds
             }, { status: 429 });
         }
-        return NextResponse.json({ error: 'Failed to evaluate log' }, { status: 500 });
+        console.error('API /api/goal/evaluate error:', error);
+        const message = error instanceof Error ? error.message : 'Failed to evaluate log';
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }

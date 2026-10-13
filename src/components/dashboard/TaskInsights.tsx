@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { getLocalDateKey } from '@/lib/task-periods';
+import { getLocalDateKey, getPeriodStart } from '@/lib/task-periods';
 
 interface TaskInsightsProps {
   goalId: string;
@@ -188,14 +188,14 @@ export default function TaskInsights({ goalId, tasks, language = 'ar' }: TaskIns
       const mergedHistory = new Map<string, TaskCheckinRow>();
 
       for (const row of ((checkinData as TaskCheckinRow[] | null) || [])) {
-        const stamp = row.completed_at || `${row.period_start}T00:00:00.000Z`;
-        const key = `${row.task_id}:${row.period_start}:${stamp}`;
+        if (!row.task_id || !row.period_start) continue;
+        const key = `${row.task_id}:${row.period_start}`;
         mergedHistory.set(key, row);
       }
 
       for (const log of ((logData as DailyLogRow[] | null) || [])) {
-        const periodStart = log.created_at?.split('T')[0];
-        if (!periodStart) continue;
+        if (!log.created_at) continue;
+        const logDate = new Date(log.created_at);
 
         for (const item of parseDailyLogBreakdown(log.breakdown).items.map((entry) => ({
           task_id: entry.task_id,
@@ -205,15 +205,20 @@ export default function TaskInsights({ goalId, tasks, language = 'ar' }: TaskIns
           const hasProgress = (item.points || 0) > 0 || item.status === 'done' || item.status === 'partial';
           if (!hasProgress) continue;
 
-          const key = `${item.task_id}:${periodStart}:${log.created_at}`;
+          const task = tasks.find((t) => t.id === item.task_id);
+          const periodStart = getPeriodStart(task?.frequency || 'daily', logDate);
+          const key = `${item.task_id}:${periodStart}`;
           const existing = mergedHistory.get(key);
-          if (existing && (existing.points || 0) >= (item.points || 0)) continue;
+
+          const points = item.points && item.points > 0
+            ? Math.max(existing?.points || 0, item.points)
+            : existing?.points;
 
           mergedHistory.set(key, {
             task_id: item.task_id,
-            completed_at: log.created_at,
+            completed_at: log.created_at || existing?.completed_at || null,
             period_start: periodStart,
-            points: item.points || 0,
+            points: points !== undefined ? points : (existing?.points ?? 0),
           });
         }
       }
@@ -233,7 +238,7 @@ export default function TaskInsights({ goalId, tasks, language = 'ar' }: TaskIns
     return () => {
       mounted = false;
     };
-  }, [goalId, supabase]);
+  }, [goalId, supabase, tasks]);
 
   const analytics = useMemo(() => {
     const scorableTasks = getScorableTasks(tasks);
@@ -395,7 +400,7 @@ export default function TaskInsights({ goalId, tasks, language = 'ar' }: TaskIns
           if (!open) setSelectedTask(null);
         }}
       >
-        <DialogContent className="sm:max-w-md rounded-2xl p-5" dir={isArabic ? 'rtl' : 'ltr'}>
+        <DialogContent className="w-[calc(100vw-1.5rem)] max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain sm:w-full sm:max-w-md rounded-2xl p-4 sm:p-5" dir={isArabic ? 'rtl' : 'ltr'}>
           {selectedTask && (
             <div className="space-y-3.5">
               <DialogHeader>
@@ -477,22 +482,21 @@ export default function TaskInsights({ goalId, tasks, language = 'ar' }: TaskIns
         </div>
       )}
 
-      {/* Top Skills Section Card - Refined Balanced Height */}
+      {/* Top Skills Section Card - Compact & Space-Efficient */}
       <div className={cn(PANEL_SURFACE, "rounded-2xl p-2.5 transition-all duration-300")}>
         {/* Section Header */}
-        <div className="flex items-center gap-2.5 pb-2.5 mb-3 border-b border-border/60">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/15">
-            <TrendingUp className="h-3.5 w-3.5" />
+        <div className="flex items-center gap-2 pb-2 mb-2 border-b border-border/60">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/15">
+            <TrendingUp className="h-3 w-3" />
           </span>
           <h3 className="truncate text-xs font-extrabold text-foreground sm:text-sm">
             {text.title}
           </h3>
         </div>
 
-        {/* Top Tasks Balanced Grid */}
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+        {/* Top Tasks Compact Grid */}
+        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-3 sm:gap-2">
           {analytics.topTasks.map((item, index) => {
-            const progressPercent = Math.max(14, Math.round((item.completions / maxCompletions) * 100));
             const isTopRank = index === 0;
 
             return (
@@ -508,71 +512,55 @@ export default function TaskInsights({ goalId, tasks, language = 'ar' }: TaskIns
                   }
                 }}
                 className={cn(
-                  "group relative flex flex-col justify-between rounded-xl border border-border/70 bg-card p-3.5 text-start transition-all duration-200 hover:border-primary/60 hover:shadow-xs cursor-pointer active:scale-[0.99] shadow-xs",
+                  "group relative flex items-center justify-between rounded-xl border border-border/70 bg-card px-2.5 py-2 text-start transition-all duration-200 hover:border-primary/60 hover:shadow-xs cursor-pointer active:scale-[0.99] shadow-xs",
                   isTopRank && "border-primary/40 ring-1 ring-primary/20 bg-primary/[0.03]"
                 )}
               >
-                {/* Top Row: Rank + Icon + Full Name + Multiplier */}
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <span
-                      className={cn(
-                        "inline-flex h-5 min-w-5 items-center justify-center rounded-md px-1.5 text-[10px] font-semibold shrink-0 tabular-nums border",
-                        isTopRank
-                          ? "bg-primary text-primary-foreground border-primary/40 shadow-xs"
-                          : "bg-muted/60 text-muted-foreground border-border/60 font-medium"
-                      )}
-                    >
-                      #{index + 1}
-                    </span>
+                {/* Left Side: Rank + Name + Category/Frequency */}
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <span
+                    className={cn(
+                      "inline-flex h-5 min-w-5 items-center justify-center rounded-md px-1.5 text-[10px] font-semibold shrink-0 tabular-nums border",
+                      isTopRank
+                        ? "bg-primary text-primary-foreground border-primary/40 shadow-xs"
+                        : "bg-muted/60 text-muted-foreground border-border/60 font-medium"
+                    )}
+                  >
+                    #{index + 1}
+                  </span>
 
+                  <div className="min-w-0 flex-1">
                     <h4
-                      className="truncate text-xs sm:text-sm font-bold text-foreground group-hover:text-primary transition-colors leading-tight"
+                      className="truncate text-xs font-bold text-foreground group-hover:text-primary transition-colors leading-tight"
                       title={item.fullName}
                     >
                       {item.fullName}
                     </h4>
-                  </div>
-
-                  <span
-                    className="inline-flex shrink-0 items-center gap-0.5 rounded-lg border border-primary/20 bg-primary/10 px-2 py-0.5 text-xs font-black text-primary tabular-nums"
-                    dir="ltr"
-                  >
-                    <span className="text-[10px] font-bold">×</span>
-                    {formatNumberEn(item.completions)}
-                  </span>
-                </div>
-
-                {/* Bottom Row: Metadata (Pillar / Frequency) & Points / Consistency bar */}
-                <div className="mt-2.5 pt-2 border-t border-border/40 flex items-center justify-between gap-2 text-[11px]">
-                  <div className="flex items-center gap-1.5 min-w-0 text-muted-foreground truncate">
-                    {item.parentName && (
-                      <>
-                        <span className="truncate max-w-[120px] text-[10px] font-medium text-muted-foreground/80">
-                          {item.parentName}
-                        </span>
-                        <span className="text-muted-foreground/40 text-[9px]">•</span>
-                      </>
-                    )}
-                    <span className="text-[10px] font-medium text-muted-foreground/75">
-                      {item.frequency === 'daily' ? text.daily : text.weekly}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[11px] font-bold text-foreground/85 tabular-nums">
-                      <span className="text-primary font-black">+{formatNumberEn(item.totalPoints)}</span>
-                      <span className="text-[9px] text-muted-foreground ms-0.5">{text.points}</span>
-                    </span>
-
-                    {/* Mini consistency indicator track */}
-                    <div className="w-12 h-1.5 overflow-hidden rounded-full bg-muted/50 shrink-0">
-                      <div
-                        className="h-full rounded-full bg-primary transition-all duration-500"
-                        style={{ width: `${progressPercent}%` }}
-                      />
+                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground truncate mt-0.5">
+                      {item.parentName && (
+                        <>
+                          <span className="truncate max-w-[85px]">{item.parentName}</span>
+                          <span className="text-muted-foreground/40">•</span>
+                        </>
+                      )}
+                      <span>{item.frequency === 'daily' ? text.daily : text.weekly}</span>
                     </div>
                   </div>
+                </div>
+
+                {/* Right Side: Points + Multiplier */}
+                <div className="flex items-center gap-2 shrink-0 ms-2">
+                  <span className="text-[11px] font-bold text-foreground tabular-nums">
+                    <span className="text-primary font-black">+{formatNumberEn(item.totalPoints)}</span>
+                    <span className="text-[9px] text-muted-foreground ms-0.5">{text.points}</span>
+                  </span>
+                  <span
+                    className="inline-flex shrink-0 items-center gap-0.5 rounded-md border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-[11px] font-black text-primary tabular-nums"
+                    dir="ltr"
+                  >
+                    <span className="text-[9px] font-bold">×</span>
+                    {formatNumberEn(item.completions)}
+                  </span>
                 </div>
               </div>
             );

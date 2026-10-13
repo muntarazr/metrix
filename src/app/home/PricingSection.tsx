@@ -81,20 +81,20 @@ export default function PricingSection() {
   };
 
   return (
-    <section id="pricing" className="mx-auto max-w-6xl px-6 py-20">
-      <h2 className="text-center text-3xl font-bold tracking-tight">
+    <section id="pricing" className="mx-auto max-w-6xl px-4 sm:px-6 py-12 sm:py-20">
+      <h2 className="text-center text-2xl sm:text-3xl font-bold tracking-tight">
         اختر خطتك
       </h2>
-      <p className="mx-auto mt-3 max-w-xl text-center text-muted-foreground">
+      <p className="mx-auto mt-2 sm:mt-3 max-w-xl text-center text-sm sm:text-base text-muted-foreground text-balance">
         ابدأ مجانيًا وارتقِ عندما يكبر التزامك. ألغِ في أي وقت.
       </p>
 
       {/* Billing toggle — yearly preselected as the smarter default */}
-      <div className="mt-8 flex justify-center">
+      <div className="mt-6 sm:mt-8 flex justify-center">
         <div
           role="tablist"
           aria-label="دورة الفوترة"
-          className="inline-flex rounded-full border border-border bg-card p-1 shadow-xs"
+          className="inline-flex rounded-full border border-border bg-card p-1 shadow-xs max-w-full"
         >
           {(
             [
@@ -109,8 +109,8 @@ export default function PricingSection() {
               onClick={() => setBilling(opt.key)}
               className={
                 billing === opt.key
-                  ? "rounded-full bg-primary px-5 py-1.5 text-sm font-semibold text-primary-foreground transition-colors duration-200"
-                  : "rounded-full px-5 py-1.5 text-sm font-medium text-muted-foreground transition-colors duration-200 hover:text-foreground"
+                  ? "whitespace-nowrap rounded-full bg-primary px-3.5 sm:px-5 py-2 sm:py-1.5 text-xs sm:text-sm font-semibold text-primary-foreground transition-colors duration-200"
+                  : "whitespace-nowrap rounded-full px-3.5 sm:px-5 py-2 sm:py-1.5 text-xs sm:text-sm font-medium text-muted-foreground transition-colors duration-200 hover:text-foreground"
               }
             >
               {opt.label}
@@ -119,8 +119,8 @@ export default function PricingSection() {
                   text="(وفّر شهرين)"
                   className={
                     billing === "yearly"
-                      ? "ms-1.5 text-xs opacity-90"
-                      : "ms-1.5 text-xs font-semibold text-primary"
+                      ? "ms-1 sm:ms-1.5 text-[11px] sm:text-xs opacity-90"
+                      : "ms-1 sm:ms-1.5 text-[11px] sm:text-xs font-semibold text-primary"
                   }
                 />
               )}
@@ -129,7 +129,7 @@ export default function PricingSection() {
         </div>
       </div>
 
-      <div className="mt-10 grid gap-6 lg:grid-cols-3">
+      <div className="mt-8 sm:mt-10 grid gap-4 sm:gap-6 lg:grid-cols-3">
         {plans.map((plan) => {
           const isYearly = billing === "yearly" && plan.monthly > 0;
           const savings =
@@ -146,16 +146,18 @@ export default function PricingSection() {
               }
               className={
                 plan.highlighted
-                  ? "relative flex flex-col rounded-xl border border-primary ring-1 ring-primary/30 bg-card p-8 shadow-sm"
-                  : "relative flex flex-col rounded-xl border border-border/70 bg-card p-8 shadow-xs"
+                  ? "relative flex flex-col [&>div:last-child]:flex [&>div:last-child]:flex-1 [&>div:last-child]:flex-col rounded-xl border border-primary ring-1 ring-primary/30 bg-card p-5 sm:p-7 md:p-8 shadow-sm"
+                  : "relative flex flex-col [&>div:last-child]:flex [&>div:last-child]:flex-1 [&>div:last-child]:flex-col rounded-xl border border-border/70 bg-card p-5 sm:p-7 md:p-8 shadow-xs"
               }
             >
-              {plan.note && (
-                <span className="absolute -top-3 start-6 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
-                  {plan.note}
-                </span>
-              )}
-              <h3 className="text-lg font-bold">{plan.name}</h3>
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-lg font-bold">{plan.name}</h3>
+                {plan.note && (
+                  <span className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground shrink-0">
+                    {plan.note}
+                  </span>
+                )}
+              </div>
               <p className="mt-1 text-sm text-muted-foreground">
                 {plan.tagline}
               </p>

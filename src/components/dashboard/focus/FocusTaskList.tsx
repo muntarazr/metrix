@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { ListTodo, Plus } from "lucide-react";
 import { Sortable, SortableItem } from "@/components/reui/sortable";
-import { MainTaskCard } from "../ReorderableTaskCards";
+import { MainTaskCard, type TaskProgressInfo } from "../ReorderableTaskCards";
 import type { MainTask, SubTask } from "@/lib/task-hierarchy";
 import type { EditableTask } from "../TaskEditDialog";
 
@@ -19,7 +19,9 @@ export interface FocusTaskListProps {
   editingTaskId: string | null;
   editingText: string;
   isChecked: (taskId: string, frequency: string) => boolean;
+  getTaskProgress?: (taskId: string, frequency?: string) => TaskProgressInfo;
   isMainDone: (main: MainTask) => boolean;
+  manualOrder?: boolean;
   sinkCompleted: <T>(items: T[], isDone: (item: T) => boolean) => T[];
   handleReorderMains: (newOrder: MainTask[]) => void;
   handlePersistMainOrder: (newMains: MainTask[]) => Promise<void>;
@@ -85,6 +87,7 @@ export interface FocusTaskListProps {
     } | null>
   >;
   onUpdateTaskScheduleDays?: (taskId: string, days: number[] | null) => Promise<void> | void;
+  onUpdateTaskIcon?: (taskId: string, icon: string) => void;
 }
 
 export function FocusTaskList({
@@ -99,7 +102,9 @@ export function FocusTaskList({
   editingTaskId,
   editingText,
   isChecked,
+  getTaskProgress,
   isMainDone,
+  manualOrder,
   sinkCompleted,
   handleReorderMains,
   handlePersistMainOrder,
@@ -116,6 +121,7 @@ export function FocusTaskList({
   onRenameTask,
   onSetEditingText,
   onUpdateTaskWeight,
+  onUpdateTaskIcon,
   onOpenTaskEditor,
   onToggleCheckin,
   setAddModalConfig,
@@ -163,7 +169,7 @@ export function FocusTaskList({
 
   if (hierarchyLength === 0) {
     return (
-      <div className="my-auto rounded-2xl border border-dashed border-border/70 bg-muted/12 p-[320px] text-center">
+      <div className="my-auto rounded-2xl border border-dashed border-border/70 bg-muted/12 py-10 px-6 sm:p-12 text-center">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary border border-primary/20 shadow-xs">
           <ListTodo className="h-5 w-5" />
         </div>
@@ -219,10 +225,12 @@ export function FocusTaskList({
         className="scrollbar-thin min-h-0 flex-1 w-full space-y-2 overflow-y-auto overscroll-contain pb-2"
       >
       {tasksList.map((main, mainIdx) => {
-        const orderedSubtasks = sinkCompleted(
-          main.subtasks,
-          (sub) => isChecked(sub.id, sub.frequency),
-        );
+        const orderedSubtasks = manualOrder
+          ? main.subtasks
+          : sinkCompleted(
+              main.subtasks,
+              (sub) => isChecked(sub.id, sub.frequency),
+            );
         const isExpanded = userToggledMains.has(main.id)
           ? userToggledMains.get(main.id)!
           : main.subtasks.length > 0
@@ -243,6 +251,7 @@ export function FocusTaskList({
               editingText={editingText}
               orderedSubtasks={orderedSubtasks}
               isChecked={isChecked}
+              getTaskProgress={getTaskProgress}
               onToggleExpand={handleToggle}
               onMoveMain={handleMoveMain}
               onMoveSub={handleMoveSub}
@@ -257,6 +266,7 @@ export function FocusTaskList({
               onRenameTask={onRenameTask}
               onSetEditingText={onSetEditingText}
               onUpdateTaskWeight={onUpdateTaskWeight}
+              onUpdateTaskIcon={onUpdateTaskIcon}
               onOpenTaskEditor={onOpenTaskEditor}
               onToggleCheckin={onToggleCheckin}
               setAddModalConfig={setAddModalConfig}

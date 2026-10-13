@@ -13,7 +13,7 @@ export default function ToastNotification({ message, visible }: ToastNotificatio
   return (
     <div 
       className={cn(
-        "fixed bottom-24 sm:bottom-28 left-1/2 -translate-x-1/2 z-50 px-4 transition-all duration-300 ease-out-quart",
+        "fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:bottom-28 left-1/2 -translate-x-1/2 z-[150] w-max max-w-[calc(100vw-1rem)] px-2 sm:px-4 transition-all duration-300 ease-out-quart",
         visible 
           ? "opacity-100 translate-y-0 scale-100 pointer-events-auto" 
           : "opacity-0 translate-y-4 scale-95 pointer-events-none"

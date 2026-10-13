@@ -54,7 +54,7 @@ export function NumberStepper({
     const currentLabel = getUnitDisplayLabel(currentUnit, isAr);
 
     return (
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <button
                 type="button"
                 onClick={decrease}

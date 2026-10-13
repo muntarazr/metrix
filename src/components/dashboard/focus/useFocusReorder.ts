@@ -5,9 +5,13 @@ import type { MainTask, SubTask } from "@/lib/task-hierarchy";
 import { createClient } from "@/utils/supabase/client";
 
 interface UseFocusReorderProps {
+  goalId?: string;
+  initialManualOrder?: boolean;
   filteredHierarchy: MainTask[];
   isChecked: (taskId: string, frequency: string) => boolean;
   onRefreshTasks?: () => Promise<void>;
+  onGoalUpdated?: () => void;
+  supabase?: any;
 }
 
 // Sinks completed items to the bottom of the list while maintaining order
@@ -28,9 +32,13 @@ export const sinkCompleted = <T,>(
 };
 
 export function useFocusReorder({
+  goalId,
+  initialManualOrder,
   filteredHierarchy,
   isChecked,
   onRefreshTasks,
+  onGoalUpdated,
+  supabase: injectedSupabase,
 }: UseFocusReorderProps) {
   const isMainDone = useCallback(
     (main: MainTask) => {
@@ -42,9 +50,37 @@ export function useFocusReorder({
     [isChecked],
   );
 
-  // Local reorderable list state
+  // Manual order state: true when the user explicitly rearranged tasks
+  const [manualOrder, setManualOrder] = useState<boolean>(() => {
+    if (initialManualOrder !== undefined) return Boolean(initialManualOrder);
+    if (typeof window !== "undefined" && goalId) {
+      try {
+        const stored = localStorage.getItem(`metrix_manual_order_${goalId}`);
+        if (stored !== null) return stored === "true";
+      } catch {}
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (initialManualOrder !== undefined) {
+      setManualOrder(Boolean(initialManualOrder));
+      if (typeof window !== "undefined" && goalId) {
+        try {
+          localStorage.setItem(
+            `metrix_manual_order_${goalId}`,
+            String(Boolean(initialManualOrder)),
+          );
+        } catch {}
+      }
+    }
+  }, [initialManualOrder, goalId]);
+
+  // Local reorderable list state:
+  // If user has custom manual order, strictly follow filteredHierarchy (based on sort_order);
+  // otherwise, sink completed items automatically.
   const [tasksList, setTasksList] = useState<MainTask[]>(() =>
-    sinkCompleted(filteredHierarchy, isMainDone),
+    manualOrder ? filteredHierarchy : sinkCompleted(filteredHierarchy, isMainDone),
   );
   const tasksListRef = useRef(tasksList);
   tasksListRef.current = tasksList;
@@ -55,8 +91,37 @@ export function useFocusReorder({
 
   // Sync with incoming hierarchy changes
   useEffect(() => {
-    setTasksList(sinkCompleted(filteredHierarchy, isMainDone));
-  }, [filteredHierarchy, isMainDone]);
+    if (manualOrder) {
+      setTasksList(filteredHierarchy);
+    } else {
+      setTasksList(sinkCompleted(filteredHierarchy, isMainDone));
+    }
+  }, [filteredHierarchy, isMainDone, manualOrder]);
+
+  // Helper to mark manual order active and persist it
+  const markManualOrderActive = useCallback(async () => {
+    setManualOrder(true);
+    if (typeof window !== "undefined" && goalId) {
+      try {
+        localStorage.setItem(`metrix_manual_order_${goalId}`, "true");
+      } catch {}
+    }
+    if (goalId) {
+      try {
+        const client = injectedSupabase || createClient();
+        await client
+          .from("goals")
+          .update({ manual_task_order: true })
+          .eq("id", goalId);
+        onGoalUpdated?.();
+      } catch (err: any) {
+        console.error(
+          "Failed to update goal manual_task_order:",
+          err?.message || err,
+        );
+      }
+    }
+  }, [goalId, injectedSupabase, onGoalUpdated]);
 
   // Cleanup highlight animation timeout on unmount
   useEffect(() => {
@@ -81,22 +146,47 @@ export function useFocusReorder({
   const handlePersistMainOrder = useCallback(
     async (listToPersist?: MainTask[]) => {
       const list = listToPersist || tasksListRef.current;
+      const validItems = list.filter(
+        (item) => item?.id && !String(item.id).startsWith("orphan-"),
+      );
+      if (validItems.length === 0) return;
+
+      // Lock in manual user order so auto-sink does not undo the user's explicit order
+      await markManualOrderActive();
+
       try {
-        const supabase = createClient();
-        await Promise.all(
-          list.map((item, idx) =>
-            supabase
+        const client = injectedSupabase || createClient();
+        const results = await Promise.all(
+          validItems.map((item, idx) =>
+            client
               .from("sub_layers")
               .update({ sort_order: idx })
               .eq("id", item.id),
           ),
         );
-        if (onRefreshTasks) await onRefreshTasks();
-      } catch (err) {
-        console.error("Failed to reorder main tasks:", err);
+        const errorResult = results.find((r) => r?.error);
+        if (errorResult?.error) {
+          const err = errorResult.error;
+          console.error(
+            "Failed to reorder main tasks:",
+            err.message || err.details || err.hint || err.code || err,
+          );
+        }
+        if (onRefreshTasks) {
+          try {
+            await onRefreshTasks();
+          } catch (refreshErr: any) {
+            console.error(
+              "onRefreshTasks error:",
+              refreshErr?.message || refreshErr,
+            );
+          }
+        }
+      } catch (err: any) {
+        console.error("Failed to reorder main tasks:", err?.message || err);
       }
     },
-    [onRefreshTasks],
+    [injectedSupabase, markManualOrderActive, onRefreshTasks],
   );
 
   // Reorder Main Tasks live while dragging
@@ -120,22 +210,47 @@ export function useFocusReorder({
       const currentMain = tasksListRef.current.find((m) => m.id === mainId);
       const subs = subsToPersist || currentMain?.subtasks;
       if (!subs) return;
+      const validSubs = subs.filter(
+        (item) => item?.id && !String(item.id).startsWith("orphan-"),
+      );
+      if (validSubs.length === 0) return;
+
+      // Lock in manual user order so auto-sink does not undo the user's explicit order
+      await markManualOrderActive();
+
       try {
-        const supabase = createClient();
-        await Promise.all(
-          subs.map((item, idx) =>
-            supabase
+        const client = injectedSupabase || createClient();
+        const results = await Promise.all(
+          validSubs.map((item, idx) =>
+            client
               .from("sub_layers")
               .update({ sort_order: idx })
               .eq("id", item.id),
           ),
         );
-        if (onRefreshTasks) await onRefreshTasks();
-      } catch (err) {
-        console.error("Failed to reorder subtasks:", err);
+        const errorResult = results.find((r) => r?.error);
+        if (errorResult?.error) {
+          const err = errorResult.error;
+          console.error(
+            "Failed to reorder subtasks:",
+            err.message || err.details || err.hint || err.code || err,
+          );
+        }
+        if (onRefreshTasks) {
+          try {
+            await onRefreshTasks();
+          } catch (refreshErr: any) {
+            console.error(
+              "onRefreshTasks error:",
+              refreshErr?.message || refreshErr,
+            );
+          }
+        }
+      } catch (err: any) {
+        console.error("Failed to reorder subtasks:", err?.message || err);
       }
     },
-    [onRefreshTasks],
+    [injectedSupabase, markManualOrderActive, onRefreshTasks],
   );
 
   // Move Main Task Up or Down with smooth transition
@@ -198,33 +313,107 @@ export function useFocusReorder({
         }
       }
 
+      // Lock in manual user order
+      await markManualOrderActive();
+
+      const validSubs = nextSubs.filter(
+        (item) => item?.id && !String(item.id).startsWith("orphan-"),
+      );
+
       try {
-        const supabase = createClient();
-        await Promise.all(
-          nextSubs.map((item, idx) =>
-            supabase
+        const client = injectedSupabase || createClient();
+        const results = await Promise.all(
+          validSubs.map((item, idx) =>
+            client
               .from("sub_layers")
               .update({ sort_order: idx })
               .eq("id", item.id),
           ),
         );
-        if (onRefreshTasks) await onRefreshTasks();
-      } catch (err) {
-        console.error("Failed to reorder subtasks:", err);
+        const errorResult = results.find((r) => r?.error);
+        if (errorResult?.error) {
+          const err = errorResult.error;
+          console.error(
+            "Failed to reorder subtasks:",
+            err.message || err.details || err.hint || err.code || err,
+          );
+        }
+        if (onRefreshTasks) {
+          try {
+            await onRefreshTasks();
+          } catch (refreshErr: any) {
+            console.error(
+              "onRefreshTasks error:",
+              refreshErr?.message || refreshErr,
+            );
+          }
+        }
+      } catch (err: any) {
+        console.error("Failed to reorder subtasks:", err?.message || err);
       }
     },
-    [onRefreshTasks, triggerAnimation],
+    [injectedSupabase, markManualOrderActive, onRefreshTasks, triggerAnimation],
   );
+
+  // Reset tasks order back to automatic (sinking completed tasks)
+  const handleResetToAutoOrder = useCallback(async () => {
+    setManualOrder(false);
+    if (typeof window !== "undefined" && goalId) {
+      try {
+        localStorage.setItem(`metrix_manual_order_${goalId}`, "false");
+      } catch {}
+    }
+    const autoOrdered = sinkCompleted(filteredHierarchy, isMainDone);
+    setTasksList(autoOrdered);
+
+    const client = injectedSupabase || createClient();
+    try {
+      if (goalId) {
+        await client
+          .from("goals")
+          .update({ manual_task_order: false })
+          .eq("id", goalId);
+        onGoalUpdated?.();
+      }
+      const validItems = autoOrdered.filter(
+        (item) => item?.id && !String(item.id).startsWith("orphan-"),
+      );
+      if (validItems.length > 0) {
+        await Promise.all(
+          validItems.map((item, idx) =>
+            client
+              .from("sub_layers")
+              .update({ sort_order: idx })
+              .eq("id", item.id),
+          ),
+        );
+      }
+      if (onRefreshTasks) {
+        await onRefreshTasks();
+      }
+    } catch (err: any) {
+      console.error("Failed to reset to auto order:", err?.message || err);
+    }
+  }, [
+    filteredHierarchy,
+    goalId,
+    injectedSupabase,
+    isMainDone,
+    onGoalUpdated,
+    onRefreshTasks,
+  ]);
 
   return {
     tasksList,
     animatingId,
+    manualOrder,
     handleReorderMains,
     handleReorderSubs,
     handlePersistMainOrder,
     handlePersistSubOrder,
     handleMoveMain,
     handleMoveSub,
+    handleResetToAutoOrder,
     sinkCompleted,
     isMainDone,
   };

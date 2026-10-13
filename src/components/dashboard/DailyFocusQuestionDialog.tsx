@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronDown, Loader2, Send, Sparkles, X } from "lucide-react";
+import { Loader2, Send, Sparkles, X } from "lucide-react";
 import { translations, type Language } from "@/lib/translations";
 import type { DailyFocusSession } from "@/lib/daily-focus";
 import { cn } from "@/lib/utils";
@@ -45,7 +44,6 @@ export default function DailyFocusQuestionDialog({
   onSubmit,
 }: DailyFocusQuestionDialogProps) {
   const t = translations[language];
-  const [questionWhyOpen, setQuestionWhyOpen] = useState(false);
   const submitDisabled = submitting || loading || !answer.trim();
 
   const currentQuestionNumber = Math.max(
@@ -81,7 +79,7 @@ export default function DailyFocusQuestionDialog({
         )}
         dir={isArabic ? "rtl" : "ltr"}
       >
-        <div className="flex max-h-[88svh] flex-col sm:max-h-[min(88svh,52rem)]">
+        <div className="flex max-h-[88dvh] flex-col sm:max-h-[min(88svh,52rem)]">
           {/* Single custom close button — logical inset for LTR/RTL */}
           <DialogClose 
             aria-label={isArabic ? "إغلاق" : "Close"}
@@ -92,7 +90,7 @@ export default function DailyFocusQuestionDialog({
           </DialogClose>
 
           {/* ── Scroll area ── */}
-          <div className="flex-1 overflow-y-auto pb-4">
+          <div className="flex-1 overflow-y-auto overscroll-contain pb-4">
             {/* Mobile drag handle */}
             <div className="flex justify-center pt-2 sm:hidden">
               <div className="h-1 w-10 rounded-full bg-foreground/12" />
@@ -102,31 +100,33 @@ export default function DailyFocusQuestionDialog({
             <div className="px-5 pt-4 pb-3 pe-12 sm:px-7 sm:pt-5 sm:pb-4 sm:pe-14">
               <DialogHeader
                 className={cn(
-                  "gap-0 space-y-0 !text-start sm:!text-start items-start",
+                  "gap-1.5 space-y-0 !text-start sm:!text-start items-start",
                 )}
               >
-                {/* Badge row: logical separator works in both directions */}
-                  <div
-                    className={cn(
-                      "mb-2.5 flex flex-wrap items-center gap-x-2 gap-y-2 justify-start",
-                    )}
-                  >
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/8 px-3 py-1.5 text-[11px] font-bold ltr:uppercase ltr:tracking-wide rtl:tracking-normal text-primary dark:bg-primary/20">
+                {/* Unified top row: Badge + Counter */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary dark:bg-primary/20">
                     <Sparkles className="size-3.5 shrink-0" aria-hidden />
                     {t.dailyFocus}
                   </span>
-                  <bdi className="text-[12px] font-semibold tabular-nums text-muted-foreground/75 ms-0.5 border-s border-border ps-2.5 dark:border-white/10">
-                    {cycleLabel}
-                  </bdi>
+                  <span className="inline-flex items-center rounded-full bg-muted/70 px-2.5 py-1 text-xs font-medium text-muted-foreground border border-border/50">
+                    {questionLabel}
+                  </span>
+                  {dailyFocus?.required_answer_days && (
+                    <span className="text-[11px] font-medium text-muted-foreground/80">
+                      ({cycleLabel})
+                    </span>
+                  )}
                 </div>
 
-                <DialogTitle className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-                  {t.todayQuestion}
-                </DialogTitle>
-
-                <DialogDescription className="sr-only">
+                {/* Subtitle / context description */}
+                <DialogDescription className="text-xs text-muted-foreground sm:text-[13px] leading-relaxed pt-0.5">
                   {t.dailyAiQuestionDesc}
                 </DialogDescription>
+
+                <DialogTitle className="sr-only">
+                  {t.dailyFocus} - {questionLabel}
+                </DialogTitle>
               </DialogHeader>
             </div>
 
@@ -135,11 +135,6 @@ export default function DailyFocusQuestionDialog({
 
             {/* Question block */}
             <div className="px-5 py-4 sm:px-7 sm:py-4">
-              {/* Question number label */}
-              <p className="mb-2 text-[10px] font-bold ltr:uppercase ltr:tracking-[0.18em] rtl:tracking-normal text-primary/75 sm:text-[11px]">
-                {questionLabel}
-              </p>
-
               {loading && !dailyFocus ? (
                 <div className="space-y-3">
                   <div className="h-4 w-full animate-pulse rounded-full bg-muted" />
@@ -147,53 +142,14 @@ export default function DailyFocusQuestionDialog({
                   <div className="h-4 w-4/6 animate-pulse rounded-full bg-muted" />
                 </div>
               ) : (
-                <>
-                  <p
-                    className={cn(
-                      "whitespace-pre-line text-[15px] font-semibold leading-8 text-foreground sm:text-base sm:leading-8",
-                      "text-start break-words",
-                    )}
-                  >
-                    {dailyFocus?.question || t.dailyFocusUnavailable}
-                  </p>
-
-                  {dailyFocus?.question_why && (
-                    <div className={cn("mt-3 rounded-xl border border-primary/15 bg-primary/12 dark:bg-white/5 sm:rounded-2xl")}>
-                      <button
-                        type="button"
-                        id="daily-focus-why-trigger"
-                        aria-expanded={questionWhyOpen}
-                        aria-controls="daily-focus-why-content"
-                        onClick={() => setQuestionWhyOpen(!questionWhyOpen)}
-                        className={cn(
-                          "flex w-full items-center justify-between gap-2 px-3.5 py-2.5 sm:px-4 sm:py-3",
-                          "text-[10px] font-bold ltr:uppercase ltr:tracking-wider rtl:tracking-normal text-primary/75 sm:text-[11px]",
-                          "transition-colors hover:text-primary",
-                        )}
-                      >
-                        <span>{t.questionWhyLabel}</span>
-                        <ChevronDown
-                          className={cn(
-                            "size-3.5 shrink-0 transition-transform duration-200",
-                            questionWhyOpen && "rotate-180",
-                          )}
-                        />
-                      </button>
-                      {questionWhyOpen && (
-                        <div id="daily-focus-why-content" className="px-3.5 pb-2.5 sm:px-4 sm:pb-3">
-                          <p
-                            className={cn(
-                              "whitespace-pre-line text-[13px] leading-relaxed text-muted-foreground font-medium",
-                              "text-start",
-                            )}
-                          >
-                            {dailyFocus.question_why}
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                <p
+                  className={cn(
+                    "whitespace-pre-line text-[15px] font-semibold leading-8 text-foreground sm:text-base sm:leading-8",
+                    "text-start break-words",
                   )}
-                </>
+                >
+                  {dailyFocus?.question || t.dailyFocusUnavailable}
+                </p>
               )}
             </div>
 
@@ -251,9 +207,6 @@ export default function DailyFocusQuestionDialog({
                 >
                   {t.answerQuestion}
                 </label>
-                <span className="text-[10px] font-medium text-muted-foreground/60">
-                  {isArabic ? "بحد أقصى 5 أسطر" : "Max 5 lines"}
-                </span>
               </div>
 
               <div className="relative">
@@ -286,7 +239,7 @@ export default function DailyFocusQuestionDialog({
                     "w-full resize-none rounded-xl border border-border/70 bg-muted/20",
                     "min-h-[6.5rem] sm:min-h-[7.5rem]",
                     "px-4 py-3 pb-12 pe-14",
-                    "text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/50 sm:text-[14px]",
+                    "text-base leading-relaxed text-foreground placeholder:text-muted-foreground/50 sm:text-[14px]",
                     "text-start outline-none transition-all duration-200",
                     "focus:border-primary/25 focus:bg-background focus:ring-4 focus:ring-primary/15",
                     "dark:bg-white/5 dark:border-white/5 dark:focus:bg-white/10",
@@ -295,19 +248,12 @@ export default function DailyFocusQuestionDialog({
                   dir={isArabic ? "rtl" : "ltr"}
                 />
 
-                {/* Mic: inset-inline-end follows RTL/LTR */}
-                <div
-                  className={cn(
-                    "absolute bottom-2.5 end-2.5 flex flex-col",
-                    isArabic ? "items-start" : "items-end",
-                  )}
-                >
+                <div className="absolute bottom-2.5 end-2.5">
                   <VoiceRecorder
                     onTranscript={onAppendTranscript}
                     language={language}
                     size="sm"
                     statusAboveButton
-                    className="gap-1"
                   />
                 </div>
               </div>

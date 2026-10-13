@@ -28,8 +28,8 @@ export function WeekdayChips({
     };
 
     const sizeClasses = size === 'sm'
-        ? 'w-6 h-6 text-[10px]'
-        : 'w-6 h-6 sm:w-8 sm:h-8 text-[10px] sm:text-xs';
+        ? 'w-7 h-7 sm:w-6 sm:h-6 text-[10px] touch-manipulation'
+        : 'w-7 h-7 sm:w-8 sm:h-8 text-[11px] sm:text-xs touch-manipulation';
 
     return (
         <div className="flex flex-wrap items-center gap-1.5">

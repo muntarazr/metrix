@@ -46,6 +46,7 @@ create table if not exists public.goals (
   total_days                integer,
   estimated_completion_date date,
   is_pinned                 boolean not null default false,
+  manual_task_order         boolean not null default false,
   created_at                timestamptz not null default now()
 );
 create index if not exists goals_user_id_idx on public.goals(user_id);

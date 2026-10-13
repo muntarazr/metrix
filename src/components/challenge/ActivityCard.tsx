@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useState } from "react";
 import {
   Trophy,
@@ -14,18 +13,10 @@ import {
   ChevronDown,
   ChevronUp,
   X,
-  ImageIcon,
   Check,
-  Upload,
-  Copy,
-  WandSparkles,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  buildMilestoneImagePrompt,
-  normalizePromptStyle,
-  type PromptStyle,
-} from "@/lib/milestone-image-prompt";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -134,60 +125,6 @@ type EditMode = null | {
   value: string;
 };
 
-type ImageDialogState = null | {
-  logId: string;
-  hasImage: boolean;
-};
-
-type PromptDialogState = null | {
-  logId: string;
-  prompt: string;
-  style: PromptStyle;
-  goalTitle: string;
-  goalSummary?: string;
-  milestoneName: string;
-  milestoneDescription: string;
-  tasksDescriptions: string[];
-  aspectRatio?: string;
-};
-
-const promptStyleOptions: Array<{
-  value: PromptStyle;
-  label: { ar: string; en: string };
-  hint: { ar: string; en: string };
-}> = [
-  {
-    value: "cinematic",
-    label: { ar: "سينمائي", en: "Cinematic" },
-    hint: { ar: "مشهد غني", en: "Layered scene" },
-  },
-  {
-    value: "minimal",
-    label: { ar: "هادئ", en: "Minimal" },
-    hint: { ar: "مرتب ومركب", en: "Clean layers" },
-  },
-  {
-    value: "neon",
-    label: { ar: "نيون", en: "Neon" },
-    hint: { ar: "طاقة وتقدم", en: "High energy" },
-  },
-  {
-    value: "realistic",
-    label: { ar: "واقعي", en: "Realistic" },
-    hint: { ar: "تفاصيل ملموسة", en: "Tangible detail" },
-  },
-  {
-    value: "anime",
-    label: { ar: "أنمي", en: "Anime" },
-    hint: { ar: "لقطة بطولية", en: "Hero key visual" },
-  },
-  {
-    value: "luxury",
-    label: { ar: "فاخر", en: "Luxury" },
-    hint: { ar: "تفاصيل فاخرة", en: "Premium detail" },
-  },
-];
-
 export function ActivityCard({
   goalId,
   recentEvents,
@@ -202,9 +139,6 @@ export function ActivityCard({
   const [editMode, setEditMode] = useState<EditMode>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(true);
-  const [imageDialog, setImageDialog] = useState<ImageDialogState>(null);
-  const [promptDialog, setPromptDialog] = useState<PromptDialogState>(null);
-  const [promptCopied, setPromptCopied] = useState(false);
 
   const isArabic = locale === "ar" || locale?.startsWith("ar");
   const milestoneEvents = recentEvents.filter((e) => e.milestone);
@@ -257,8 +191,6 @@ export function ActivityCard({
       name?: string;
       description?: string;
       accentColor?: AccentColor;
-      imagePrompt?: string;
-      imageStylePreference?: PromptStyle;
     },
   ) => {
     if (!goalId) return false;
@@ -291,63 +223,6 @@ export function ActivityCard({
             : "Could not update milestone",
       );
       return false;
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  const handleCopyPrompt = async (prompt: string) => {
-    try {
-      await navigator.clipboard.writeText(prompt);
-      setPromptCopied(true);
-      window.setTimeout(() => setPromptCopied(false), 1800);
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : isArabic
-            ? "تعذر نسخ البرومبت"
-            : "Could not copy prompt",
-      );
-    }
-  };
-
-  const handleUploadImage = async (logId: string, file: File) => {
-    if (!goalId) return;
-    setBusyId(logId);
-    setErrorMessage(null);
-
-    try {
-      const formData = new FormData();
-      formData.append("logId", logId);
-      formData.append("goalId", goalId);
-      formData.append("image", file);
-
-      const response = await fetch(apiUrl("/api/goal/milestone/image"), {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(
-          data?.message ||
-            data?.error ||
-            (isArabic ? "تعذر رفع الصورة" : "Could not upload image"),
-        );
-      }
-
-      refresh();
-      setImageDialog(null);
-    } catch (error) {
-      console.warn("Milestone image upload failed:", error);
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : isArabic
-            ? "تعذر رفع الصورة"
-            : "Could not upload image",
-      );
     } finally {
       setBusyId(null);
     }
@@ -404,228 +279,6 @@ export function ActivityCard({
         </div>
       ) : null}
 
-      {imageDialog && (
-        <div className="fixed inset-0 z-90 flex items-end justify-center bg-black/55 p-0 sm:items-center sm:p-4">
-          <div
-            className="w-full max-w-lg rounded-t-3xl border border-border bg-card p-5 shadow-sm animate-in slide-in-from-bottom-4 duration-200 sm:rounded-3xl"
-            dir={isArabic ? "rtl" : "ltr"}
-          >
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div>
-                <h3 className="text-lg font-bold tracking-tight text-foreground">
-                  {imageDialog.hasImage
-                    ? isArabic
-                      ? "استبدال صورة الإنجاز"
-                      : "Replace milestone image"
-                    : isArabic
-                      ? "رفع صورة الإنجاز"
-                      : "Upload milestone image"}
-                </h3>
-                <p className="mt-1 text-xs font-medium leading-6 text-muted-foreground">
-                  {isArabic
-                    ? "أنشئ الصورة خارج التطبيق ثم ارفعها هنا."
-                    : "Generate your image externally, then upload it here."}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setImageDialog(null)}
-                disabled={busyId === imageDialog.logId}
-                className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <label className="mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground shadow-sm transition hover:opacity-90 active:scale-[0.98]">
-              {busyId === imageDialog.logId ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <Upload className="h-5 w-5" />
-              )}
-              {busyId === imageDialog.logId
-                ? isArabic
-                  ? "جاري الرفع..."
-                  : "Uploading..."
-                : imageDialog.hasImage
-                  ? isArabic
-                    ? "استبدال الصورة"
-                    : "Replace image"
-                  : isArabic
-                    ? "رفع الصورة"
-                    : "Upload image"}
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                className="hidden"
-                disabled={busyId === imageDialog.logId}
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  event.currentTarget.value = "";
-                  if (!file) return;
-                  void handleUploadImage(imageDialog.logId, file);
-                }}
-              />
-            </label>
-          </div>
-        </div>
-      )}
-
-      {promptDialog && (
-        <div className="fixed inset-0 z-90 flex items-end justify-center bg-black/55 p-0 sm:items-center sm:p-4">
-          <div
-            className="w-full max-w-xl rounded-t-3xl border border-border bg-card p-5 shadow-sm animate-in slide-in-from-bottom-4 duration-200 sm:rounded-3xl"
-            dir={isArabic ? "rtl" : "ltr"}
-          >
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div>
-                <h3 className="text-lg font-bold tracking-tight text-foreground">
-                  {isArabic ? "برومبت الصورة" : "Image Prompt"}
-                </h3>
-                <p className="mt-1 text-xs font-medium leading-6 text-muted-foreground">
-                  {isArabic
-                    ? "مشهد مركب يحكي الإنجاز والهدف والمهام."
-                    : "A layered scene built from the milestone, goal, and tasks."}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setPromptDialog(null)}
-                disabled={busyId === promptDialog.logId}
-                className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {promptStyleOptions.map((styleOption) => (
-                  <button
-                    key={styleOption.value}
-                    type="button"
-                    onClick={() =>
-                      setPromptDialog((prev) => {
-                        if (!prev) return prev;
-                        return {
-                          ...prev,
-                          style: styleOption.value,
-                          prompt: buildMilestoneImagePrompt({
-                            goalTitle: prev.goalTitle,
-                            goalSummary: prev.goalSummary,
-                            milestoneName: prev.milestoneName,
-                            milestoneDescription: prev.milestoneDescription,
-                            tasksDescriptions: prev.tasksDescriptions,
-                            style: styleOption.value,
-                            aspectRatio: prev.aspectRatio,
-                          }),
-                        };
-                      })
-                    }
-                    className={cn(
-                      "rounded-xl border px-2.5 py-2 text-start transition",
-                      promptDialog.style === styleOption.value
-                        ? "border-primary bg-primary/12 text-foreground"
-                        : "border-border/70 bg-muted/20 text-muted-foreground hover:bg-muted hover:text-foreground",
-                    )}
-                  >
-                    <p className="text-xs font-bold">
-                      {isArabic ? styleOption.label.ar : styleOption.label.en}
-                    </p>
-                    <p className="mt-0.5 text-[10px] font-medium leading-4">
-                      {isArabic ? styleOption.hint.ar : styleOption.hint.en}
-                    </p>
-                  </button>
-                ))}
-              </div>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setPromptDialog((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          prompt: buildMilestoneImagePrompt({
-                            goalTitle: prev.goalTitle,
-                            goalSummary: prev.goalSummary,
-                            milestoneName: prev.milestoneName,
-                            milestoneDescription: prev.milestoneDescription,
-                            tasksDescriptions: prev.tasksDescriptions,
-                            style: prev.style,
-                            aspectRatio: prev.aspectRatio,
-                          }),
-                        }
-                      : prev,
-                  )
-                }
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary/25 bg-primary/12 px-3 py-2.5 text-sm font-bold text-primary transition hover:opacity-90 active:scale-[0.98]"
-              >
-                <WandSparkles className="h-4 w-4" />
-                {isArabic
-                  ? "إعادة صياغة البرومبت بشكل أقوى"
-                  : "Rewrite stronger prompt"}
-              </button>
-
-              <textarea
-                value={promptDialog.prompt}
-                onChange={(event) =>
-                  setPromptDialog((prev) =>
-                    prev ? { ...prev, prompt: event.target.value } : prev,
-                  )
-                }
-                className="h-44 w-full resize-none rounded-xl border border-border bg-background p-3 text-xs leading-6 text-foreground focus:border-primary focus:outline-none"
-                placeholder={isArabic ? "اكتب البرومبت..." : "Write prompt..."}
-              />
-
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => void handleCopyPrompt(promptDialog.prompt)}
-                  disabled={!promptDialog.prompt.trim()}
-                  className="flex-1 rounded-xl border border-border bg-muted px-3 py-2.5 text-sm font-semibold text-muted-foreground transition hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
-                >
-                  <span className="inline-flex items-center gap-1.5">
-                    <Copy className="h-4 w-4" />
-                    {promptCopied
-                      ? isArabic
-                        ? "تم النسخ"
-                        : "Copied"
-                      : isArabic
-                        ? "نسخ"
-                        : "Copy"}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const ok = await handlePatch(promptDialog.logId, {
-                      imagePrompt: promptDialog.prompt.trim(),
-                      imageStylePreference: promptDialog.style,
-                    });
-                    if (ok) setPromptDialog(null);
-                  }}
-                  disabled={
-                    busyId === promptDialog.logId ||
-                    !promptDialog.prompt.trim()
-                  }
-                  className="flex-1 rounded-xl bg-primary px-3 py-2.5 text-sm font-bold text-primary-foreground shadow-sm transition hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
-                >
-                  <span className="inline-flex items-center gap-1.5">
-                    {busyId === promptDialog.logId ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <WandSparkles className="h-4 w-4" />
-                    )}
-                    {isArabic ? "حفظ البرومبت" : "Save prompt"}
-                  </span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {!collapsed && (
         <div className="mt-3">
           {milestoneEvents.length === 0 ? (
@@ -636,7 +289,7 @@ export function ActivityCard({
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 xl:grid-cols-3">
               {milestoneEvents.map((event, index) => {
                 const actorIsMe = event.actor === "me";
                 const logId =
@@ -650,34 +303,6 @@ export function ActivityCard({
                 const displayDesc =
                   event.milestone!.short_description?.trim() ||
                   event.milestone!.description;
-                const promptContext = event.milestone!.imagePromptContext;
-                const promptStyle = normalizePromptStyle(
-                  event.milestone!.imageStylePreference,
-                );
-                const promptGoalTitle =
-                  promptContext?.goalTitle?.trim() ||
-                  event.milestone!.goalTitle?.trim() ||
-                  (actorIsMe ? meGoalTitle : opponentGoalTitle)?.trim() ||
-                  (isArabic ? "هدفي الحالي" : "My current goal");
-                const promptGoalSummary =
-                  promptContext?.goalSummary?.trim() || "";
-                const promptTasks = Array.isArray(
-                  promptContext?.tasksDescriptions,
-                )
-                  ? promptContext.tasksDescriptions.filter(
-                      (task): task is string =>
-                        typeof task === "string" && task.trim().length > 0,
-                    )
-                  : [];
-                const generatedPrompt = buildMilestoneImagePrompt({
-                  goalTitle: promptGoalTitle,
-                  goalSummary: promptGoalSummary,
-                  milestoneName: event.milestone!.name,
-                  milestoneDescription: event.milestone!.description || "",
-                  tasksDescriptions: promptTasks,
-                  style: promptStyle,
-                  aspectRatio: event.milestone!.imageAspectRatio,
-                });
                 const isEditingThisCard = editMode?.logId === logId;
                 const milestoneActionsMenu =
                   actorIsMe && event.logId ? (
@@ -685,12 +310,12 @@ export function ActivityCard({
                       <DropdownMenuTrigger asChild>
                         <button
                           type="button"
-                          className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white/80 transition-colors hover:bg-black/60 hover:text-white"
+                          className="inline-flex h-8 w-8 sm:h-6 sm:w-6 shrink-0 touch-manipulation items-center justify-center rounded-lg border border-border/70 bg-muted/60 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
                           aria-label={
                             isArabic ? "خيارات الإنجاز" : "Milestone options"
                           }
                         >
-                          <MoreVertical className="h-2.5 w-2.5" />
+                          <MoreVertical className="h-3 w-3" />
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent
@@ -724,94 +349,68 @@ export function ActivityCard({
                           <FileText className="h-4 w-4" />
                           <span>{isArabic ? "تعديل الوصف" : "Edit text"}</span>
                         </DropdownMenuItem>
-                        <DropdownMenuSub>
-                          <DropdownMenuSubTrigger className="cursor-pointer">
-                            <Palette className="h-4 w-4" />
-                            <span>
-                              {isArabic ? "تغيير اللون" : "Change color"}
-                            </span>
-                          </DropdownMenuSubTrigger>
-                          <DropdownMenuSubContent
-                            className={cn("w-44", isArabic && "text-right")}
-                          >
-                            {(Object.keys(accentConfig) as AccentColor[]).map(
-                              (color) => {
-                                const option = accentConfig[color];
-                                return (
-                                  <DropdownMenuItem
-                                    key={color}
-                                    onClick={() =>
-                                      handlePatch(logId, { accentColor: color })
-                                    }
-                                    className="cursor-pointer"
-                                  >
-                                    <span
-                                      className={cn(
-                                        "h-3.5 w-3.5 rounded-full ring-1 ring-black/10",
-                                        option.swatch,
-                                      )}
-                                    />
-                                    <span>
-                                      {isArabic
-                                        ? option.label.ar
-                                        : option.label.en}
-                                    </span>
-                                  </DropdownMenuItem>
-                                );
-                              },
-                            )}
-                          </DropdownMenuSubContent>
-                        </DropdownMenuSub>
-                        <DropdownMenuItem
-                          onClick={() =>
-                            setPromptDialog({
-                              logId,
-                              style: promptStyle,
-                              prompt:
-                                event.milestone!.imagePrompt?.trim() ||
-                                generatedPrompt,
-                              goalTitle: promptGoalTitle,
-                              goalSummary: promptGoalSummary,
-                              milestoneName: event.milestone!.name,
-                              milestoneDescription:
-                                event.milestone!.description || "",
-                              tasksDescriptions: promptTasks,
-                              aspectRatio: event.milestone!.imageAspectRatio,
-                            })
-                          }
-                          disabled={isBusy}
-                          className="cursor-pointer"
-                        >
-                          <WandSparkles className="h-4 w-4" />
-                          <span>
-                            {isArabic ? "برومبت الصورة" : "Image prompt"}
-                          </span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() =>
-                            setImageDialog({
-                              logId,
-                              hasImage: Boolean(event.milestone!.imageUrl),
-                            })
-                          }
-                          disabled={isBusy}
-                          className="cursor-pointer"
-                        >
-                          {isBusy ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <ImageIcon className="h-4 w-4" />
-                          )}
-                          <span>
-                            {event.milestone!.imageUrl
-                              ? isArabic
-                                ? "استبدال الصورة"
-                                : "Replace image"
-                              : isArabic
-                                ? "رفع الصورة"
-                                : "Upload image"}
-                          </span>
-                        </DropdownMenuItem>
+                        <div className="px-2 py-1.5 sm:hidden">
+                          <div className="mb-1.5 flex items-center gap-2 text-xs text-muted-foreground">
+                            <Palette className="h-3.5 w-3.5" />
+                            <span>{isArabic ? "تغيير اللون" : "Change color"}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-1.5">
+                            {(Object.keys(accentConfig) as AccentColor[]).map((color) => {
+                              const option = accentConfig[color];
+                              return (
+                                <button
+                                  key={color}
+                                  type="button"
+                                  onClick={() => handlePatch(logId, { accentColor: color })}
+                                  className="flex h-7 w-7 items-center justify-center rounded-full border border-border/70 bg-muted/40 active:scale-95"
+                                  title={isArabic ? option.label.ar : option.label.en}
+                                >
+                                  <span className={cn("h-4 w-4 rounded-full ring-1 ring-black/10", option.swatch)} />
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <div className="hidden sm:block">
+                          <DropdownMenuSub>
+                            <DropdownMenuSubTrigger className="cursor-pointer">
+                              <Palette className="h-4 w-4" />
+                              <span>
+                                {isArabic ? "تغيير اللون" : "Change color"}
+                              </span>
+                            </DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent
+                              className={cn("w-44", isArabic && "text-right")}
+                            >
+                              {(Object.keys(accentConfig) as AccentColor[]).map(
+                                (color) => {
+                                  const option = accentConfig[color];
+                                  return (
+                                    <DropdownMenuItem
+                                      key={color}
+                                      onClick={() =>
+                                        handlePatch(logId, { accentColor: color })
+                                      }
+                                      className="cursor-pointer"
+                                    >
+                                      <span
+                                        className={cn(
+                                          "h-3.5 w-3.5 rounded-full ring-1 ring-black/10",
+                                          option.swatch,
+                                        )}
+                                      />
+                                      <span>
+                                        {isArabic
+                                          ? option.label.ar
+                                          : option.label.en}
+                                      </span>
+                                    </DropdownMenuItem>
+                                  );
+                                },
+                              )}
+                            </DropdownMenuSubContent>
+                          </DropdownMenuSub>
+                        </div>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           onClick={() => setConfirmDeleteId(logId)}
@@ -829,14 +428,15 @@ export function ActivityCard({
                   <div
                     key={logId}
                     className={cn(
-                      "group relative overflow-hidden rounded-xl border p-2 shadow-sm transition-colors duration-200",
+                      "group relative overflow-hidden rounded-xl border p-3 shadow-xs transition-colors duration-200",
                       accent.card,
                       accent.border,
+                      isConfirmDelete && "min-h-[160px]",
                     )}
                   >
                     {/* Delete confirm overlay */}
                     {isConfirmDelete && (
-                      <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 rounded-xl bg-background p-4 text-center animate-in fade-in duration-200">
+                      <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2.5 rounded-xl bg-background p-3 text-center animate-in fade-in duration-200">
                         <AlertTriangle className="h-6 w-6 text-destructive" />
                         <p className="max-w-60 text-xs font-bold leading-relaxed text-foreground">
                           {isArabic
@@ -870,54 +470,39 @@ export function ActivityCard({
                       </div>
                     )}
 
-                    {/* Image — TOP */}
-                    <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted/20">
-                      {event.milestone!.imageUrl ? (
-                        <Image
-                          src={event.milestone!.imageUrl}
-                          alt={event.milestone!.name}
-                          fill
-                          sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
-                          className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-                        />
-                      ) : (
+                    {/* Top Row: Milestone Info + Points Badge + Options */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
                         <div
                           className={cn(
-                            "flex h-full w-full items-center justify-center",
+                            "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border",
                             accent.icon,
+                            accent.border,
                           )}
                         >
-                          <Trophy className="h-6 w-6" />
+                          <Trophy className="h-4 w-4" />
                         </div>
-                      )}
-                      <div className="absolute inset-x-0 bottom-0 h-12 bg-black/40" />
-                      <div
-                        className={cn(
-                          "absolute top-1.5 flex items-center gap-1",
-                          isArabic ? "left-1.5" : "right-1.5",
-                        )}
-                      >
-                        {milestoneActionsMenu}
-                        <div className="rounded-full bg-black/45 px-1.5 py-[1.5px] text-[9px] font-semibold text-white/90">
-                          +{Intl.NumberFormat('en').format(event.points)}
+                        <div className="min-w-0">
+                          <h4 className="text-xs sm:text-sm font-bold text-foreground truncate">
+                            {event.milestone!.name}
+                          </h4>
+                          <span className="text-[10px] text-muted-foreground block truncate">
+                            {formatNumericDate(event.createdAt, 'en')} · {formatTime(event.createdAt, 'en')}
+                          </span>
                         </div>
                       </div>
-                      <div
-                        className={cn(
-                          "absolute bottom-1.5 flex items-center gap-1 rounded-full bg-black/45 px-1.5 py-[1.5px] text-[9px] font-semibold text-white/90",
-                          isArabic ? "right-2" : "left-2",
-                        )}
-                      >
-                        <span>
-                          {formatNumericDate(event.createdAt, 'en')} ·{" "}
-                          {formatTime(event.createdAt, 'en')}
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10.5px] font-bold text-primary">
+                          <Sparkles className="h-2.5 w-2.5" />
+                          <span>+{Intl.NumberFormat('en').format(event.points)}</span>
                         </span>
+                        {milestoneActionsMenu}
                       </div>
                     </div>
 
-                    {/* Content — BOTTOM */}
-                    <div className="flex min-w-0 flex-col gap-1.5 px-0 pb-0 pt-2">
-                      {/* Inline editor */}
+                    {/* Middle / Bottom: Comment & Details */}
+                    <div className="mt-2.5 pt-2 border-t border-border/40">
                       {isEditingThisCard ? (
                         <InlineEditor
                           mode={editMode!}
@@ -932,14 +517,9 @@ export function ActivityCard({
                           isBusy={isBusy}
                         />
                       ) : (
-                        <>
-                          <h4 className="line-clamp-2 text-xs font-bold leading-tight text-foreground">
-                            {event.milestone!.name}
-                          </h4>
-                          <p className="line-clamp-3 text-xs leading-relaxed text-muted-foreground">
-                            {displayDesc}
-                          </p>
-                        </>
+                        <p className="line-clamp-3 text-xs leading-relaxed text-muted-foreground font-medium">
+                          {displayDesc}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -975,7 +555,7 @@ function InlineEditor({
         <textarea
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          className="w-full resize-none rounded-lg border border-border bg-background p-2 text-xs leading-relaxed text-foreground focus:border-primary focus:outline-none"
+          className="w-full resize-none rounded-lg border border-border bg-background p-2 text-base sm:text-xs leading-relaxed text-foreground focus:border-primary focus:outline-none"
           rows={3}
           placeholder={isArabic ? "الوصف..." : "Description..."}
           autoFocus
@@ -984,7 +564,7 @@ function InlineEditor({
         <input
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          className="w-full rounded-lg border border-border bg-background p-2 text-xs font-bold text-foreground focus:border-primary focus:outline-none"
+          className="w-full rounded-lg border border-border bg-background p-2 text-base sm:text-xs font-bold text-foreground focus:border-primary focus:outline-none"
           placeholder={isArabic ? "اسم الإنجاز..." : "Milestone name..."}
           autoFocus
         />
@@ -993,7 +573,7 @@ function InlineEditor({
         <button
           onClick={() => onSave(value.trim())}
           disabled={isBusy || !value.trim()}
-          className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-primary py-1 text-xs font-bold text-primary-foreground shadow-sm transition hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
+          className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-primary py-2 sm:py-1 text-xs font-bold text-primary-foreground shadow-sm transition hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
         >
           {isBusy ? (
             <Loader2 className="h-3 w-3 animate-spin" />
@@ -1005,7 +585,7 @@ function InlineEditor({
         <button
           onClick={onCancel}
           disabled={isBusy}
-          className="rounded-lg bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground transition hover:opacity-90 active:scale-[0.98]"
+          className="rounded-lg bg-muted px-3 py-2 sm:px-2 sm:py-1 text-xs font-semibold text-muted-foreground transition hover:opacity-90 active:scale-[0.98]"
         >
           <X className="h-3 w-3" />
         </button>

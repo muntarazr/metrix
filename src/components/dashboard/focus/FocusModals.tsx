@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { apiUrl } from "@/lib/api";
 import TaskFocusMode from "../TaskFocusMode";
 import TaskAddModal from "../TaskAddModal";
 import TaskCriteriaDialog from "../TaskCriteriaDialog";
@@ -127,7 +128,7 @@ export function FocusModals({
   const handleSaveCriteria = async (newCrit: string) => {
     if (!criteriaDialogTask) return;
     try {
-      await fetch("/api/goal/task-criteria", {
+      await fetch(apiUrl("/api/goal/task-criteria"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

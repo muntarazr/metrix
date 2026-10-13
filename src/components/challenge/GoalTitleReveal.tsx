@@ -41,7 +41,7 @@ export function GoalTitleReveal({ title, isArabic }: GoalTitleRevealProps) {
               {safeTitle}
             </button>
           </PopoverTrigger>
-          <PopoverContent align={isArabic ? 'end' : 'start'} side="top" sideOffset={8} className="w-60 p-3">
+          <PopoverContent align={isArabic ? 'end' : 'start'} side="top" sideOffset={8} className="w-60 max-w-[calc(100vw-2rem)] p-3">
             <p className="text-xs leading-relaxed break-words">{safeTitle}</p>
           </PopoverContent>
         </Popover>

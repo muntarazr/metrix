@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "better-layout": {
+      "source": "jakubkrehel/skills",
+      "sourceType": "github",
+      "skillPath": "skills/better-layout/SKILL.md",
+      "computedHash": "96568d1af89fd3b0061622b9938ce2855b74c1c11134b63f2aec45961372e7ab"
+    },
     "find-skills": {
       "source": "vercel-labs/skills",
       "sourceType": "github",
@@ -19,6 +25,18 @@
       "skillPath": "skill/SKILL.md",
       "computedHash": "34e59a34b9705187e87039faa5d9585aebe0056ef657f761b905afef276a3362"
     },
+    "improve-codebase-architecture": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/improve-codebase-architecture/SKILL.md",
+      "computedHash": "ac2c94885f34ff8492dc12aa4543182f661f32ea1722b8d6b6c2c7045af33ae3"
+    },
+    "mobile-native": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/mobile-native/SKILL.md",
+      "computedHash": "f221cea36642168df6d3d6d7f236237cbf1ae669138ff7df07775674223d49ad"
+    },
     "playwriter": {
       "source": "playwriter.dev",
       "sourceUrl": "https://playwriter.dev",
@@ -32,6 +50,18 @@
       "skillPath": "responsive-design/SKILL.md",
       "computedHash": "4addd6e3c12934ee7ca98cc940b2db9475fa0c5836312c6111d32e572b6e38ca"
     },
+    "responsiveness-check": {
+      "source": "jezweb/claude-skills",
+      "sourceType": "github",
+      "skillPath": "plugins/dev-tools/skills/responsiveness-check/SKILL.md",
+      "computedHash": "7b7e74472ecdfb8fa1b2a5d00af7c6caa4a1969e5f38367b314e13e6a77700de"
+    },
+    "safe-refactor": {
+      "source": "juliusbrussee/caveman",
+      "sourceType": "github",
+      "skillPath": "skills/safe-refactor/SKILL.md",
+      "computedHash": "cd52867aba26aafb53379d43068cef9b2feca3a3fff850f877a99f710ccd02c0"
+    },
     "shadcn": {
       "source": "vercel/vercel-plugin",
       "sourceType": "github",
@@ -43,6 +73,18 @@
       "sourceType": "github",
       "skillPath": "tailwindcss/SKILL.md",
       "computedHash": "b1d95ac9242e613966fb11ed413fd2ff61f04641e4e8c1418e0e8258573fcc68"
+    },
+    "tailwindcss-advanced-layouts": {
+      "source": "josiahsiegel/claude-plugin-marketplace",
+      "sourceType": "github",
+      "skillPath": "plugins/tailwindcss-master/skills/tailwindcss-advanced-layouts/SKILL.md",
+      "computedHash": "159d8a8f9eb20136492a9971633fd8658be1e34d5f8dc3bcf1afe7bbb4511bdf"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/web-design-guidelines/SKILL.md",
+      "computedHash": "a6a44d5498f7e8f68289902f3dedfc6f38ae0cee1e96527c80724cf27f727c2a"
     }
   }
 }

@@ -112,7 +112,7 @@ export default function TaskSkipPopover({
       <PopoverTrigger asChild>
         <button
           className={cn(
-            "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-all duration-200 active:scale-90",
+            "flex h-8 w-8 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-lg border transition-all duration-200 active:scale-90 touch-manipulation",
             skipReason
               ? "border-foreground/25 bg-foreground/12 text-foreground"
               : "border-transparent text-muted-foreground/50 hover:border-border/70 hover:bg-muted/60 hover:text-muted-foreground",
@@ -126,7 +126,7 @@ export default function TaskSkipPopover({
 
       <PopoverContent
         align="end"
-        className="w-64 p-3"
+        className="w-64 max-w-[calc(100vw-1.5rem)] p-3"
         dir={isArabic ? "rtl" : "ltr"}
       >
         <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground/75">

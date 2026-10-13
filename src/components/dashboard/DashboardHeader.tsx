@@ -13,6 +13,8 @@ import {
   TrendingDown,
   TrendingUp,
   Trash2,
+  Download,
+  Loader2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -27,7 +29,7 @@ import {
   localeWithEnglishDigits,
   textDirectionFor,
 } from "@/lib/utils";
-import { getGoalEndDaysChip } from "@/lib/goal-dates";
+import { getGoalEndDaysChip, calendarDaysUntilGoalEnd } from "@/lib/goal-dates";
 import {
   computeGoalProjection,
   formatProjectionCopy,
@@ -67,6 +69,8 @@ interface DashboardHeaderProps {
   onEditGoal: () => void;
   onDeleteGoal: () => void;
   onUpdateIcon: (icon: string) => void;
+  onExportGoal?: () => void;
+  isExportingGoal?: boolean;
 }
 
 export default function DashboardHeader({
@@ -85,6 +89,8 @@ export default function DashboardHeader({
   onEditGoal,
   onDeleteGoal,
   onUpdateIcon,
+  onExportGoal,
+  isExportingGoal = false,
 }: DashboardHeaderProps) {
   const t = translations[language];
   const isArabic = language === "ar";
@@ -109,20 +115,23 @@ export default function DashboardHeader({
   return (
     <div
       className={cn(
-        "rounded-xl border border-border/70 bg-card p-4 sm:p-5 shadow-xs flex flex-col justify-between",
-        showGoalDetails ? "h-auto gap-4" : "h-[161px]",
+        "rounded-xl border border-border/70 bg-card p-3 sm:p-4 shadow-xs flex flex-col transition-all duration-200 gap-2.5 sm:gap-3",
+        showGoalDetails && "gap-3 sm:gap-4",
       )}
     >
-      <div className="flex items-start justify-between gap-3 sm:gap-4">
+      <div className="flex items-center justify-between gap-2.5 sm:gap-4 min-w-0">
         <div
-          className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0"
+          className="flex items-center gap-2.5 sm:gap-3.5 flex-1 min-w-0"
           dir={isArabic ? "rtl" : "ltr"}
         >
           <GoalIconPicker
             currentIconName={goal.icon || "Target"}
             onSelect={onUpdateIcon}
           >
-            <button className="h-11 w-11 p-2 shrink-0 bg-primary/10 text-primary hover:bg-primary/15 transition-all duration-150 rounded-xl flex items-center justify-center cursor-pointer border border-primary/25 shadow-xs active:scale-95">
+            <button
+              aria-label={isArabic ? "تغيير أيقونة الهدف" : "Change goal icon"}
+              className="h-9 w-9 sm:h-10 sm:w-10 p-2 shrink-0 bg-muted/40 text-foreground hover:bg-muted/70 transition-all duration-150 rounded-xl flex items-center justify-center cursor-pointer border border-border/80 shadow-xs active:scale-95"
+            >
               <span className="transition-transform duration-200 hover:scale-110">
                 {getGoalIcon(goal.icon)}
               </span>
@@ -130,17 +139,15 @@ export default function DashboardHeader({
           </GoalIconPicker>
           <div className="min-w-0 flex-1">
             <h1
-              className={cn(
-                "text-base sm:text-[18px] font-black text-foreground line-clamp-2 tracking-tight leading-snug",
-                titleDir === "rtl" ? "text-right" : "text-left",
-              )}
+              className="text-sm sm:text-base font-black text-foreground truncate tracking-tight leading-snug text-start"
               dir={titleDir}
+              title={goal.title}
             >
               {goal.title}
             </h1>
-            <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5">
+            <div className="mt-1 sm:mt-1.5 flex min-w-0 items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 touch-pan-x">
               {goal.is_pinned && (
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary border border-primary/20 shadow-xs">
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10.5px] sm:text-[11px] font-medium text-primary border border-primary/20 shadow-xs">
                   <Pin className="w-3 h-3" />
                   <span>{isArabic ? "مثبت" : "Pinned"}</span>
                 </span>
@@ -150,7 +157,7 @@ export default function DashboardHeader({
               {goalEndDaysChip && (
                 <span
                   className={cn(
-                    "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium tabular-nums border shadow-xs transition-colors",
+                    "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] sm:text-[11px] font-medium tabular-nums border shadow-xs transition-colors",
                     goalEndDaysChip.tone === "soon" &&
                       "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25",
                     goalEndDaysChip.tone === "today" &&
@@ -167,8 +174,8 @@ export default function DashboardHeader({
 
               {/* Streak badge with fire fill and warm state color */}
               {streak > 0 && (
-                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400 border border-amber-500/25 shadow-xs">
-                  <Flame className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10.5px] sm:text-[11px] font-semibold text-amber-600 dark:text-amber-400 border border-amber-500/25 shadow-xs">
+                  <Flame className="w-3 h-3 fill-amber-500 text-amber-500" />
                   <span>{formatNumberEn(streak)} {isArabic ? "يوم" : "d"}</span>
                 </span>
               )}
@@ -178,7 +185,7 @@ export default function DashboardHeader({
                 <button
                   onClick={onUseStreakFreeze}
                   disabled={freezing}
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-sky-500/10 px-2.5 py-0.5 text-[11px] font-medium text-sky-600 dark:text-sky-400 border border-sky-500/25 hover:bg-sky-500/15 transition-all disabled:opacity-50 cursor-pointer active:scale-95"
+                  className="inline-flex shrink-0 items-center gap-1 rounded-full bg-sky-500/10 px-2 py-0.5 text-[10.5px] sm:text-[11px] font-medium text-sky-600 dark:text-sky-400 border border-sky-500/25 hover:bg-sky-500/15 transition-all disabled:opacity-50 cursor-pointer active:scale-95"
                   title={
                     isArabic
                       ? "يوم راحة واحد بالأسبوع يحمي السلسلة من الانكسار"
@@ -194,7 +201,7 @@ export default function DashboardHeader({
               {taskCount > 0 && (
                 <span
                   className={cn(
-                    "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium tabular-nums border shadow-xs transition-colors",
+                    "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] sm:text-[11px] font-medium tabular-nums border shadow-xs transition-colors",
                     completedTaskCount >= taskCount
                       ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25"
                       : "bg-muted/50 text-muted-foreground border-border/60",
@@ -220,12 +227,13 @@ export default function DashboardHeader({
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center shrink-0">
           <DropdownMenu dir={isArabic ? "rtl" : "ltr"}>
             <DropdownMenuTrigger asChild>
               <button
-                className="p-2 rounded-lg bg-card hover:bg-accent text-foreground transition-all duration-150 border border-border/70 shadow-xs active:scale-95"
+                className="h-9 w-9 rounded-lg bg-card hover:bg-accent text-foreground transition-all duration-150 border border-border/70 shadow-xs flex items-center justify-center cursor-pointer active:scale-95 touch-manipulation select-none"
                 title={isArabic ? "خيارات الهدف" : "Goal Options"}
+                aria-label={isArabic ? "خيارات الهدف" : "Goal Options"}
               >
                 <MoreVertical className="w-4 h-4" />
               </button>
@@ -269,6 +277,24 @@ export default function DashboardHeader({
                       : "Show Details"}
                 </span>
               </DropdownMenuItem>
+              {onExportGoal && (
+                <DropdownMenuItem
+                  onClick={onExportGoal}
+                  disabled={isExportingGoal}
+                  className="cursor-pointer"
+                >
+                  {isExportingGoal ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
+                  <span>
+                    {isExportingGoal
+                      ? (isArabic ? "جارٍ التصدير..." : "Exporting...")
+                      : (isArabic ? "تصدير الهدف" : "Export Goal")}
+                  </span>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={onDeleteGoal}
@@ -286,12 +312,12 @@ export default function DashboardHeader({
       {/* Goal Details (collapsible) */}
       {showGoalDetails && (
         <div
-          className="pt-4 border-t border-border/70 animate-in fade-in slide-in-from-top-3 duration-300"
+          className="pt-2.5 sm:pt-3 border-t border-border/70 animate-in fade-in slide-in-from-top-3 duration-300 max-h-[32dvh] overflow-y-auto overscroll-contain scrollbar-thin sm:max-h-none sm:overflow-visible"
           dir={isArabic ? "rtl" : "ltr"}
         >
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-            <div className="bg-muted/40 rounded-xl p-3 border border-border/70 hover:border-border transition-all duration-200 group shadow-xs">
-              <p className="text-[10px] text-muted-foreground font-semibold mb-1 uppercase tracking-wider">
+          <div className="grid grid-cols-2 min-[400px]:grid-cols-3 gap-1.5 sm:gap-2 sm:grid-cols-3">
+            <div className="bg-muted/40 rounded-xl p-2.5 border border-border/70 hover:border-border transition-all duration-200 group shadow-xs">
+              <p className="text-[9.5px] text-muted-foreground font-semibold mb-0.5 uppercase tracking-wider">
                 {isArabic ? "تاريخ البدء" : "Start Date"}
               </p>
               <p className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">
@@ -302,8 +328,8 @@ export default function DashboardHeader({
                 })}
               </p>
             </div>
-            <div className="bg-muted/40 rounded-xl p-3 border border-border/70 hover:border-border transition-all duration-200 group shadow-xs">
-              <p className="text-[10px] text-muted-foreground font-semibold mb-1 uppercase tracking-wider">
+            <div className="bg-muted/40 rounded-xl p-2.5 border border-border/70 hover:border-border transition-all duration-200 group shadow-xs">
+              <p className="text-[9.5px] text-muted-foreground font-semibold mb-0.5 uppercase tracking-wider">
                 {isArabic ? "تاريخ الانتهاء" : "End Date"}
               </p>
               <p className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">
@@ -313,32 +339,36 @@ export default function DashboardHeader({
                 )}
               </p>
             </div>
-            <div className="bg-muted/40 rounded-xl p-3 border border-border/70 hover:border-border transition-all duration-200 group shadow-xs">
-              <p className="text-[10px] text-muted-foreground font-semibold mb-1 uppercase tracking-wider">
-                {isArabic ? "إجمالي الأيام" : "Total Days"}
+            <div className="bg-muted/40 rounded-xl p-2.5 border border-border/70 hover:border-border transition-all duration-200 group shadow-xs">
+              <p className="text-[9.5px] text-muted-foreground font-semibold mb-0.5 uppercase tracking-wider">
+                {isArabic ? "الوقت المتبقي" : "Remaining Time"}
               </p>
               <p className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">
-                {formatNumberEn(goal.total_days)} {isArabic ? "يوم" : "days"}
+                {goalEndDaysChip
+                  ? goalEndDaysChip.text
+                  : goal.total_days
+                    ? `${formatNumberEn(goal.total_days)} ${isArabic ? "يوم" : "days"}`
+                    : "—"}
               </p>
             </div>
-            <div className="bg-muted/40 rounded-xl p-3 border border-border/70 hover:border-border transition-all duration-200 group shadow-xs">
-              <p className="text-[10px] text-muted-foreground font-semibold mb-1 uppercase tracking-wider">
+            <div className="bg-muted/40 rounded-xl p-2.5 border border-border/70 hover:border-border transition-all duration-200 group shadow-xs">
+              <p className="text-[9.5px] text-muted-foreground font-semibold mb-0.5 uppercase tracking-wider">
                 {isArabic ? "النقاط الحالية" : "Current Points"}
               </p>
               <p className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">
                 {formatNumberEn(goal.current_points)}
               </p>
             </div>
-            <div className="bg-muted/40 rounded-xl p-3 border border-border/70 hover:border-border transition-all duration-200 group shadow-xs">
-              <p className="text-[10px] text-muted-foreground font-semibold mb-1 uppercase tracking-wider">
+            <div className="bg-muted/40 rounded-xl p-2.5 border border-border/70 hover:border-border transition-all duration-200 group shadow-xs">
+              <p className="text-[9.5px] text-muted-foreground font-semibold mb-0.5 uppercase tracking-wider">
                 {isArabic ? "النقاط المستهدفة" : "Target Points"}
               </p>
               <p className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">
                 {formatNumberEn(goal.target_points)}
               </p>
             </div>
-            <div className="bg-muted/40 rounded-xl p-3 border border-border/70 hover:border-border transition-all duration-200 group shadow-xs">
-              <p className="text-[10px] text-muted-foreground font-semibold mb-1 uppercase tracking-wider">
+            <div className="bg-muted/40 rounded-xl p-2.5 border border-border/70 hover:border-border transition-all duration-200 group shadow-xs">
+              <p className="text-[9.5px] text-muted-foreground font-semibold mb-0.5 uppercase tracking-wider">
                 {isArabic ? "الحالة" : "Status"}
               </p>
               <p className="text-xs font-bold text-foreground capitalize group-hover:text-primary transition-colors">
@@ -347,8 +377,8 @@ export default function DashboardHeader({
             </div>
           </div>
           {goal.ai_summary && (
-            <div className="mt-4 bg-primary/5 rounded-xl p-3.5 border border-primary/20 hover:border-primary/30 transition-all shadow-xs">
-              <p className="text-[10px] text-primary font-bold mb-1.5 uppercase tracking-wider">
+            <div className="mt-3 bg-primary/5 rounded-xl p-3 border border-primary/20 hover:border-primary/30 transition-all shadow-xs">
+              <p className="text-[9.5px] text-primary font-bold mb-1 uppercase tracking-wider">
                 {t.goalDescription}
               </p>
               <p className="text-xs text-foreground/85 leading-relaxed font-medium">
@@ -359,7 +389,7 @@ export default function DashboardHeader({
         </div>
       )}
 
-      <div className="space-y-1.5">
+      <div className="space-y-1">
         <GoalProgressBar
           currentPoints={goal.current_points}
           targetPoints={goal.target_points}

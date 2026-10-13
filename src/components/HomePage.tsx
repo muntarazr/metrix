@@ -1,70 +1,18 @@
 "use client";
 
-import { useRef, useState, useCallback, useEffect, useMemo } from "react";
-import {
-  Mic,
-  StopCircle,
-  Loader2,
-  Pin,
-  Target,
-  Sparkles,
-  ArrowUp,
-  CircleAlert,
-  ListChecks,
-  Bell,
-  Clock,
-  Plus,
-  Zap,
-  CheckCheck,
-  Flame,
-  Trophy,
-  Calendar,
-  Snowflake,
-  BarChart3,
-  Edit3,
-} from "lucide-react";
-import { translations, type Language } from "@/lib/translations";
+import { useState, useCallback, useEffect, useMemo } from "react";
+import type { Language } from "@/lib/translations";
 import type { GoalTaskStats } from "@/app/page";
 import { BrandLockup } from "@/components/brand/Logo";
-import { getIconComponent } from "./goal/IconPicker";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
-import { PANEL_SURFACE, WELL_SURFACE } from "@/lib/surfaces";
-import { getGoalEndDaysChip } from "@/lib/goal-dates";
-import GoalProgressBar from "@/components/shared/GoalProgressBar";
 import { createClient } from "@/utils/supabase/client";
-import { getLocalDateKey } from "@/lib/task-periods";
-import {
-  useSmartNotifications,
-} from "@/hooks/useSmartNotifications";
+import { useSmartNotifications } from "@/hooks/useSmartNotifications";
 import ProgressLogDialog from "./progress/ProgressLogDialog";
 import type { TaskRow } from "@/lib/task-hierarchy";
-import { apiUrl } from "@/lib/api";
+import HomeInputSection from "./home/HomeInputSection";
+import HomeGoalsSection from "./home/HomeGoalsSection";
+import type { Goal, HomePageProps } from "./home/HomeTypes";
 
-interface Goal {
-  id: string;
-  title: string;
-  current_points: number;
-  target_points: number;
-  status: string;
-  created_at: string;
-  estimated_completion_date?: string | null;
-  total_days?: number | null;
-  icon?: string;
-  is_pinned?: boolean;
-  ai_summary?: string;
-}
-
-interface HomePageProps {
-  goals: Goal[];
-  taskStatsMap?: Record<string, GoalTaskStats>;
-  onSelectGoal: (id: string) => void;
-  onNavigateToCreate?: (goalText: string, mode?: "ai" | "manual") => void;
-  onGoalUpdated?: () => void;
-  language?: Language;
-  recentGoalsLimit?: number;
-}
+export type { Goal, HomePageProps };
 
 /* ------------------------------------------------------------------ */
 /*  HomePage component                                                 */
@@ -80,38 +28,29 @@ export default function HomePage({
   recentGoalsLimit = 6,
 }: HomePageProps) {
   const [goalInput, setGoalInput] = useState("");
-  const [isRecording, setIsRecording] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [showAIDetailPrompt, setShowAIDetailPrompt] = useState(false);
-  const goalTextareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const streamRef = useRef<MediaStream | null>(null);
   const isArabic = language === "ar";
   const safeRecentGoalsLimit = Math.max(1, recentGoalsLimit);
-  const recentGoals = goals.slice(0, safeRecentGoalsLimit);
+  const recentGoals = useMemo(
+    () => goals.slice(0, safeRecentGoalsLimit),
+    [goals, safeRecentGoalsLimit]
+  );
 
   /* ---- Dual-mode box state ---- */
-  /**
-   * Landing mode for the dual-mode box.
-   *
-   * Creating a goal is a one-off; logging against it is the daily job. So once
-   * any goal exists the box opens on "log" instead of asking for another goal.
-   * Derived rather than set in an effect, so it settles the moment `goals`
-   * arrives — and a tab click pins the choice from then on.
-   */
   const [boxModePref, setBoxModePref] = useState<"new" | "log" | null>(null);
   const boxMode: "new" | "log" =
     goals.length === 0 ? "new" : (boxModePref ?? "log");
-  const setBoxMode = setBoxModePref;
-  const [selectedLogGoalId, setSelectedLogGoalId] = useState<string | null>(
-    null,
-  );
+
+  const [selectedLogGoalId, setSelectedLogGoalId] = useState<string | null>(null);
   const [selectedLogGoalIds, setSelectedLogGoalIds] = useState<string[]>([]);
 
   const selectedLogGoals = useMemo(
     () => goals.filter((g) => selectedLogGoalIds.includes(g.id)),
-    [goals, selectedLogGoalIds],
+    [goals, selectedLogGoalIds]
+  );
+
+  const selectedLogGoal = useMemo(
+    () => goals.find((g) => g.id === selectedLogGoalId) || null,
+    [goals, selectedLogGoalId]
   );
 
   const toggleGoalSelection = useCallback((goalId: string) => {
@@ -131,6 +70,16 @@ export default function HomePage({
     });
   }, []);
 
+  const toggleSelectAllGoals = useCallback(() => {
+    if (selectedLogGoalIds.length === goals.length) {
+      setSelectedLogGoalIds([]);
+      setSelectedLogGoalId(null);
+    } else {
+      setSelectedLogGoalIds(goals.map((g) => g.id));
+      setSelectedLogGoalId(goals[0]?.id || null);
+    }
+  }, [goals, selectedLogGoalIds.length]);
+
   useEffect(() => {
     if (goals.length > 0 && selectedLogGoalIds.length === 0 && !selectedLogGoalId) {
       setSelectedLogGoalIds([goals[0].id]);
@@ -142,215 +91,12 @@ export default function HomePage({
   const [logTasksLoading, setLogTasksLoading] = useState(false);
   const [showProgressDialog, setShowProgressDialog] = useState(false);
 
-  const t = translations[language];
-  const selectedLogGoal = useMemo(
-    () => goals.find((g) => g.id === selectedLogGoalId) || null,
-    [goals, selectedLogGoalId],
-  );
-
-  /* ---- Pick primary goal for notifications ---- */
-  const primaryGoal = useMemo(() => {
-    const pinned = goals.find((g) => g.is_pinned);
-    return pinned || goals[0] || null;
-  }, [goals]);
-
   const supabase = useMemo(() => createClient(), []);
 
-  const {
-    notifications,
-    unreadNotifications,
-    highPriorityCount,
-    refresh: handleRefreshNotifs,
-    markAllAsRead: handleMarkAllNotifsRead,
-  } = useSmartNotifications({
+  const { notifications, unreadNotifications, markAllAsRead } = useSmartNotifications({
     goals,
     language: isArabic ? "ar" : "en",
   });
-
-  const [bottomTab, setBottomTab] = useState<"goals" | "notifications">("goals");
-
-  /* ---- RTL helper ---- */
-  const isRTLText = (text: string) => {
-    const rtlChar = /[\u0591-\u07ff\uFB1D-\uFDFD\uFE70-\uFEFC]/;
-    const ltrChar = /[A-Za-z\u00C0-\u024F]/;
-    for (const char of text.trim()) {
-      if (rtlChar.test(char)) return true;
-      if (ltrChar.test(char)) return false;
-    }
-    return isArabic;
-  };
-
-  /* ---- Goal input helpers ---- */
-  const minimumGoalWords = 15;
-
-  const analyzeGoalInput = (value: string) => {
-    const normalized = value.trim().replace(/\s+/g, " ");
-    const wordCount = normalized ? normalized.split(" ").length : 0;
-    const needsMoreDetail =
-      normalized.length > 0 && wordCount < minimumGoalWords;
-    const detailProgress =
-      normalized.length > 0 ? Math.min(wordCount / minimumGoalWords, 1) : 0;
-    return { normalized, wordCount, needsMoreDetail, detailProgress };
-  };
-
-  const handleAICreate = () => {
-    const trimmedGoal = normalizedGoalInput;
-    if (!trimmedGoal) {
-      goalTextareaRef.current?.focus();
-      return;
-    }
-    if (goalNeedsMoreDetail) {
-      setShowAIDetailPrompt(true);
-      return;
-    }
-    setShowAIDetailPrompt(false);
-    onNavigateToCreate?.(trimmedGoal, "ai");
-  };
-
-  const cleanupStream = useCallback(() => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    mediaRecorderRef.current = null;
-    audioChunksRef.current = [];
-  }, []);
-
-  const startRecording = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { channelCount: 1, sampleRate: 16000, echoCancellation: true, noiseSuppression: true },
-      });
-      streamRef.current = stream;
-      audioChunksRef.current = [];
-      const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/mp4";
-      const mediaRecorder = new MediaRecorder(stream, { mimeType });
-      mediaRecorderRef.current = mediaRecorder;
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) audioChunksRef.current.push(event.data);
-      };
-      mediaRecorder.onstop = async () => {
-        setIsProcessing(true);
-        try {
-          const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-          const formData = new FormData();
-          formData.append("audio", audioBlob, `recording.${mimeType.split("/")[1]}`);
-          formData.append("language", language === "ar" ? "ar" : "en");
-          const response = await fetch(apiUrl("/api/transcribe"), { method: "POST", body: formData });
-          const data = await response.json();
-          if (response.ok && !data.fallback && data.text) {
-            setGoalInput((prev) => (prev ? prev + " " + data.text : data.text));
-          }
-        } catch (err) {
-          console.error("Transcription error:", err);
-        } finally {
-          setIsProcessing(false);
-          cleanupStream();
-        }
-      };
-      mediaRecorder.start();
-      setIsRecording(true);
-    } catch (err) {
-      console.error("Microphone access error:", err);
-      alert(
-        language === "ar"
-          ? "فشل الوصول إلى الميكروفون. يرجى السماح بالوصول من إعدادات المتصفح."
-          : "Failed to access microphone. Please allow access in browser settings."
-      );
-      setIsRecording(false);
-    }
-  }, [language, cleanupStream]);
-
-  const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop();
-    }
-    setIsRecording(false);
-  }, []);
-
-  const toggleRecording = useCallback(() => {
-    if (isProcessing) return;
-    if (isRecording) stopRecording();
-    else startRecording();
-  }, [isRecording, isProcessing, startRecording, stopRecording]);
-
-  const {
-    normalized: normalizedGoalInput,
-    wordCount: goalWordCount,
-    needsMoreDetail: goalNeedsMoreDetail,
-  } = analyzeGoalInput(goalInput);
-  const hasGoalInput = normalizedGoalInput.length > 0;
-  const aiPromptVisible = showAIDetailPrompt && goalNeedsMoreDetail;
-
-  const promptColorStage = !goalNeedsMoreDetail
-    ? 0
-    : goalWordCount < 3
-      ? 5
-      : goalWordCount < 6
-        ? 4
-        : goalWordCount < 9
-          ? 3
-          : goalWordCount < 12
-            ? 2
-            : 1;
-
-  const promptToneClasses =
-    promptColorStage === 5
-      ? "border-foreground/25 bg-gradient-to-b from-foreground/12 via-foreground/12 to-background"
-      : promptColorStage === 4
-        ? "border-foreground/25 bg-gradient-to-b from-foreground/12 via-foreground/12 to-background"
-        : promptColorStage === 3
-          ? "border-foreground/15 bg-gradient-to-b from-foreground/12 via-foreground/12 to-background"
-          : promptColorStage === 2
-            ? "border-foreground/15 bg-gradient-to-b from-foreground/12 via-foreground/12 to-background"
-            : "border-foreground/15 bg-gradient-to-b from-foreground/12 via-background/90 to-background";
-
-  const promptCardClasses =
-    promptColorStage === 5
-      ? "border-foreground/25 bg-foreground/12"
-      : promptColorStage === 4
-        ? "border-foreground/25 bg-foreground/12"
-        : promptColorStage === 3
-          ? "border-foreground/15 bg-foreground/12"
-          : promptColorStage === 2
-            ? "border-foreground/15 bg-foreground/12"
-            : "border-foreground/15 bg-foreground/12";
-
-  const promptMessages = {
-    ar: {
-      5: "وضّح النتيجة التي تريد الوصول لها وما الذي تريد تغييره فعلاً.",
-      4: "أضف لماذا هذا الهدف مهم لك أو ما الأثر الذي تنتظره منه.",
-      3: "زد وقتاً أو ظرفاً مهماً حتى تصبح الخطة أقرب لواقعك.",
-      2: "الوصف صار أفضل، وأي تفصيل عن النتيجة سيجعل البداية أدق.",
-      1: "باقي توضيح صغير عن الهدف حتى نبدأ بخطة أوضح.",
-    },
-    en: {
-      5: "Clarify the result you want and what you want to change.",
-      4: "Add why this goal matters or the impact you expect from it.",
-      3: "Add timing or context so the plan feels closer to your reality.",
-      2: "This is clearer now, and one more outcome detail will sharpen the start.",
-      1: "One small clarification will help us start with a clearer plan.",
-    },
-  } as const;
-
-  const goalPromptMessage = goalNeedsMoreDetail
-    ? isArabic
-      ? promptMessages.ar[promptColorStage as 1 | 2 | 3 | 4 | 5]
-      : promptMessages.en[promptColorStage as 1 | 2 | 3 | 4 | 5]
-    : null;
-
-  const goalInputPlaceholder = isProcessing
-    ? isArabic
-      ? "جارِ المعالجة..."
-      : "Processing..."
-    : isRecording
-      ? isArabic
-        ? "جارِ الاستماع..."
-        : "Listening..."
-      : isArabic
-        ? "اكتب هدفك هنا\u200f..."
-        : "Write your goal here...";
-
 
   /* ---- Log mode: fetch tasks and open progress dialog ---- */
   const handleLogSubmit = useCallback(
@@ -358,10 +104,12 @@ export default function HomePage({
       const targetGoalId =
         customGoalId || selectedLogGoalId || selectedLogGoalIds[0];
       if (!targetGoalId) return;
+
       if (customGoalId && customGoalId !== selectedLogGoalId) {
         setSelectedLogGoalId(customGoalId);
         setSelectedLogGoalIds([customGoalId]);
       }
+
       setLogTasksLoading(true);
       try {
         const targetIds = customGoalId
@@ -389,12 +137,8 @@ export default function HomePage({
         setLogTasksLoading(false);
       }
     },
-    [selectedLogGoalId, selectedLogGoalIds, supabase],
+    [selectedLogGoalId, selectedLogGoalIds, supabase]
   );
-
-  const handleDailyLogClick = useCallback(() => {
-    handleLogSubmit();
-  }, [handleLogSubmit]);
 
   const handleProgressDialogClose = useCallback(() => {
     setShowProgressDialog(false);
@@ -408,35 +152,17 @@ export default function HomePage({
     }
   }, [handleProgressDialogClose, onGoalUpdated]);
 
-  const resizeGoalTextarea = (textarea: HTMLTextAreaElement) => {
-    textarea.style.height = "0px";
-    const computedStyle = window.getComputedStyle(textarea);
-    const lineHeight = Number.parseFloat(computedStyle.lineHeight) || 28;
-    const paddingTop = Number.parseFloat(computedStyle.paddingTop) || 0;
-    const paddingBottom = Number.parseFloat(computedStyle.paddingBottom) || 0;
-    const minHeight = lineHeight + paddingTop + paddingBottom;
-    const maxHeight = lineHeight * 4 + paddingTop + paddingBottom;
-    const nextHeight = Math.min(Math.max(textarea.scrollHeight, minHeight), maxHeight);
-    textarea.style.height = `${nextHeight}px`;
-    textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
-  };
-
-  /* ------------------------------------------------------------------ */
-  /*  JSX                                                                */
-  /* ------------------------------------------------------------------ */
-
   return (
     <div
-      className="mx-auto flex min-h-0 w-full max-w-4xl 2xl:max-w-5xl flex-col gap-[28px] px-4 pt-[112px] pb-6"
+      className="mx-auto flex flex-1 min-h-0 w-full max-w-4xl 2xl:max-w-5xl flex-col gap-3 sm:gap-6 md:gap-7 px-1 min-[380px]:px-2 sm:px-4 pt-1.5 sm:pt-8 md:pt-14 pb-3 sm:pb-6"
       dir={isArabic ? "rtl" : "ltr"}
     >
-      {/* Upper Main Focus Group (Logo, Notification Bell, Coach Quote, Action Box) */}
-      <div className="flex shrink-0 flex-col gap-3.5 sm:gap-4">
-        {/* Header with Logo */}
-        <div className="flex shrink-0 flex-col items-center justify-center gap-2 text-center px-1">
-          <BrandLockup className="h-auto w-[165px] text-foreground transition-transform duration-300 hover:scale-[1.02] sm:w-[205px] md:w-[230px]" />
+      {/* Upper Focus Group: Header with Logo + Dual Mode Input */}
+      <div className="flex shrink-0 flex-col gap-2.5 sm:gap-4">
+        <div className="flex shrink-0 flex-col items-center justify-center gap-1.5 sm:gap-2 text-center px-1">
+          <BrandLockup className="h-auto w-[145px] min-[400px]:w-[165px] sm:w-[205px] md:w-[230px] text-foreground transition-transform duration-300 hover:scale-[1.02]" />
           <p
-            className="max-w-[18rem] text-xs font-semibold leading-relaxed text-muted-foreground/75 tracking-tight sm:max-w-[26rem] sm:text-sm"
+            className="max-w-[18rem] text-xs font-semibold leading-relaxed text-muted-foreground/75 tracking-tight sm:max-w-[26rem] sm:text-sm text-balance"
             dir={isArabic ? "rtl" : "ltr"}
             lang={isArabic ? "ar" : "en"}
           >
@@ -446,595 +172,33 @@ export default function HomePage({
           </p>
         </div>
 
-        {/* Dual-mode box: vertical toggle + content */}
-        <div
-          className={cn(
-            "relative shrink-0 transition-all duration-300",
-            aiPromptVisible && boxMode === "new" ? "pt-10 sm:pt-11" : "pt-0"
-          )}
-          dir={isArabic ? "rtl" : "ltr"}
-        >
-        <div
-          className={cn(
-            "pointer-events-none absolute inset-x-0 top-0 z-10 overflow-hidden transition-all duration-300",
-            aiPromptVisible && boxMode === "new" ? "h-[4.75rem] opacity-100 sm:h-[5.75rem]" : "h-0 opacity-0"
-          )}
-        >
-          <div className={cn("rounded-t-[22px] border border-b-0 px-4 pt-1 pb-6 sm:px-5 sm:pt-1.5 sm:pb-9", promptToneClasses)}>
-            <div
-              role="status"
-              aria-live="polite"
-              className={cn(
-                "flex items-center gap-3 text-sm font-medium leading-6 text-foreground",
-                isArabic ? "flex-row-reverse text-right" : "text-left"
-              )}
-            >
-              <div className="shrink-0 rounded-full border border-primary/25 bg-background/60 p-1.5 backdrop-blur">
-                <CircleAlert className="size-4 shrink-0 text-primary" />
-              </div>
-              <p
-                id="goal-ai-detail-prompt"
-                className="flex-1 text-[13px] font-semibold leading-5 text-foreground/90"
-              >
-                {goalPromptMessage}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div
-          className={cn(
-            "relative z-20 flex items-stretch gap-2 overflow-hidden rounded-2xl min-h-[114px] sm:min-h-[118px]",
-            PANEL_SURFACE,
-            "shadow-sm shadow-black/[0.03] transition-all duration-300 ease-out dark:shadow-black/10",
-            boxMode === "new"
-              ? (isRecording ? "border-destructive/45 bg-destructive/12" : isProcessing ? "border-primary/25 bg-primary/12" : aiPromptVisible ? promptCardClasses : "border-border")
-              : "border-primary/25"
-          )}
-        >
-          {/* Vertical mode toggle */}
-          <div
-            className="flex shrink-0 flex-col gap-1 p-1.5 bg-muted/20 border-inline-end border-border/70"
-            role="tablist"
-            aria-label={isArabic ? "وضع الصندوق" : "Box mode"}
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={boxMode === "new"}
-              onClick={() => setBoxMode("new")}
-              className={cn(
-                "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-200",
-                boxMode === "new"
-                  ? "bg-primary/12 text-primary ring-1 ring-primary/25 shadow-[0_4px_12px_-6px_color-mix(in_oklch,var(--primary)_60%,transparent)]"
-                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-              )}
-              title={t.modeNewGoal}
-            >
-              <Plus className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={boxMode === "log"}
-              onClick={() => setBoxMode("log")}
-              disabled={goals.length === 0}
-              className={cn(
-                "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-200",
-                boxMode === "log"
-                  ? "bg-primary/12 text-primary ring-1 ring-primary/25 shadow-[0_4px_12px_-6px_color-mix(in_oklch,var(--primary)_45%,transparent)]"
-                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
-              )}
-              title={t.modeDailyLog}
-            >
-              <Zap className="h-4 w-4" />
-            </button>
-          </div>
-
-          {/* Content area */}
-          {boxMode === "new" ? (
-            /* ===== NEW GOAL MODE (existing input) ===== */
-            <div className="relative min-w-0 flex-1 flex flex-col justify-between min-h-[114px] sm:min-h-[118px]">
-              <div
-                className={cn(
-                  "pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b to-transparent",
-                  isRecording ? "from-destructive/12 via-destructive/12" : isProcessing ? "from-primary/12 via-primary/12" : aiPromptVisible ? "from-primary/12 via-primary/12" : "from-primary/12 via-primary/12"
-                )}
-              />
-              <div className="relative px-2 pt-2 pb-1.5 sm:px-3 sm:pt-2.5 sm:pb-2.5">
-                <Textarea
-                  ref={goalTextareaRef}
-                  rows={1}
-                  value={goalInput}
-                  onChange={(e) => {
-                    setGoalInput(e.target.value);
-                    if (!analyzeGoalInput(e.target.value).needsMoreDetail) setShowAIDetailPrompt(false);
-                    resizeGoalTextarea(e.currentTarget);
-                  }}
-                  onInput={(e) => resizeGoalTextarea(e.currentTarget)}
-                  placeholder={goalInputPlaceholder}
-                  aria-describedby={aiPromptVisible ? "goal-ai-detail-prompt" : undefined}
-                  className={cn(
-                    "min-h-[44px] max-h-[132px] resize-none overflow-y-hidden border-0 bg-transparent px-3 py-2 shadow-none scrollbar-thin",
-                    "text-sm font-medium leading-6 text-foreground sm:text-base sm:leading-7 md:text-base",
-                    "placeholder:text-muted-foreground/50",
-                    "focus-visible:border-0 focus-visible:ring-0 focus-visible:ring-offset-0",
-                    "dark:bg-transparent",
-                    isArabic ? "text-right" : "text-left",
-                    isRecording && "placeholder:text-destructive/75 caret-destructive"
-                  )}
-                  dir={isArabic ? "rtl" : "auto"}
-                />
-              </div>
-              <div
-                className={cn(
-                  "flex flex-row-reverse items-center justify-between gap-2 px-2 pb-2 pt-0 sm:items-center sm:px-3 sm:pb-3",
-                  isArabic ? "sm:flex-row-reverse" : "sm:flex-row"
-                )}
-              >
-                <div
-                  className="flex items-center gap-2"
-                  dir={isArabic ? "rtl" : "ltr"}
-                >
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={toggleRecording}
-                    disabled={isProcessing}
-                    aria-pressed={isRecording}
-                    className={cn(
-                      "h-9 w-9 shrink-0 rounded-full px-0 shadow-none sm:h-10 sm:w-10",
-                      isProcessing
-                        ? "border-primary/45 bg-primary/12 text-primary"
-                        : isRecording
-                          ? "border-destructive/45 bg-destructive/12 text-destructive hover:bg-destructive/12"
-                          : "border-border bg-background text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                    )}
-                  >
-                    {isProcessing ? <Loader2 className="size-4 animate-spin" /> : isRecording ? <StopCircle className="size-4" /> : <Mic className="size-4" />}
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={handleAICreate}
-                    title={isArabic ? "صياغة الخطة بالذكاء الاصطناعي" : "Plan with AI"}
-                    aria-label={isArabic ? "صياغة الخطة بالذكاء الاصطناعي" : "Plan with AI"}
-                    className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-full px-0 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/20 flex items-center justify-center active:scale-95 transition-all"
-                  >
-                    <ArrowUp className="size-4 shrink-0" />
-                  </Button>
-                </div>
-
-                {/* Direct Manual Goal Creation shortcut */}
-                <button
-                  type="button"
-                  onClick={() => onNavigateToCreate?.(goalInput.trim(), "manual")}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-muted-foreground/80 hover:text-primary hover:bg-muted/40 transition-colors cursor-pointer select-none"
-                  title={t.orCreateManually || (isArabic ? 'إنشاء هدف يدوي بدون ذكاء اصطناعي' : 'Create manual goal')}
-                >
-                  <Edit3 className="w-3.5 h-3.5 text-primary" />
-                  <span>{t.orCreateManually || (isArabic ? 'إنشاء يدوي' : 'Manual Goal')}</span>
-                </button>
-              </div>
-            </div>
-          ) : (
-            /* ===== DAILY LOG MODE ===== */
-            <div className="relative min-w-0 flex-1 flex flex-col justify-between min-h-[114px] sm:min-h-[118px]">
-              <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-primary/10 to-transparent" />
-              <div className="relative flex-1 px-2 pt-2 pb-1.5 sm:px-3 sm:pt-2.5 sm:pb-2.5 flex flex-col justify-center min-h-[44px]">
-                {goals.length === 0 ? (
-                  <div className="flex items-center justify-center rounded-xl border border-dashed border-border/70 bg-muted/12 px-3 py-3 text-center">
-                    <p className="text-xs text-muted-foreground/75">
-                      {t.noGoalsToLog}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap items-center gap-1.5 max-h-[76px] overflow-y-auto scrollbar-thin py-0.5">
-                    {goals.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (selectedLogGoalIds.length === goals.length) {
-                            setSelectedLogGoalIds([]);
-                            setSelectedLogGoalId(null);
-                          } else {
-                            setSelectedLogGoalIds(goals.map((g) => g.id));
-                            setSelectedLogGoalId(goals[0]?.id || null);
-                          }
-                        }}
-                        className={cn(
-                          "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium transition-all duration-150 cursor-pointer active:scale-95",
-                          selectedLogGoalIds.length === goals.length
-                            ? "border-primary/40 bg-primary/15 text-primary font-semibold"
-                            : "border-dashed border-border/80 bg-background text-muted-foreground hover:border-primary/30 hover:text-foreground"
-                        )}
-                      >
-                        <span>
-                          {selectedLogGoalIds.length === goals.length
-                            ? (isArabic ? "إلغاء الكل" : "None")
-                            : (isArabic ? "الكل" : "All")}
-                        </span>
-                      </button>
-                    )}
-
-                    {goals.map((goal) => {
-                      const Icon = getIconComponent(goal.icon || "Target");
-                      const currentPoints = goal.current_points ?? 0;
-                      const targetPoints = goal.target_points ?? 0;
-                      const progress =
-                        targetPoints > 0
-                          ? Math.round((currentPoints / targetPoints) * 100)
-                          : 0;
-                      const isSelected = selectedLogGoalIds.includes(goal.id);
-                      return (
-                        <button
-                          key={goal.id}
-                          type="button"
-                          onClick={() => toggleGoalSelection(goal.id)}
-                          aria-pressed={isSelected}
-                          className={cn(
-                            "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-all duration-150 cursor-pointer active:scale-95",
-                            isSelected
-                              ? "border-primary bg-primary/12 text-primary ring-1 ring-primary/25 font-semibold shadow-xs"
-                              : "border-border bg-background text-muted-foreground hover:border-primary/25 hover:bg-primary/10 hover:text-foreground opacity-75 hover:opacity-100"
-                          )}
-                        >
-                          <span
-                            className={cn(
-                              "flex h-4 w-4 shrink-0 items-center justify-center rounded-[5px] border transition-all duration-150",
-                              isSelected
-                                ? "border-primary bg-primary text-primary-foreground"
-                                : "border-primary/25 bg-primary/12 text-primary"
-                            )}
-                          >
-                            <Icon className="h-2.5 w-2.5" />
-                          </span>
-                          <span className="max-w-[140px] sm:max-w-[180px] truncate">{goal.title}</span>
-                          <span
-                            className={cn(
-                              "tabular-nums text-[10px] font-bold transition-opacity",
-                              isSelected ? "opacity-90" : "opacity-50"
-                            )}
-                          >
-                            {progress}%
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Action Button */}
-              <div className="px-2 pb-2 pt-0 sm:px-3 sm:pb-3">
-                <Button
-                  type="button"
-                  disabled={
-                    selectedLogGoalIds.length === 0 ||
-                    logTasksLoading ||
-                    goals.length === 0
-                  }
-                  onClick={handleDailyLogClick}
-                  className={cn(
-                    "w-full h-9 sm:h-10 rounded-xl px-4 text-xs sm:text-sm font-semibold transition-all duration-200",
-                    selectedLogGoalIds.length === 0 || goals.length === 0
-                      ? "bg-muted/60 text-muted-foreground/50 cursor-not-allowed shadow-none"
-                      : "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 active:scale-[0.99]"
-                  )}
-                >
-                  <Zap className="size-3.5 shrink-0" />
-                  <span>
-                    {isArabic ? "تسجيل التقدّم اليوم" : "Log Today's Progress"}
-                  </span>
-                  {selectedLogGoalIds.length > 1 && (
-                    <span className="inline-flex items-center justify-center rounded-full bg-primary-foreground/20 px-1.5 py-0.5 text-[10px] font-bold tabular-nums">
-                      {selectedLogGoalIds.length}
-                    </span>
-                  )}
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
+        <HomeInputSection
+          goals={goals}
+          boxMode={boxMode}
+          onBoxModeChange={setBoxModePref}
+          goalInput={goalInput}
+          onGoalInputChange={setGoalInput}
+          selectedLogGoalIds={selectedLogGoalIds}
+          onToggleGoalSelection={toggleGoalSelection}
+          onToggleSelectAllGoals={toggleSelectAllGoals}
+          onNavigateToCreate={onNavigateToCreate}
+          onDailyLogSubmit={() => handleLogSubmit()}
+          logTasksLoading={logTasksLoading}
+          language={language}
+        />
       </div>
 
       {/* Lower Section: Tabs Container (Recent Goals & Notifications) */}
-      <div
-        className="shrink-0 flex flex-col overflow-hidden"
-        dir={isArabic ? "rtl" : "ltr"}
-      >
-        <div className="flex shrink-0 items-center justify-between mb-2.5 px-1">
-          <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-xl border border-border/70">
-            <button
-              onClick={() => setBottomTab("goals")}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer active:scale-95",
-                bottomTab === "goals"
-                  ? "bg-card text-foreground shadow-xs border border-border/70 font-semibold"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
-              )}
-            >
-              <Target className="h-3.5 w-3.5 text-primary opacity-80" />
-              <span>{isArabic ? "الأهداف الأخيرة" : "Recent Goals"}</span>
-              <span className="inline-flex h-4 min-w-[1.1rem] items-center justify-center rounded-full bg-primary/10 px-1.5 text-[10px] font-semibold text-primary tabular-nums">
-                {recentGoals.length}
-              </span>
-            </button>
-
-            <button
-              onClick={() => setBottomTab("notifications")}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer active:scale-95",
-                bottomTab === "notifications"
-                  ? "bg-card text-foreground shadow-xs border border-border/70 font-semibold"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
-              )}
-            >
-              <Bell className="h-3.5 w-3.5 text-amber-500" />
-              <span>{isArabic ? "الإشعارات" : "Notifications"}</span>
-              {unreadNotifications.length > 0 && (
-                <span className="inline-flex h-4 min-w-[1.1rem] items-center justify-center rounded-full bg-destructive text-white px-1.5 text-[10px] font-semibold tabular-nums">
-                  {unreadNotifications.length}
-                </span>
-              )}
-            </button>
-          </div>
-
-          {bottomTab === "notifications" && notifications.length > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleMarkAllNotifsRead}
-              className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground gap-1 rounded-lg"
-            >
-              <CheckCheck className="h-3.5 w-3.5 text-emerald-500" />
-              <span>{isArabic ? "تحديد كمقروء" : "Mark all read"}</span>
-            </Button>
-          )}
-        </div>
-
-        <div className="overflow-hidden flex flex-col">
-          <div className={cn("h-[430px] overflow-y-auto overscroll-contain rounded-[18px] p-[10px] scrollbar-thin", WELL_SURFACE)}>
-            {bottomTab === "goals" ? (
-              recentGoals.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5">
-                  {recentGoals.map((goal) => {
-                    const currentPoints = goal.current_points ?? 0;
-                    const targetPoints = goal.target_points ?? 0;
-                    const progress = targetPoints > 0 ? Math.round((currentPoints / targetPoints) * 100) : 0;
-                    const Icon = getIconComponent(goal.icon || "Target");
-                    const goalIsRTL = isArabic || isRTLText(goal.title);
-                    const daysChip = getGoalEndDaysChip(goal.estimated_completion_date, isArabic);
-                    const stats = taskStatsMap[goal.id];
-                    const hasStatsBadge = !!stats && stats.total > 0;
-                    const hasGoalBadges = goal.is_pinned || !!daysChip || hasStatsBadge;
-
-                    return (
-                      <div
-                        key={goal.id}
-                        className="group relative w-full min-h-[112px] sm:min-h-[120px] rounded-xl border border-border/70 bg-card p-3 sm:p-3.5 shadow-xs transition-all duration-200 ease-out hover:border-primary/60 hover:shadow-xs active:scale-[0.99] flex flex-col justify-between gap-2.5"
-                      >
-                        <button
-                          onClick={() => onSelectGoal(goal.id)}
-                          className="flex h-full w-full cursor-pointer flex-col justify-between gap-2 text-start outline-none focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-1"
-                          dir={goalIsRTL ? "rtl" : "ltr"}
-                        >
-                          {/* Top: Icon + Title */}
-                          <div className="flex w-full items-center justify-between gap-2">
-                            <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                              <div className="flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-lg border border-primary/25 bg-primary/10 text-primary shadow-xs transition-all duration-200 group-hover:bg-primary group-hover:text-primary-foreground">
-                                <Icon className="h-4 w-4" />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <span className="block truncate text-sm sm:text-[15px] font-bold text-foreground transition-colors group-hover:text-primary">
-                                  {goal.title}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Middle: Badges row */}
-                          <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 py-0.5">
-                            {goal.is_pinned && (
-                              <span className="inline-flex h-5 shrink-0 items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-2 text-[9.5px] sm:text-[10px] font-semibold text-primary">
-                                <Pin className="h-2.5 w-2.5" />
-                                {isArabic ? "مثبت" : "Pinned"}
-                              </span>
-                            )}
-                            {daysChip && (
-                              <span
-                                className={cn(
-                                  "inline-flex h-5 shrink-0 items-center gap-1 rounded-full border px-2 text-[9.5px] sm:text-[10px] font-semibold tabular-nums shadow-2xs transition-colors",
-                                  daysChip.tone === "soon" && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25",
-                                  daysChip.tone === "today" && "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25 animate-pulse",
-                                  daysChip.tone === "late" && "border-destructive/35 bg-destructive/10 text-destructive font-bold",
-                                  !daysChip.tone && "border-border/70 bg-muted/60 text-muted-foreground/85"
-                                )}
-                                title={daysChip.title}
-                              >
-                                <Clock className="h-2.5 w-2.5" />
-                                {daysChip.text}
-                              </span>
-                            )}
-                            {goal.total_days && goal.total_days > 0 ? (
-                              <span
-                                className="inline-flex h-5 shrink-0 items-center gap-1 rounded-full border border-border/70 bg-muted/60 px-2 text-[9.5px] sm:text-[10px] font-semibold text-muted-foreground/85"
-                                title={isArabic ? `إجمالي مدة الهدف ${goal.total_days} يوم` : `Total duration: ${goal.total_days} days`}
-                              >
-                                <Calendar className="h-2.5 w-2.5" />
-                                <span>{goal.total_days} {isArabic ? "يوم" : "d"}</span>
-                              </span>
-                            ) : null}
-                            {hasStatsBadge && (
-                              <span
-                                className={cn(
-                                  "inline-flex h-5 shrink-0 items-center gap-1 rounded-full border px-2 text-[9.5px] sm:text-[10px] font-semibold tabular-nums",
-                                  stats.completed >= stats.total
-                                    ? "border-primary/25 bg-primary/10 text-primary font-bold"
-                                    : "border-border/70 bg-muted/60 text-muted-foreground/85"
-                                )}
-                                title={isArabic ? `${stats.completed} من ${stats.total} مهمة منجزة` : `${stats.completed} of ${stats.total} tasks done`}
-                              >
-                                <ListChecks className="h-2.5 w-2.5" />
-                                <span dir="ltr">{stats.completed}/{stats.total}</span>
-                                {stats.completed >= stats.total && (
-                                  <span className="text-[9px] font-black text-primary">✓</span>
-                                )}
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Bottom: Progress Bar */}
-                          <GoalProgressBar
-                            currentPoints={currentPoints}
-                            targetPoints={targetPoints}
-                            progress={progress}
-                            className="h-7 shrink-0 w-full rounded-full"
-                            labelClassName="px-2.5 text-xs sm:text-sm font-bold"
-                            percentClassName="text-sm sm:text-base font-black text-foreground"
-                            targetClassName="text-foreground"
-                          />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="flex h-full min-h-[360px] flex-col items-center justify-center p-6 text-center">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border/70 bg-card text-muted-foreground/50 shadow-xs mb-3">
-                    <Target className="h-6 w-6" />
-                  </div>
-                  <h2 className="text-base sm:text-lg font-bold text-foreground tracking-tight">
-                    {isArabic ? "لا توجد أهداف بعد" : "No goals yet"}
-                  </h2>
-                  <p className="mt-1.5 max-w-[16rem] text-sm text-muted-foreground/75 leading-relaxed">
-                    {isArabic ? "ابدأ بإضافة هدفك الأول وسيظهر تقدمه هنا." : "Create your first goal and its progress will appear here."}
-                  </p>
-                </div>
-              )
-            ) : (
-              /* Notifications View */
-              notifications.length === 0 ? (
-                <div className="flex h-full min-h-[360px] flex-col items-center justify-center p-6 text-center">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border/70 bg-card text-emerald-500 shadow-xs mb-3">
-                    <CheckCheck className="h-6 w-6" />
-                  </div>
-                  <h3 className="text-sm sm:text-base font-bold text-foreground">
-                    {isArabic ? "أنت مواكب لكل شيء!" : "You're all caught up!"}
-                  </h3>
-                  <p className="mt-1 text-xs sm:text-sm text-muted-foreground max-w-[240px]">
-                    {isArabic
-                      ? "لا توجد تنبيهات طارئة حالياً، استمر في الحفاظ على زخمك اليومي."
-                      : "No urgent alerts right now. Keep up your daily momentum."}
-                  </p>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2.5">
-                  {notifications.map((n) => {
-                    const isHigh = n.priority === "high";
-                    return (
-                      <div
-                        key={n.id}
-                        className={cn(
-                          "group flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 sm:p-3.5 rounded-xl border bg-card shadow-xs transition-all duration-200 hover:shadow-sm",
-                          isHigh
-                            ? "border-destructive/30 bg-destructive/5"
-                            : "border-border hover:border-primary/25"
-                        )}
-                      >
-                        <div className="flex items-start gap-3 min-w-0 flex-1">
-                          <div
-                            className={cn(
-                              "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border mt-0.5 shadow-2xs",
-                              isHigh
-                                ? "border-destructive/30 bg-destructive/15 text-destructive"
-                                : n.type === "streak_freeze"
-                                  ? "border-cyan-500/30 bg-cyan-500/15 text-cyan-600 dark:text-cyan-400"
-                                  : n.type === "deadline_alert"
-                                    ? "border-amber-500/30 bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                                    : n.type === "weekly_review"
-                                      ? "border-blue-500/30 bg-blue-500/15 text-blue-600 dark:text-blue-400"
-                                      : n.type === "dormant_goal"
-                                        ? "border-purple-500/30 bg-purple-500/15 text-purple-600 dark:text-purple-400"
-                                        : "border-primary/20 bg-primary/10 text-primary"
-                            )}
-                          >
-                            {n.type === "streak_rescue" ? (
-                              <Flame className="h-4 w-4" />
-                            ) : n.type === "streak_freeze" ? (
-                              <Snowflake className="h-4 w-4" />
-                            ) : n.type === "deadline_alert" ? (
-                              <Clock className="h-4 w-4" />
-                            ) : n.type === "record_streak" || n.type === "milestone_celebration" ? (
-                              <Trophy className="h-4 w-4" />
-                            ) : n.type === "weekly_review" ? (
-                              <BarChart3 className="h-4 w-4" />
-                            ) : n.type === "dormant_goal" ? (
-                              <Sparkles className="h-4 w-4" />
-                            ) : (
-                              <Bell className="h-4 w-4" />
-                            )}
-                          </div>
-
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span
-                                className={cn(
-                                  "text-xs sm:text-sm font-bold truncate",
-                                  isHigh ? "text-destructive" : "text-foreground"
-                                )}
-                              >
-                                {n.title}
-                              </span>
-                              {n.goalTitle && (
-                                <span className="text-[10px] text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-full border border-border/60 shrink-0 font-medium truncate max-w-[130px]">
-                                  {n.goalTitle}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs text-muted-foreground leading-relaxed">
-                              {n.message}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                          {n.goalId && (
-                            <Button
-                              size="sm"
-                              variant={isHigh ? "destructive" : "outline"}
-                              onClick={() => {
-                                if (n.goalId) {
-                                  handleLogSubmit(n.goalId);
-                                }
-                              }}
-                              className="h-8 sm:h-9 rounded-lg px-3 text-xs font-medium shadow-xs gap-1.5 active:scale-95"
-                            >
-                              <Zap className="h-3.5 w-3.5" />
-                              <span>{isArabic ? "تسجيل سريع" : "Quick Log"}</span>
-                            </Button>
-                          )}
-                          {n.goalId && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => onSelectGoal(n.goalId!)}
-                              className="h-8 sm:h-9 rounded-lg px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground active:scale-95"
-                            >
-                              <span>{isArabic ? "عرض الهدف" : "View"}</span>
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )
-            )}
-          </div>
-        </div>
-      </div>
-      </div>
+      <HomeGoalsSection
+        recentGoals={recentGoals}
+        taskStatsMap={taskStatsMap}
+        notifications={notifications}
+        unreadNotificationsCount={unreadNotifications.length}
+        language={language}
+        onSelectGoal={onSelectGoal}
+        onQuickLog={(goalId) => handleLogSubmit(goalId)}
+        onMarkAllNotifsRead={markAllAsRead}
+      />
 
       {/* Progress Log Dialog (opened from daily-log mode) */}
       {showProgressDialog && (selectedLogGoal || selectedLogGoals.length > 0) && (
@@ -1065,7 +229,6 @@ export default function HomePage({
           language={language}
         />
       )}
-
     </div>
   );
 }

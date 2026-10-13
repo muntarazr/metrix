@@ -16,11 +16,11 @@ export default function OrbitShell({
     className
 }: OrbitShellProps) {
     return (
-        <div className="relative min-h-[100dvh] w-full bg-canvas text-foreground selection:bg-primary/20 font-sans transition-colors duration-300">
+        <div className="relative min-h-[100dvh] w-full overflow-x-clip bg-canvas text-foreground selection:bg-primary/20 font-sans transition-colors duration-300">
 
             {/* Content Container */}
             <main className={cn(
-                "relative z-10 flex min-h-[100dvh] w-full flex-col",
+                "relative z-10 flex min-h-[100dvh] w-full min-w-0 flex-col",
                 className
             )}>
                 {children}

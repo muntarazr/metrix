@@ -40,7 +40,7 @@ export function getGoalEndDaysChip(
 
   if (daysToEnd > 0) {
     return {
-      text: isArabic ? `${daysLabel} يوم` : `${daysLabel}d`,
+      text: isArabic ? `باقي ${daysLabel} يوم` : `${daysLabel}d left`,
       tone: 'soon',
       title: isArabic
         ? `${daysLabel} يوم متبقٍ حتى انتهاء الهدف (${endDateLabel})`

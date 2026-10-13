@@ -193,7 +193,7 @@ export default function GoalReviewStep({
 
                     {/* Duration Adaptation Button - When duration is adjusted */}
                     {isDurationChanged && onAdaptTasksToDuration && (
-                        <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl border border-primary/30 bg-primary/10 animate-in fade-in">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 sm:p-2.5 rounded-xl border border-primary/30 bg-primary/10 animate-in fade-in">
                             <span className="text-xs text-foreground font-medium">
                                 {isArabic
                                     ? `تم تغيير مدة الهدف إلى ${formatDurationLabel(tunerDuration, true)}. هل ترغب في إعادة تكييف المهام؟`
@@ -203,7 +203,7 @@ export default function GoalReviewStep({
                                 type="button"
                                 onClick={() => onAdaptTasksToDuration(tunerDuration)}
                                 disabled={isAdaptingDuration}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-all shrink-0 cursor-pointer shadow-xs"
+                                className="inline-flex w-full sm:w-auto items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-all shrink-0 cursor-pointer shadow-xs"
                             >
                                 <Sparkles className={cn("w-3.5 h-3.5", isAdaptingDuration && "animate-spin")} />
                                 <span>{isArabic ? 'تكييف المهام مع المدة الجديدة' : 'Adapt Tasks to Duration'}</span>
@@ -215,8 +215,8 @@ export default function GoalReviewStep({
 
             {/* Flat Actionable Tasks List */}
             <div className="space-y-3">
-                <div className="flex items-center justify-between px-1">
-                    <div>
+                <div className="flex items-start sm:items-center justify-between gap-2.5 px-1">
+                    <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold text-foreground">
                             {isArabic ? 'المهام التنفيذية المباشرة:' : 'Direct Actionable Tasks:'}
                         </p>
@@ -229,7 +229,7 @@ export default function GoalReviewStep({
                     <button
                         type="button"
                         onClick={onAddFlatTask}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-semibold transition-all cursor-pointer shadow-2xs"
+                        className="inline-flex shrink-0 items-center gap-1 px-3 py-1.5 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-semibold transition-all cursor-pointer shadow-2xs"
                     >
                         <Plus className="w-3.5 h-3.5" />
                         <span>{isArabic ? 'إضافة مهمة' : 'Add Task'}</span>
@@ -251,16 +251,16 @@ export default function GoalReviewStep({
             </div>
 
             {/* Bottom Action Bar */}
-            <div className={cn("flex flex-wrap items-center justify-between gap-3 pt-3", isArabic ? "flex-row-reverse" : "flex-row")}>
-                <div className="flex items-center gap-2">
+            <div className={cn("flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3", isArabic ? "sm:flex-row-reverse" : "sm:flex-row")}>
+                <div className="flex items-center gap-2 flex-wrap">
                     <button
                         type="button"
                         onClick={onBackToQuestions}
                         disabled={saving}
-                        className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-border text-muted-foreground hover:text-foreground text-sm font-semibold transition-all hover:bg-muted/40 cursor-pointer"
+                        className="inline-flex flex-1 sm:flex-initial items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-border text-muted-foreground hover:text-foreground text-xs sm:text-sm font-semibold transition-all hover:bg-muted/40 cursor-pointer"
                     >
-                        {isArabic ? <ArrowRight className="w-4 h-4" /> : <ArrowLeft className="w-4 h-4" />}
-                        <span>{isArabic ? 'العودة للأسئلة' : 'Back to questions'}</span>
+                        {isArabic ? <ArrowRight className="w-4 h-4 shrink-0" /> : <ArrowLeft className="w-4 h-4 shrink-0" />}
+                        <span>{isArabic ? 'العودة' : 'Back'}</span>
                     </button>
 
                     {onRegenerateWithDirection && (
@@ -268,11 +268,11 @@ export default function GoalReviewStep({
                             type="button"
                             onClick={() => setShowDirectionModal(true)}
                             disabled={saving || isRegeneratingPlan}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-primary/25 bg-primary/5 text-primary hover:bg-primary/10 text-xs sm:text-sm font-semibold transition-all cursor-pointer"
+                            className="inline-flex flex-1 sm:flex-initial items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-primary/25 bg-primary/5 text-primary hover:bg-primary/10 text-xs sm:text-sm font-semibold transition-all cursor-pointer"
                             title={isArabic ? 'إعادة توليد مسودة الخطة بتوجيه جديد' : 'Regenerate plan with new direction'}
                         >
-                            <Sparkles className={cn("w-3.5 h-3.5", isRegeneratingPlan && "animate-spin")} />
-                            <span>{isArabic ? 'إعادة التوليد بتوجيه جديد' : 'Regenerate with Direction'}</span>
+                            <Sparkles className={cn("w-3.5 h-3.5 shrink-0", isRegeneratingPlan && "animate-spin")} />
+                            <span>{isArabic ? 'توجيه جديد' : 'Direction'}</span>
                         </button>
                     )}
                 </div>
@@ -280,11 +280,11 @@ export default function GoalReviewStep({
                 <button
                     onClick={onSave}
                     disabled={saving || (flatTasks.filter(t => t.included).length === 0)}
-                    className="flex shrink-0 items-center gap-2 px-6 py-3 rounded-xl bg-foreground text-background text-sm font-bold disabled:opacity-50 transition-all hover:opacity-90 shadow-md cursor-pointer active:scale-[0.98]"
+                    className="flex w-full sm:w-auto items-center justify-center gap-2 px-6 py-3 rounded-xl bg-foreground text-background text-sm font-bold disabled:opacity-50 transition-all hover:opacity-90 shadow-md cursor-pointer active:scale-[0.98]"
                 >
                     {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                    <Zap className="w-4 h-4" />
-                    <span>{acceptStartJourneyText || (isArabic ? 'اعتماد الخطة وبدء الرحلة' : 'Accept Plan & Start Journey')}</span>
+                    <Zap className="w-4 h-4 shrink-0" />
+                    <span className="truncate">{acceptStartJourneyText || (isArabic ? 'اعتماد الخطة وبدء الرحلة' : 'Accept Plan & Start Journey')}</span>
                 </button>
             </div>
 
@@ -302,15 +302,15 @@ export default function GoalReviewStep({
             {showDirectionModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-xs animate-in fade-in duration-200">
                     <div
-                        className="w-full max-w-md rounded-2xl border border-border/80 bg-card p-5 sm:p-6 shadow-xl space-y-4"
+                        className="w-full max-w-md max-h-[85dvh] overflow-y-auto overscroll-contain rounded-2xl border border-border/80 bg-card p-4 sm:p-6 shadow-xl space-y-4"
                         dir={isArabic ? 'rtl' : 'ltr'}
                     >
                         <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-center gap-2.5">
+                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
                                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20">
                                     <MessageSquarePlus className="w-5 h-5" />
                                 </div>
-                                <div>
+                                <div className="min-w-0 flex-1">
                                     <h3 className="font-bold text-base text-foreground leading-snug">
                                         {isArabic ? 'إعادة التوليد بتوجيه جديد' : 'Regenerate Plan with New Direction'}
                                     </h3>
@@ -337,7 +337,7 @@ export default function GoalReviewStep({
                             }
                             rows={4}
                             autoFocus
-                            className="w-full text-xs sm:text-sm rounded-xl border border-border/80 bg-muted/20 px-3.5 py-3 text-foreground placeholder:text-muted-foreground/60 focus:outline-hidden focus:border-primary/60 focus:bg-background resize-none leading-relaxed transition-all"
+                            className="w-full text-base sm:text-sm rounded-xl border border-border/80 bg-muted/20 px-3.5 py-3 text-foreground placeholder:text-muted-foreground/60 focus:outline-hidden focus:border-primary/60 focus:bg-background resize-none leading-relaxed transition-all"
                         />
 
                         <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/60">

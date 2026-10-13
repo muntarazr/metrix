@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "./styles/calendar.css";
+@import "./styles/animations.css";
 @plugin "tailwindcss-animate";
 
 @custom-variant dark (&:is(.dark *));
@@ -320,6 +322,12 @@
   html,
   body {
     min-height: 100dvh;
+    overscroll-behavior-y: none;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
   }
 
   * {
@@ -330,7 +338,23 @@
     @apply bg-canvas text-foreground;
     font-family: "Plus Jakarta Sans", "IBM Plex Sans Arabic", var(--font-fallback);
     font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
-    overscroll-behavior-y: none;
+  }
+
+  button,
+  a,
+  [role="button"] {
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* Prevent iOS Safari auto-zoom on input focus without altering desktop text-sm */
+  @media (pointer: coarse) {
+    input,
+    textarea,
+    select {
+      font-size: max(16px, 1em);
+    }
   }
 
   /* Same order as body, deliberately. `layout.tsx` hardcodes dir="rtl" on
@@ -405,49 +429,6 @@
   }
 }
 
-@keyframes focus-task-complete {
-  0% {
-    transform: translateY(0) scale(1);
-    filter: saturate(1);
-  }
-
-  38% {
-    transform: translateY(-2px) scale(1.01);
-    filter: saturate(1.06);
-  }
-
-  100% {
-    transform: translateY(0) scale(1);
-    filter: saturate(1);
-  }
-}
-
-@keyframes focus-task-pill-pop {
-  0% {
-    opacity: 0;
-    transform: scale(0.96);
-  }
-
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.focus-task-completed-today {
-  position: relative;
-}
-
-.focus-task-completed-today::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  background:
-    linear-gradient(135deg, color-mix(in oklch, var(--primary) 8%, transparent), transparent 56%);
-}
-
 /* See the comment in components/ui/scroll-area.tsx: without this, a long
    unbroken string inside a vertical-only ScrollArea widens Radix's table
    wrapper past the viewport and `overflow-x: hidden` clips it — leftward under
@@ -457,448 +438,11 @@
   min-width: 0 !important;
 }
 
-.focus-task-completed-pill {
-  backdrop-filter: blur(10px);
+/* Scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
-
-@media (prefers-reduced-motion: no-preference) {
-  .focus-task-completed-today[data-fresh="true"] {
-    animation: focus-task-complete 900ms cubic-bezier(0.22, 1, 0.36, 1);
-  }
-
-  .focus-task-completed-pill[data-fresh="true"] {
-    animation: focus-task-pill-pop 380ms ease-out both;
-  }
-}
-
-/* ============================================================ */
-/*  Calendar / Date-Picker Dropdown Styles                      */
-/* ============================================================ */
-
-/* Wrapper that holds the month + year selects */
-.rdp-dropdowns {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  justify-content: center;
-}
-
-/* RTL: reverse the order so year comes first visually */
-[dir="rtl"] .rdp-dropdowns {
-  flex-direction: row-reverse;
-}
-
-/* The <span> wrapper around each <select> */
-.rdp-dropdown_root {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-}
-
-/* The hidden label text that sits behind the select */
-.rdp-dropdown_root > span.text-sm {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--foreground);
-  padding-inline: 0.5rem;
-  white-space: nowrap;
-}
-
-/* The native <select> element – make it invisible but still interactive */
-.rdp-dropdown,
-select.rdp-dropdown {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  cursor: pointer;
-  border: none;
-  background: transparent;
-  -webkit-appearance: none;
-  appearance: none;
-  z-index: 1;
-}
-
-/* The visible pill/button that wraps the hidden select */
-.rdp-dropdown_root {
-  height: 2rem;
-  min-width: 3.5rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--border);
-  background: var(--muted);
-  transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
-}
-
-.rdp-dropdown_root:hover {
-  background: var(--accent);
-  border-color: var(--ring);
-  box-shadow: 0 0 0 2px color-mix(in oklch, var(--ring) 20%, transparent);
-}
-
-/* Month dropdown is slightly wider */
-.rdp-months_dropdown + span,
-span:has(> select.rdp-months_dropdown) {
-  min-width: 5rem;
-}
-
-/* Year dropdown */
-.rdp-years_dropdown + span,
-span:has(> select.rdp-years_dropdown) {
-  min-width: 4rem;
-}
-
-/* Arabic / RTL text alignment inside the pill */
-[dir="rtl"] .rdp-dropdown_root > span.text-sm {
-  font-family: "IBM Plex Sans Arabic", var(--font-fallback);
-  letter-spacing: 0;
-}
-
-/* Month caption row */
-.rdp-month_caption {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  padding-block: 0.25rem;
-  min-height: 2.5rem;
-}
-
-/* Navigation buttons positioning */
-.rdp-nav {
-  position: absolute;
-  inset-inline-start: 0;
-  inset-inline-end: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  justify-content: space-between;
-  pointer-events: none;
-}
-
-.rdp-nav button {
-  pointer-events: all;
-}
-
-/* Weekday header cells */
-.rdp-weekday {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted-foreground);
-  opacity: 0.7;
-  text-align: center;
-  width: 2.25rem;
-  padding-block: 0.25rem;
-}
-
-[dir="rtl"] .rdp-weekday {
-  letter-spacing: 0;
-  font-size: 0.6875rem;
-}
-
-/* Day cells */
-.rdp-day_button {
-  border-radius: 0.5rem !important;
-  transition: background 120ms ease, transform 100ms ease, box-shadow 100ms ease;
-}
-
-.rdp-day_button:hover:not([disabled]):not([aria-selected="true"]) {
-  background: var(--muted) !important;
-  transform: scale(1.08);
-}
-
-.rdp-day_button[aria-selected="true"] {
-  background: var(--primary) !important;
-  color: var(--primary-foreground) !important;
-  box-shadow: 0 2px 8px color-mix(in oklch, var(--primary) 35%, transparent);
-}
-
-/* Today highlight */
-.rdp-today .rdp-day_button:not([aria-selected="true"]) {
-  background: color-mix(in oklch, var(--primary) 12%, transparent) !important;
-  color: var(--primary) !important;
-  font-weight: 700;
-  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--primary) 30%, transparent);
-}
-
-/* Outside-month days */
-.rdp-outside .rdp-day_button {
-  opacity: 0.3;
-}
-
-/* Popover that wraps the calendar */
-[data-radix-popper-content-wrapper] .rdp-root {
-  font-family: "IBM Plex Sans Arabic", var(--font-fallback);
-}
-
-@keyframes reward-pack-float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-4px);
-  }
-}
-
-@keyframes reward-pack-shimmer {
-  0% {
-    transform: translateX(-160%) rotate(18deg);
-  }
-
-  100% {
-    transform: translateX(210%) rotate(18deg);
-  }
-}
-
-@keyframes reward-pack-seal-break {
-  0% {
-    opacity: 1;
-    transform: translateY(0) scaleY(1);
-  }
-
-  35% {
-    opacity: 1;
-    transform: translateY(-8%) scaleY(0.92);
-  }
-
-  100% {
-    opacity: 0;
-    transform: translateY(-42%) scaleY(0.28);
-  }
-}
-
-@keyframes reward-pack-core-burst {
-  0% {
-    opacity: 1;
-    transform: scale(1);
-  }
-
-  42% {
-    opacity: 1;
-    transform: scale(1.08);
-  }
-
-  100% {
-    opacity: 0;
-    transform: scale(0.62);
-  }
-}
-
-@keyframes reward-card-emerge {
-  0% {
-    opacity: 0;
-    transform: translateY(14%) scale(0.84);
-    filter: blur(8px);
-  }
-
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .reward-pack-shell {
-    animation: reward-pack-float 3.8s ease-in-out infinite;
-  }
-
-  .reward-pack-shell::after {
-    content: "";
-    position: absolute;
-    inset: -20% 32%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.26), transparent);
-    opacity: 0.55;
-    transform: translateX(-160%) rotate(18deg);
-    animation: reward-pack-shimmer 3.3s linear infinite;
-    pointer-events: none;
-  }
-
-  [data-opening="true"] .reward-pack-shell {
-    animation: reward-card-emerge 920ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
-
-  [data-opening="true"] .reward-pack-seal {
-    animation: reward-pack-seal-break 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
-
-  [data-opening="true"] .reward-pack-core {
-    animation: reward-pack-core-burst 680ms ease-out both;
-  }
-
-  .reward-card-face {
-    animation: reward-card-emerge 660ms cubic-bezier(0.22, 1, 0.36, 1);
-  }
-}
-
-/* Dashboard animation utilities */
-@keyframes slide-in-from-top-3 {
-  0% {
-    opacity: 0;
-    transform: translateY(-0.75rem);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slide-in-from-bottom-5 {
-  0% {
-    opacity: 0;
-    transform: translateY(1.25rem);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fade-in {
-  0% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 1;
-  }
-}
-
-.animate-in {
-  animation-duration: 300ms;
-  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-  animation-fill-mode: both;
-}
-
-.fade-in {
-  animation-name: fade-in;
-}
-
-.slide-in-from-top-3 {
-  animation-name: slide-in-from-top-3;
-}
-
-.slide-in-from-bottom-5 {
-  animation-name: slide-in-from-bottom-5;
-}
-
-/* Snappy checkmark micro-interaction */
-@keyframes check-pop {
-  0% {
-    transform: scale(0.6);
-    opacity: 0;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-.animate-check-pop {
-  animation: check-pop 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-/* Custom easing curve utilities */
-.ease-out-quart {
-  transition-timing-function: cubic-bezier(0.25, 1, 0.5, 1);
-}
-.ease-out-quint {
-  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-}
-.ease-out-expo {
-  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-
-
-
-/* ── Goal analysis loader ─────────────────────────────────────────────
-   Two counter-rotating arcs, no copy. The analysis usually finishes in a
-   couple of seconds, so any text would flash by unread — the ring alone
-   carries the "working" signal. */
-
-.metrix-loader {
-  position: relative;
-  width: 4.5rem;
-  height: 4.5rem;
-}
-
-.metrix-loader__ring {
-  position: absolute;
-  inset: 0;
-  border-radius: 9999px;
-  border: 3px solid transparent;
-}
-
-.metrix-loader__ring--outer {
-  border-top-color: var(--primary);
-  border-right-color: color-mix(in oklch, var(--primary) 30%, transparent);
-}
-
-.metrix-loader__ring--inner {
-  inset: 0.65rem;
-  border-width: 2px;
-  border-bottom-color: color-mix(in oklch, var(--primary) 55%, transparent);
-  border-left-color: color-mix(in oklch, var(--primary) 18%, transparent);
-}
-
-.metrix-loader__core {
-  position: absolute;
-  inset: 1.55rem;
-  border-radius: 9999px;
-  background: color-mix(in oklch, var(--primary) 16%, transparent);
-}
-
-@keyframes metrix-loader-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes metrix-loader-breathe {
-  0%,
-  100% {
-    opacity: 0.45;
-    transform: scale(0.9);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .metrix-loader__ring--outer {
-    animation: metrix-loader-spin 1.1s cubic-bezier(0.5, 0.15, 0.5, 0.85) infinite;
-  }
-
-  .metrix-loader__ring--inner {
-    animation: metrix-loader-spin 1.7s cubic-bezier(0.5, 0.15, 0.5, 0.85) infinite reverse;
-  }
-
-  .metrix-loader__core {
-    animation: metrix-loader-breathe 2s ease-in-out infinite;
-  }
-}
-
-@keyframes shine {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
-.animate-shine {
-  animation: shine 4s linear infinite;
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

@@ -93,7 +93,7 @@ export function HeaderCard({
     <section className={cn(!embedded && cardClass, !embedded && shellClass)}>
       {snapshot.status === 'none' && (
         <div className={innerPanelClass}>
-          <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
             <div className="text-sm font-bold tracking-tight text-foreground">{t.challengeTab}</div>
             <div className="text-xs font-semibold text-muted-foreground">{ui.inviteLabel}</div>
           </div>
@@ -113,7 +113,7 @@ export function HeaderCard({
               onChange={(event) => onJoinCodeChange(event.target.value.toUpperCase())}
               placeholder={t.challengeCodePlaceholder}
               maxLength={8}
-              className="h-10 flex-1 rounded-xl border border-border bg-card px-3 py-2.5 text-sm font-mono tracking-[0.18em] text-foreground outline-none focus:ring-1 focus:ring-primary/25"
+              className="h-10 w-full sm:w-auto sm:flex-1 min-w-0 rounded-xl border border-border bg-card px-3 py-2.5 text-base sm:text-sm font-mono tracking-[0.18em] text-foreground outline-none focus:ring-1 focus:ring-primary/25"
               dir="ltr"
             />
             <button
@@ -174,14 +174,14 @@ export function HeaderCard({
                 <button
                   onClick={() => { setConfirmCancel(false); onCancelPending(); }}
                   disabled={busyAction !== null}
-                  className="flex h-8 items-center justify-center gap-1.5 rounded-lg bg-destructive px-3 text-xs font-bold text-destructive-foreground transition-colors hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
+                  className="flex h-10 sm:h-8 items-center justify-center gap-1.5 rounded-lg bg-destructive px-3 text-xs font-bold text-destructive-foreground transition-colors hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
                 >
                   {busyAction === 'end' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
                   {t.cancelChallengeConfirmAction}
                 </button>
                 <button
                   onClick={() => setConfirmCancel(false)}
-                  className="flex h-8 items-center justify-center rounded-lg border border-border bg-muted px-3 text-xs font-semibold text-muted-foreground transition-colors hover:opacity-90 active:scale-[0.98]"
+                  className="flex h-10 sm:h-8 items-center justify-center rounded-lg border border-border bg-muted px-3 text-xs font-semibold text-muted-foreground transition-colors hover:opacity-90 active:scale-[0.98]"
                 >
                   {t.challengeEndConfirmCancel}
                 </button>

@@ -1,143 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Flame, BarChart3, ListTodo, Swords } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { translations, type Language } from "@/lib/translations";
-import { createClient } from "@/utils/supabase/client";
-import {
-  getPeriodStart,
-  getPeriodTypeFromFrequency,
-  getLocalDateKey,
-  getLocalDayWindow,
-} from "@/lib/task-periods";
-import {
-  computeStreak,
-  getFreezableDate,
-  parseStreakFreezes,
-} from "@/lib/streak";
-import {
-  buildDailyFocusHistory,
-  buildDailyFocusSessionFromRow,
-  compactDailyFocusLogs,
-  normalizeDailyFocusEntryRow,
-  normalizeDailyFocusResult,
-  DAILY_FOCUS_REQUIRED_DAYS,
-  type DailyFocusEntryRow,
-  type DailyFocusGoalContext,
-  type DailyFocusSession,
-} from "@/lib/daily-focus";
-import {
-  buildTaskHierarchy,
-  calculateDailyCap,
-  type MainTask,
-  type TaskRow,
-} from "@/lib/task-hierarchy";
-import { getTaskAccent, type TaskColorKey } from "@/lib/task-colors";
+import { translations } from "@/lib/translations";
+import { buildTaskHierarchy, calculateDailyCap } from "@/lib/task-hierarchy";
 import { WELL_SURFACE } from "@/lib/surfaces";
-import { parseDailyLogBreakdown } from "@/lib/daily-log-feedback";
-import ProgressLogDialog from "../progress/ProgressLogDialog";
 import GrowthChart from "./GrowthChart";
 import DayCalendarGrid from "./DayCalendarGrid";
 import ChallengeTab from "../challenge";
-import ConfirmModal from "../shared/ConfirmModal";
-import GoalEditDialog from "../goal/GoalEditDialog";
 import TaskInsights from "./TaskInsights";
 import DashboardHeader from "./DashboardHeader";
 import FocusTab from "./FocusTab";
-import LogEvaluationModal, { type LogItem } from "../progress/LogEvaluationModal";
-import TaskEditDialog, {
-  type EditableTask,
-  type TaskPatch,
-} from "./TaskEditDialog";
-import ToastNotification from "./ToastNotification";
-import DailyFocusQuestionDialog from "./DailyFocusQuestionDialog";
-import WeeklyReviewCard from "./WeeklyReviewCard";
-import type { SkipReason } from "./TaskSkipPopover";
-import { apiUrl, getAuthHeaders } from "@/lib/api";
-import { getSuggestionsUnlockStatus } from "@/lib/goal-dates";
+import DashboardDialogs from "./DashboardDialogs";
+import { useDashboardData } from "./useDashboardData";
+import { useTaskOperations } from "./useTaskOperations";
+import { useDailyFocusSession } from "./useDailyFocusSession";
+import type { DashboardProps, DashboardTab } from "./types";
 
-/* ------------------------------------------------------------------ */
-/*  Types                                                              */
-/* ------------------------------------------------------------------ */
-
-interface Goal {
-  id: string;
-  title: string;
-  current_points: number;
-  target_points: number;
-  status: string;
-  created_at: string;
-  estimated_completion_date: string;
-  total_days: number;
-  ai_summary: string;
-  icon?: string;
-  is_pinned?: boolean;
-}
-
-interface TaskCheckin {
-  id: string;
-  goal_id: string;
-  task_id: string;
-  period_type: string;
-  period_start: string;
-  completed: boolean;
-  completed_at: string | null;
-  /** Set only on a skipped period; null on a completed or untouched one. */
-  skip_reason?: string | null;
-  /** 'full' | 'mini' — how the task was completed. */
-  completed_mode?: string | null;
-}
-
-interface ActivityLog {
-  id: string;
-  created_at: string;
-  user_input: string;
-  ai_score: number | null;
-  ai_feedback: string;
-  breakdown: unknown;
-}
-
-interface DailyLogBreakdownRow {
-  created_at: string;
-  breakdown: unknown;
-}
-
-interface BreakdownRow {
-  task_id: string;
-  points?: number;
-  status?: string;
-}
-
-interface DashboardProps {
-  goal: Goal;
-  language?: Language;
-  onGoalUpdated?: () => void;
-  onLogModalChange?: (isOpen: boolean) => void;
-  isActive?: boolean;
-}
-
-type DashboardTab = "focus" | "chart" | "challenge";
-
-function normalizeBreakdown(value: unknown): BreakdownRow[] {
-  return parseDailyLogBreakdown(value).items.map((item) => ({
-    task_id: item.task_id,
-    points: Number(item.points) || 0,
-    status: item.status,
-  }));
-}
-
-function hasMeaningfulProgress(item: BreakdownRow) {
-  return (
-    (item.points || 0) > 0 ||
-    item.status === "done" ||
-    item.status === "partial"
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
+export type { Goal, TaskCheckin, ActivityLog, DashboardProps, DashboardTab } from "./types";
 
 export default function Dashboard({
   goal,
@@ -146,239 +27,78 @@ export default function Dashboard({
   onLogModalChange,
   isActive = true,
 }: DashboardProps) {
-  const supabase = createClient();
   const t = translations[language];
   const isArabic = language === "ar";
-
-  // --- State ---
-  const [tasks, setTasks] = useState<TaskRow[]>([]);
-  const [checkins, setCheckins] = useState<TaskCheckin[]>([]);
-  const [todayLoggedTaskIds, setTodayLoggedTaskIds] = useState<string[]>([]);
-  const [expandedMains, setExpandedMains] = useState<Set<string>>(
-    new Set<string>(),
-  );
   const [activeTab, setActiveTab] = useState<DashboardTab>("focus");
-  const [showLogModal, setShowLogModal] = useState(false);
-  const [loadingTasks, setLoadingTasks] = useState(true);
+
+  // Global toast
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
-  const [fetchError, setFetchError] = useState<string | null>(null);
+  const showSuccessToast = useCallback((message: string) => {
+    setToastMessage(message);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 2000);
+  }, []);
 
+  // 1. Data synchronization & queries
+  const data = useDashboardData({
+    goalId: goal.id,
+    isArabic,
+    onGoalUpdated,
+    showSuccessToast,
+  });
+
+  // 2. Task operations, check-ins, inline mutations & modal states
+  const ops = useTaskOperations({
+    goal,
+    tasks: data.tasks,
+    setTasks: data.setTasks,
+    checkins: data.checkins,
+    setCheckins: data.setCheckins,
+    fetchTasks: data.fetchTasks,
+    fetchCheckins: data.fetchCheckins,
+    fetchChartData: data.fetchChartData,
+    language,
+    isArabic,
+    onGoalUpdated,
+    supabase: data.supabase,
+    showSuccessToast,
+    findCheckin: data.findCheckin,
+  });
+
+  // Sync log modal state with parent component
   useEffect(() => {
-    onLogModalChange?.(showLogModal);
-
+    onLogModalChange?.(ops.showLogModal);
     return () => {
       onLogModalChange?.(false);
     };
-  }, [onLogModalChange, showLogModal]);
+  }, [onLogModalChange, ops.showLogModal]);
 
-  // CRUD inline editing
-  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-  const [editingText, setEditingText] = useState("");
-  const [addingSubFor, setAddingSubFor] = useState<string | null>(null);
-  const [newSubText, setNewSubText] = useState("");
-  const [newSubCriteria, setNewSubCriteria] = useState("");
-  const [newSubFreq, setNewSubFreq] = useState<"daily" | "weekly">("daily");
-  const [newSubWeight, setNewSubWeight] = useState(3);
-  const [addingMain, setAddingMain] = useState(false);
-  const [newMainText, setNewMainText] = useState("");
-  const [newMainCriteria, setNewMainCriteria] = useState("");
-  const [newMainFreq, setNewMainFreq] = useState<"daily" | "weekly">("weekly");
-  const [newMainWeight, setNewMainWeight] = useState(6);
-  const [newMainColor, setNewMainColor] = useState<TaskColorKey | null>(null);
+  // Task hierarchy
+  const hierarchy = useMemo(() => buildTaskHierarchy(data.tasks), [data.tasks]);
+  const filteredHierarchy = hierarchy;
 
-  // Modals & UI State
-  const [confirmModal, setConfirmModal] = useState<{
-    isOpen: boolean;
-    title: string;
-    message: string;
-    onConfirm: () => void;
-  }>({
-    isOpen: false,
-    title: "",
-    message: "",
-    onConfirm: () => {},
+  // 3. Daily focus sessions, questions & coaching
+  const focus = useDailyFocusSession({
+    goal,
+    tasks: data.tasks,
+    logs: data.logs,
+    logsLoaded: data.logsLoaded,
+    loadingTasks: data.loadingTasks,
+    language,
+    isArabic,
+    isActive,
+    showLogModal: ops.showLogModal,
+    todayDateKey: data.todayDateKey,
+    hierarchy,
+    supabase: data.supabase,
+    fetchTasks: data.fetchTasks,
+    setExpandedMains: ops.setExpandedMains,
+    showSuccessToast,
+    onGoalUpdated,
   });
-  const [showGoalDetails, setShowGoalDetails] = useState(false);
-  const [showGoalEditDialog, setShowGoalEditDialog] = useState(false);
 
-  const previousCompletedTodayRef = useRef<Set<string>>(new Set<string>());
-  const [freshlyCompletedTaskIds, setFreshlyCompletedTaskIds] = useState<
-    Set<string>
-  >(new Set<string>());
-  const [streak, setStreak] = useState(0);
-  const [loggedDateKeys, setLoggedDateKeys] = useState<Set<string>>(
-    () => new Set<string>(),
-  );
-  const [streakFreezes, setStreakFreezes] = useState<string[]>([]);
-  const [freezing, setFreezing] = useState(false);
-  const [chartData, setChartData] = useState<
-    { date: string; points: number }[]
-  >([]);
-  const [logs, setLogs] = useState<ActivityLog[]>([]);
-  const [logsLoaded, setLogsLoaded] = useState(false);
-  const [dailyFocusRows, setDailyFocusRows] = useState<DailyFocusEntryRow[]>(
-    [],
-  );
-  const [dailyFocusRowsLoaded, setDailyFocusRowsLoaded] = useState(false);
-  const [dailyFocus, setDailyFocus] = useState<DailyFocusSession | null>(null);
-  const [dailyFocusAnswer, setDailyFocusAnswer] = useState("");
-  const [dailyFocusLoading, setDailyFocusLoading] = useState(false);
-  const [dailyFocusSubmitting, setDailyFocusSubmitting] = useState(false);
-  const [dailyFocusError, setDailyFocusError] = useState<string | null>(null);
-  const [addingSuggestionId, setAddingSuggestionId] = useState<string | null>(
-    null,
-  );
-  const [showDailyFocusPrompt, setShowDailyFocusPrompt] = useState(false);
-  const [dailyFocusPromptDismissed, setDailyFocusPromptDismissed] =
-    useState(false);
-  const [viewingLog, setViewingLog] = useState<LogItem | null>(null);
-
-  const isChecked = useCallback(
-    (taskId: string, frequency: string): boolean => {
-      const periodType = getPeriodTypeFromFrequency(frequency);
-      const periodStart = getPeriodStart(frequency);
-      const hasCheckin = checkins.some(
-        (c) =>
-          c.task_id === taskId &&
-          c.period_type === periodType &&
-          c.period_start === periodStart &&
-          c.completed,
-      );
-
-      return hasCheckin || todayLoggedTaskIds.includes(taskId);
-    },
-    [checkins, todayLoggedTaskIds],
-  );
-
-  const completedTodayTaskIds = useMemo(() => {
-    const completedIds = new Set<string>(todayLoggedTaskIds);
-    const { start, end } = getLocalDayWindow();
-
-    checkins.forEach((checkin) => {
-      if (!checkin.completed || !checkin.completed_at) return;
-
-      const completedAt = new Date(checkin.completed_at);
-      if (completedAt >= start && completedAt < end) {
-        completedIds.add(checkin.task_id);
-      }
-    });
-
-    return completedIds;
-  }, [checkins, todayLoggedTaskIds]);
-
-  const isCompletedToday = useCallback(
-    (taskId: string) => completedTodayTaskIds.has(taskId),
-    [completedTodayTaskIds],
-  );
-
-  const shouldAnimateTask = useCallback(
-    (taskId: string) => freshlyCompletedTaskIds.has(taskId),
-    [freshlyCompletedTaskIds],
-  );
-
-  const [activeDateKey, setActiveDateKey] = useState(() => getLocalDateKey());
-  const todayDateKey = activeDateKey;
-
-  // Detect day rollover (e.g. crossing midnight while app is open, or resuming on a new day)
-  useEffect(() => {
-    const checkDayRollover = () => {
-      const latestDateKey = getLocalDateKey();
-      if (latestDateKey !== activeDateKey) {
-        setActiveDateKey(latestDateKey);
-      }
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        checkDayRollover();
-      }
-    };
-
-    window.addEventListener("focus", checkDayRollover);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    const interval = window.setInterval(checkDayRollover, 30_000);
-
-    return () => {
-      window.removeEventListener("focus", checkDayRollover);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.clearInterval(interval);
-    };
-  }, [activeDateKey]);
-
-  const dailyFocusPromptStorageKey = `metrix:daily-focus-prompt:${goal.id}:${todayDateKey}`;
-  const dailyFocusGoal = useMemo<DailyFocusGoalContext>(
-    () => ({
-      id: goal.id,
-      title: goal.title,
-      ai_summary: goal.ai_summary || "",
-      created_at: goal.created_at,
-      current_points: goal.current_points,
-      target_points: goal.target_points,
-    }),
-    [
-      goal.ai_summary,
-      goal.created_at,
-      goal.current_points,
-      goal.id,
-      goal.target_points,
-      goal.title,
-    ],
-  );
-  const suggestionsUnlockStatus = useMemo(
-    () => getSuggestionsUnlockStatus(goal.created_at),
-    [goal.created_at],
-  );
-  const recentFocusLogs = useMemo(() => compactDailyFocusLogs(logs), [logs]);
-  const answeredDailyFocusRows = useMemo(
-    () =>
-      dailyFocusRows.filter((row) =>
-        Boolean((row.answer || "").trim() && row.answered_at),
-      ),
-    [dailyFocusRows],
-  );
-  const answeredDailyFocusCount = answeredDailyFocusRows.length;
-  const todayDailyFocusRow = useMemo(
-    () =>
-      dailyFocusRows.find((row) => row.prompt_date === todayDateKey) || null,
-    [dailyFocusRows, todayDateKey],
-  );
-  const dailyFocusHistory = useMemo(
-    () =>
-      buildDailyFocusHistory(
-        dailyFocusRows.filter((row) => row.prompt_date !== todayDateKey),
-      ),
-    [dailyFocusRows, todayDateKey],
-  );
-  const missedDailyFocusHistory = useMemo(
-    () =>
-      dailyFocusRows
-        .filter(
-          (row) =>
-            row.prompt_date !== todayDateKey &&
-            !(row.answer && row.answered_at),
-        )
-        .map((row) => ({
-          prompt_date: row.prompt_date,
-          question: row.question,
-          answer: row.answer || "",
-          answer_coaching: null,
-          answered_at: null,
-        })),
-    [dailyFocusRows, todayDateKey],
-  );
-
-  // --- Derived ---
-  const hierarchy: MainTask[] = useMemo(
-    () => buildTaskHierarchy(tasks),
-    [tasks],
-  );
-  const newMainAccent = useMemo(
-    () =>
-      getTaskAccent(newMainText.trim() || "main-task-preview", newMainColor),
-    [newMainColor, newMainText],
-  );
-  const filteredHierarchy = useMemo(() => hierarchy, [hierarchy]);
+  // Derived statistics
   const focusStats = useMemo(() => {
     let total = 0;
     let completed = 0;
@@ -386,17 +106,17 @@ export default function Dashboard({
       if (main.subtasks.length > 0) {
         total += main.subtasks.length;
         completed += main.subtasks.filter((sub) =>
-          isChecked(sub.id, sub.frequency),
+          data.isChecked(sub.id, sub.frequency),
         ).length;
       } else {
         total += 1;
-        if (isChecked(main.id, main.frequency)) {
+        if (data.isChecked(main.id, main.frequency)) {
           completed += 1;
         }
       }
     }
     return { totalSubtasks: total, completedSubtasks: completed };
-  }, [filteredHierarchy, isChecked]);
+  }, [filteredHierarchy, data.isChecked]);
 
   const progress =
     goal.target_points > 0
@@ -406,1330 +126,33 @@ export default function Dashboard({
         )
       : 0;
 
-  // --- Data Fetch ---
-  const fetchTasks = useCallback(
-    async (showSkeleton = false) => {
-      if (showSkeleton) {
-        setLoadingTasks(true);
-      }
-      setFetchError(null);
-      try {
-        const { data, error } = await supabase
-          .from("sub_layers")
-          .select("*")
-          .eq("goal_id", goal.id)
-          .order("sort_order", { ascending: true });
-
-        if (error) {
-          setFetchError(
-            isArabic
-              ? "تعذر تحميل المهام. حاول مرة أخرى."
-              : "Could not load tasks. Please try again.",
-          );
-          console.error("fetchTasks error:", error);
-        } else if (data) {
-          setTasks(
-            (data as TaskRow[]).map((row) => ({
-              id: row.id,
-              goal_id: row.goal_id,
-              task_description: row.task_description,
-              impact_weight: row.impact_weight,
-              frequency: row.frequency,
-              time_required_minutes: row.time_required_minutes,
-              completion_criteria: row.completion_criteria,
-              task_type: row.task_type || "main",
-              parent_task_id: row.parent_task_id || null,
-              sort_order: row.sort_order || 0,
-              icon: row.icon || null,
-              accent_color: row.accent_color || null,
-              schedule_days: (() => {
-                const dbVal = (row as any).schedule_days;
-                if (dbVal !== undefined && dbVal !== null) return dbVal;
-                try {
-                  const raw = typeof window !== 'undefined' ? localStorage.getItem(`metrix:task_schedule:${row.id}`) : null;
-                  if (raw) return JSON.parse(raw);
-                } catch {}
-                return null;
-              })(),
-              mini_version: row.mini_version ?? null,
-            })),
-          );
-          // DO NOT auto-expand mains initially (User request)
-          // setExpandedMains(new Set());
-        }
-      } catch (err) {
-        setFetchError(
-          isArabic
-            ? "تعذر تحميل المهام. حاول مرة أخرى."
-            : "Could not load tasks. Please try again.",
-        );
-        console.error("fetchTasks error:", err);
-      } finally {
-        setLoadingTasks(false);
-      }
-    },
-    [goal.id, supabase, isArabic],
-  );
-
-  const fetchCheckins = useCallback(async () => {
-    // Fetch current-period checkins for all tasks of this goal
-    const todayKey = getPeriodStart("daily");
-    const weekKey = getPeriodStart("weekly");
-
-    const { data, error } = await supabase
-      .from("task_checkins")
-      .select("*")
-      .eq("goal_id", goal.id)
-      .in("period_start", [todayKey, weekKey]);
-
-    if (!error && data) {
-      setCheckins(data);
-    }
-  }, [goal.id, supabase]);
-
-  const fetchTodayLoggedTasks = useCallback(async () => {
-    const { start, end } = getLocalDayWindow();
-    const { data, error } = await supabase
-      .from("daily_logs")
-      .select("created_at, breakdown")
-      .eq("goal_id", goal.id)
-      .gte("created_at", start.toISOString())
-      .lt("created_at", end.toISOString())
-      .not("breakdown", "is", null)
-      .order("created_at", { ascending: false });
-
-    if (error || !data) {
-      setTodayLoggedTaskIds([]);
-      return;
-    }
-
-    const taskIds = new Set<string>();
-
-    (data as DailyLogBreakdownRow[]).forEach((log) => {
-      normalizeBreakdown(log.breakdown).forEach((item) => {
-        if (hasMeaningfulProgress(item)) {
-          taskIds.add(item.task_id);
-        }
-      });
-    });
-
-    setTodayLoggedTaskIds(Array.from(taskIds));
-  }, [goal.id, supabase]);
-
-  const fetchStreak = useCallback(async () => {
-    const [{ data }, { data: goalRow }] = await Promise.all([
-      supabase
-        .from("daily_logs")
-        .select("created_at")
-        .eq("goal_id", goal.id)
-        .order("created_at", { ascending: false })
-        .limit(365),
-      // streak_freezes only exists after 0006_adaptive.sql; a failed select
-      // just leaves the freeze list empty and the streak counts as it always did.
-      supabase
-        .from("goals")
-        .select("streak_freezes")
-        .eq("id", goal.id)
-        .maybeSingle(),
-    ]);
-
-    const freezes = parseStreakFreezes(goalRow?.streak_freezes);
-    setStreakFreezes(freezes);
-
-    // Local date keys, so a log at 1am counts for the day the user lived it.
-    const dateKeys = new Set<string>();
-    for (const log of data || []) {
-      if (log.created_at) {
-        dateKeys.add(getLocalDateKey(new Date(log.created_at)));
-      }
-    }
-
-    setLoggedDateKeys(dateKeys);
-    setStreak(computeStreak(dateKeys, freezes));
-  }, [goal.id, supabase]);
-
-  const fetchChartData = useCallback(async () => {
-    const { data } = await supabase
-      .from("daily_logs")
-      .select("created_at, ai_score")
-      .eq("goal_id", goal.id)
-      .order("created_at", { ascending: true });
-
-    if (data) {
-      const grouped = new Map<string, number>();
-      for (const log of data) {
-        if (!log.created_at) continue;
-        const dateKey = getLocalDateKey(new Date(log.created_at));
-        grouped.set(dateKey, (grouped.get(dateKey) || 0) + (log.ai_score || 0));
-      }
-      setChartData(
-        Array.from(grouped.entries()).map(([date, points]) => ({
-          date,
-          points,
-        })),
-      );
-    }
-  }, [goal.id, supabase]);
-
-  const fetchLogs = useCallback(async () => {
-    const { data } = await supabase
-      .from("daily_logs")
-      .select("id, created_at, user_input, ai_score, ai_feedback, breakdown")
-      .eq("goal_id", goal.id)
-      .order("created_at", { ascending: false });
-
-    if (data) setLogs(data as ActivityLog[]);
-    setLogsLoaded(true);
-  }, [goal.id, supabase]);
-
-  const fetchDailyFocusRows = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("daily_focus_answers")
-      .select(
-        "id, goal_id, user_id, prompt_date, angle_label, question, question_why, answer, answer_coaching, suggestions, created_at, updated_at, answered_at",
-      )
-      .eq("goal_id", goal.id)
-      .order("prompt_date", { ascending: false })
-      .limit(30);
-
-    if (error) {
-      console.error("Failed to fetch daily focus history:", error);
-      setDailyFocusRows([]);
-      setDailyFocusRowsLoaded(true);
-      return;
-    }
-
-    setDailyFocusRows(
-      (data || [])
-        .map((row) => normalizeDailyFocusEntryRow(row))
-        .filter((row): row is DailyFocusEntryRow => Boolean(row)),
-    );
-    setDailyFocusRowsLoaded(true);
-  }, [goal.id, supabase]);
-
-  const upsertDailyFocusRow = useCallback(
-    async (payload: {
-      angle_label: string;
-      question: string;
-      question_why: string;
-      answer?: string;
-      answer_coaching?: string;
-      suggestions?: unknown[];
-      quick_options?: string[];
-      answered_at?: string | null;
-    }) => {
-      const suggestionsPayload = {
-        items: payload.suggestions || [],
-        quick_options: payload.quick_options || [],
-      };
-
-      const { data, error } = await supabase
-        .from("daily_focus_answers")
-        .upsert(
-          {
-            goal_id: goal.id,
-            prompt_date: todayDateKey,
-            angle_label: payload.angle_label,
-            question: payload.question,
-            question_why: payload.question_why,
-            answer: payload.answer || null,
-            answer_coaching: payload.answer_coaching || null,
-            suggestions: suggestionsPayload,
-            answered_at: payload.answered_at || null,
-          },
-          { onConflict: "goal_id,prompt_date" },
-        )
-        .select(
-          "id, goal_id, user_id, prompt_date, angle_label, question, question_why, answer, answer_coaching, suggestions, created_at, updated_at, answered_at",
-        )
-        .single();
-
-      if (error) throw error;
-
-      const normalizedRow = normalizeDailyFocusEntryRow(data);
-      if (!normalizedRow) {
-        throw new Error(
-          language === "ar"
-            ? "تعذر حفظ سجل أسئلة الخطة."
-            : "Could not save the plan feedback entry.",
-        );
-      }
-
-      setDailyFocusRows((currentRows) => {
-        const nextRows = currentRows.filter(
-          (row) => row.prompt_date !== normalizedRow.prompt_date,
-        );
-        return [normalizedRow, ...nextRows].sort((a, b) =>
-          b.prompt_date.localeCompare(a.prompt_date),
-        );
-      });
-
-      return normalizedRow;
-    },
-    [goal.id, language, supabase, todayDateKey],
-  );
-
-  const generateDailyFocus = useCallback(
-    async (options?: {
-      answer?: string;
-      existingQuestion?: string;
-      force?: boolean;
-    }) => {
-      const submittedAnswer = options?.answer?.trim() || "";
-      const isSubmittingAnswer = submittedAnswer.length > 0;
-
-      setDailyFocusError(null);
-      if (isSubmittingAnswer) {
-        setDailyFocusSubmitting(true);
+  const taskCount = useMemo(() => {
+    let count = 0;
+    for (const m of hierarchy) {
+      if (m.subtasks.length > 0) {
+        count += m.subtasks.length;
       } else {
-        setDailyFocusLoading(true);
+        count += 1;
       }
+    }
+    return count;
+  }, [hierarchy]);
 
-      try {
-        const answeredCountWithoutToday = dailyFocusRows.filter(
-          (row) =>
-            row.prompt_date !== todayDateKey &&
-            Boolean((row.answer || "").trim() && row.answered_at),
+  const completedTaskCount = useMemo(() => {
+    let count = 0;
+    for (const m of hierarchy) {
+      if (m.subtasks.length > 0) {
+        count += m.subtasks.filter((sub) =>
+          data.isChecked(sub.id, sub.frequency),
         ).length;
-        const response = await fetch(apiUrl("/api/goal/daily-focus"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            goal: dailyFocusGoal,
-            tasks,
-            logs: recentFocusLogs,
-            history: dailyFocusHistory,
-            answer: submittedAnswer || undefined,
-            existingQuestion:
-              options?.existingQuestion ||
-              todayDailyFocusRow?.question ||
-              undefined,
-            date: todayDateKey,
-            language,
-          }),
-        });
-
-        const data = await response.json().catch(() => null);
-        if (!response.ok) {
-          const message =
-            data?.error === "quota_exceeded"
-              ? language === "ar"
-                ? data?.message_ar
-                : data?.message_en
-              : language === "ar"
-                ? "تعذر توليد سؤال اليوم حالياً."
-                : "Could not generate today's question right now.";
-          throw new Error(message);
-        }
-
-        const normalized = normalizeDailyFocusResult(data, todayDateKey);
-        if (!normalized) {
-          throw new Error(
-            language === "ar"
-              ? "صيغة سؤال اليوم غير صالحة."
-              : "Invalid daily focus response.",
-          );
-        }
-
-        if (normalized.status === "refused") {
-          throw new Error(
-            normalized.safe_redirection?.message ||
-              (language === "ar"
-                ? "لا يمكن توليد هذا السؤال حالياً."
-                : "This question cannot be generated right now."),
-          );
-        }
-
-        const answeredAt = submittedAnswer
-          ? new Date().toISOString()
-          : todayDailyFocusRow?.answered_at || null;
-        const savedRow = await upsertDailyFocusRow({
-          angle_label: normalized.angle_label,
-          question: normalized.question,
-          question_why: normalized.question_why,
-          answer: submittedAnswer || todayDailyFocusRow?.answer || "",
-          answer_coaching: normalized.answer_coaching,
-          suggestions: normalized.suggestions,
-          quick_options:
-            normalized.quick_options && normalized.quick_options.length > 0
-              ? normalized.quick_options
-              : dailyFocus?.quick_options || [],
-          answered_at: answeredAt,
-        });
-
-        const computedAnsweredDaysCount = submittedAnswer
-          ? answeredCountWithoutToday + 1
-          : answeredCountWithoutToday +
-            (savedRow.answer && savedRow.answered_at ? 1 : 0);
-        const nextSession = buildDailyFocusSessionFromRow(savedRow, {
-          answeredDaysCount: computedAnsweredDaysCount,
-          requiredAnswerDays: normalized.required_answer_days,
-        });
-
-        nextSession.answer_coaching = normalized.answer_coaching;
-        nextSession.suggestions = normalized.suggestions;
-        nextSession.suggestions_unlocked = normalized.suggestions_unlocked;
-        nextSession.answered_days_count = normalized.answered_days_count;
-        nextSession.required_answer_days = normalized.required_answer_days;
-        if (normalized.quick_options && normalized.quick_options.length > 0) {
-          nextSession.quick_options = normalized.quick_options;
-        }
-
-        setDailyFocus(nextSession);
-        setDailyFocusAnswer(nextSession.answer || "");
-        return nextSession;
-      } catch (error) {
-        const message =
-          error instanceof Error
-            ? error.message
-            : language === "ar"
-              ? "تعذر توليد سؤال اليوم حالياً."
-              : "Could not generate today's question right now.";
-        setDailyFocusError(message);
-
-        return null;
-      } finally {
-        setDailyFocusLoading(false);
-        setDailyFocusSubmitting(false);
-      }
-    },
-    [
-      dailyFocusGoal,
-      dailyFocusHistory,
-      dailyFocusRows,
-      language,
-      recentFocusLogs,
-      tasks,
-      todayDailyFocusRow,
-      todayDateKey,
-      upsertDailyFocusRow,
-    ],
-  );
-
-  useEffect(() => {
-    setLogsLoaded(false);
-    setDailyFocusRowsLoaded(false);
-    setDailyFocusRows([]);
-    setDailyFocus(null);
-    setDailyFocusAnswer("");
-    setDailyFocusError(null);
-    setAddingSuggestionId(null);
-    setShowDailyFocusPrompt(false);
-    setDailyFocusPromptDismissed(false);
-  }, [goal.id, todayDateKey]);
-
-  useEffect(() => {
-    fetchTasks();
-    fetchCheckins();
-    fetchTodayLoggedTasks();
-    fetchStreak();
-    fetchChartData();
-    fetchLogs();
-    fetchDailyFocusRows();
-  }, [
-    activeDateKey,
-    fetchTasks,
-    fetchCheckins,
-    fetchTodayLoggedTasks,
-    fetchStreak,
-    fetchChartData,
-    fetchLogs,
-    fetchDailyFocusRows,
-  ]);
-
-  useEffect(() => {
-    if (loadingTasks || !logsLoaded || !dailyFocusRowsLoaded) return;
-
-    if (todayDailyFocusRow) {
-      const session = buildDailyFocusSessionFromRow(todayDailyFocusRow, {
-        answeredDaysCount: answeredDailyFocusCount,
-        requiredAnswerDays: DAILY_FOCUS_REQUIRED_DAYS,
-      });
-      setDailyFocus(session);
-      setDailyFocusAnswer(session.answer || "");
-      setDailyFocusError(null);
-      return;
-    }
-
-    generateDailyFocus();
-  }, [
-    answeredDailyFocusCount,
-    dailyFocusRowsLoaded,
-    generateDailyFocus,
-    loadingTasks,
-    logsLoaded,
-    todayDailyFocusRow,
-  ]);
-
-  useEffect(() => {
-    if (!isActive) {
-      setShowDailyFocusPrompt(false);
-      return;
-    }
-
-    if (!dailyFocus || dailyFocus.answered_at || dailyFocusPromptDismissed)
-      return;
-
-    const alreadySeenToday =
-      typeof window !== "undefined" &&
-      window.localStorage.getItem(dailyFocusPromptStorageKey) === "seen";
-
-    if (alreadySeenToday) {
-      setDailyFocusPromptDismissed(true);
-      return;
-    }
-
-    if (!showLogModal) {
-      setShowDailyFocusPrompt(true);
-    }
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(dailyFocusPromptStorageKey, "seen");
-    }
-  }, [
-    isActive,
-    dailyFocus,
-    dailyFocusPromptDismissed,
-    dailyFocusPromptStorageKey,
-    showLogModal,
-  ]);
-
-  useEffect(() => {
-    if (!dailyFocus?.answered_at) return;
-    setShowDailyFocusPrompt(false);
-    setDailyFocusPromptDismissed(true);
-  }, [dailyFocus?.answered_at]);
-
-  useEffect(() => {
-    const nextFreshIds = Array.from(completedTodayTaskIds).filter(
-      (taskId) => !previousCompletedTodayRef.current.has(taskId),
-    );
-
-    previousCompletedTodayRef.current = new Set(completedTodayTaskIds);
-
-    if (nextFreshIds.length === 0) return;
-
-    setFreshlyCompletedTaskIds((prev) => {
-      const next = new Set(prev);
-      nextFreshIds.forEach((taskId) => next.add(taskId));
-      return next;
-    });
-
-    const timeout = window.setTimeout(() => {
-      setFreshlyCompletedTaskIds((prev) => {
-        const next = new Set(prev);
-        nextFreshIds.forEach((taskId) => next.delete(taskId));
-        return next;
-      });
-    }, 1800);
-
-    return () => window.clearTimeout(timeout);
-  }, [completedTodayTaskIds]);
-
-  // --- Check-in Toggle ---
-  const toggleCheckin = async (taskId: string, frequency: string) => {
-    const periodType = getPeriodTypeFromFrequency(frequency);
-    const periodStart = getPeriodStart(frequency);
-
-    const existing = checkins.find(
-      (c) =>
-        c.task_id === taskId &&
-        c.period_type === periodType &&
-        c.period_start === periodStart,
-    );
-
-    if (existing) {
-      if (existing.completed) {
-        // Uncheck
-        const { error } = await supabase
-          .from("task_checkins")
-          .delete()
-          .eq("id", existing.id);
-        if (error) {
-          showSuccessToast(
-            isArabic ? "تعذر حذف الإنجاز" : "Could not remove check-in",
-          );
-          return;
-        }
-        setCheckins((prev) => prev.filter((c) => c.id !== existing.id));
       } else {
-        // Mark complete
-        const { error } = await supabase
-          .from("task_checkins")
-          .update({ completed: true, completed_at: new Date().toISOString() })
-          .eq("id", existing.id);
-        if (error) {
-          showSuccessToast(
-            isArabic ? "تعذر حفظ الإنجاز" : "Could not save check-in",
-          );
-          return;
-        }
-        setCheckins((prev) =>
-          prev.map((c) =>
-            c.id === existing.id
-              ? {
-                  ...c,
-                  completed: true,
-                  completed_at: new Date().toISOString(),
-                }
-              : c,
-          ),
-        );
-        showSuccessToast(isArabic ? "✓ تم إنجاز المهمة" : "✓ Task completed");
+        if (data.isChecked(m.id, m.frequency)) count += 1;
       }
-      if (onGoalUpdated) onGoalUpdated();
-    } else {
-      // Create new checkin
-      const { data, error } = await supabase
-        .from("task_checkins")
-        .insert({
-          goal_id: goal.id,
-          task_id: taskId,
-          period_type: periodType,
-          period_start: periodStart,
-          completed: true,
-          completed_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-
-      if (error || !data) {
-        showSuccessToast(
-          isArabic ? "تعذر حفظ الإنجاز" : "Could not save check-in",
-        );
-        return;
-      }
-
-      setCheckins((prev) => [...prev, data]);
-      showSuccessToast(isArabic ? "✓ تم إنجاز المهمة" : "✓ Task completed");
-      if (onGoalUpdated) onGoalUpdated();
     }
-  };
+    return count;
+  }, [hierarchy, data.isChecked]);
 
-  /** True when the failure is a missing 0006 column rather than a real error. */
-  const isSchemaOutdated = (error: { code?: string } | null) =>
-    error?.code === "42703" || error?.code === "PGRST204";
-
-  const schemaToast = () =>
-    showSuccessToast(
-      isArabic
-        ? "شغّل supabase/migrations/0006_adaptive.sql أول"
-        : "Run supabase/migrations/0006_adaptive.sql first",
-    );
-
-  const findCheckin = useCallback(
-    (taskId: string, frequency: string) => {
-      const periodType = getPeriodTypeFromFrequency(frequency);
-      const periodStart = getPeriodStart(frequency);
-      return checkins.find(
-        (c) =>
-          c.task_id === taskId &&
-          c.period_type === periodType &&
-          c.period_start === periodStart,
-      );
-    },
-    [checkins],
-  );
-
-  const getSkipReason = useCallback(
-    (taskId: string, frequency: string): string | null =>
-      findCheckin(taskId, frequency)?.skip_reason ?? null,
-    [findCheckin],
-  );
-
-  // --- Skip reason: a missed task is data, not a blank ---
-  const handleSetSkipReason = async (
-    taskId: string,
-    frequency: string,
-    reason: SkipReason,
-  ) => {
-    const existing = findCheckin(taskId, frequency);
-
-    if (existing) {
-      const { error } = await supabase
-        .from("task_checkins")
-        .update({
-          completed: false,
-          completed_at: null,
-          completed_mode: null,
-          skip_reason: reason,
-        })
-        .eq("id", existing.id);
-      if (error) {
-        if (isSchemaOutdated(error)) schemaToast();
-        return;
-      }
-      setCheckins((prev) =>
-        prev.map((c) =>
-          c.id === existing.id
-            ? {
-                ...c,
-                completed: false,
-                completed_at: null,
-                completed_mode: null,
-                skip_reason: reason,
-              }
-            : c,
-        ),
-      );
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("task_checkins")
-      .insert({
-        goal_id: goal.id,
-        task_id: taskId,
-        period_type: getPeriodTypeFromFrequency(frequency),
-        period_start: getPeriodStart(frequency),
-        completed: false,
-        skip_reason: reason,
-      })
-      .select()
-      .single();
-
-    if (error || !data) {
-      if (isSchemaOutdated(error)) schemaToast();
-      return;
-    }
-    setCheckins((prev) => [...prev, data]);
-  };
-
-  const handleClearSkipReason = async (taskId: string, frequency: string) => {
-    const existing = findCheckin(taskId, frequency);
-    if (!existing || existing.completed) return;
-
-    const { error } = await supabase
-      .from("task_checkins")
-      .delete()
-      .eq("id", existing.id);
-    if (error) return;
-    setCheckins((prev) => prev.filter((c) => c.id !== existing.id));
-  };
-
-  /** Generates (and caches) the two-minute version of a task. */
-  const handleRequestMini = async (taskId: string): Promise<string | null> => {
-    try {
-      const response = await fetch(apiUrl("/api/goal/task-mini"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify({ taskId, language }),
-      });
-      const data = await response.json();
-      if (!response.ok || !data?.miniVersion) {
-        if (data?.error === "schema_outdated") schemaToast();
-        return null;
-      }
-
-      setTasks((prev) =>
-        prev.map((task) =>
-          task.id === taskId ? { ...task, mini_version: data.miniVersion } : task,
-        ),
-      );
-      return data.miniVersion as string;
-    } catch (error) {
-      console.error("handleRequestMini error:", error);
-      return null;
-    }
-  };
-
-  /** Marks the task done through its mini version — the streak survives. */
-  const handleCompleteMini = async (taskId: string, frequency: string) => {
-    const existing = findCheckin(taskId, frequency);
-    const completedAt = new Date().toISOString();
-
-    if (existing) {
-      const { error } = await supabase
-        .from("task_checkins")
-        .update({
-          completed: true,
-          completed_at: completedAt,
-          completed_mode: "mini",
-        })
-        .eq("id", existing.id);
-      if (error) {
-        if (isSchemaOutdated(error)) schemaToast();
-        return;
-      }
-      setCheckins((prev) =>
-        prev.map((c) =>
-          c.id === existing.id
-            ? { ...c, completed: true, completed_at: completedAt, completed_mode: "mini" }
-            : c,
-        ),
-      );
-    } else {
-      const { data, error } = await supabase
-        .from("task_checkins")
-        .insert({
-          goal_id: goal.id,
-          task_id: taskId,
-          period_type: getPeriodTypeFromFrequency(frequency),
-          period_start: getPeriodStart(frequency),
-          completed: true,
-          completed_at: completedAt,
-          completed_mode: "mini",
-        })
-        .select()
-        .single();
-      if (error || !data) {
-        if (isSchemaOutdated(error)) schemaToast();
-        return;
-      }
-      setCheckins((prev) => [...prev, data]);
-    }
-
-    showSuccessToast(
-      isArabic ? "✓ المصغرة تحسب — السلسلة محفوظة" : "✓ Mini counts — streak kept",
-    );
-  };
-
-  // --- Streak rest day ---
-  const freezableDate = useMemo(
-    () => getFreezableDate(loggedDateKeys, streakFreezes),
-    [loggedDateKeys, streakFreezes],
-  );
-
-  const handleUseStreakFreeze = async () => {
-    if (!freezableDate || freezing) return;
-    setFreezing(true);
-    try {
-      const next = [...streakFreezes, freezableDate];
-      const { error } = await supabase
-        .from("goals")
-        .update({ streak_freezes: next })
-        .eq("id", goal.id);
-
-      if (error) {
-        if (isSchemaOutdated(error)) schemaToast();
-        else
-          showSuccessToast(
-            isArabic ? "تعذر تسجيل يوم الراحة" : "Could not save the rest day",
-          );
-        return;
-      }
-
-      setStreakFreezes(next);
-      setStreak(computeStreak(loggedDateKeys, next));
-      showSuccessToast(
-        isArabic ? "❄️ يوم راحة — السلسلة مستمرة" : "❄️ Rest day — streak kept",
-      );
-    } finally {
-      setFreezing(false);
-    }
-  };
-
-  // --- CRUD ---
-  const handleAddMain = async () => {
-    if (!newMainText.trim()) return;
-    const maxSort = tasks.filter((t) => t.task_type === "main").length;
-    const mainInsert = {
-      goal_id: goal.id,
-      task_description: newMainText.trim(),
-      frequency: newMainFreq,
-      impact_weight: Math.max(1, Math.min(10, newMainWeight)),
-      task_type: "main" as const,
-      parent_task_id: null,
-      sort_order: maxSort,
-      time_required_minutes: 0,
-      completion_criteria: newMainCriteria.trim() || null,
-      ...(newMainColor ? { accent_color: newMainColor } : {}),
-    };
-    const { data, error } = await supabase
-      .from("sub_layers")
-      .insert(mainInsert)
-      .select()
-      .single();
-
-    if (error) {
-      const needsColorMigration = error.message?.includes("accent_color");
-      showSuccessToast(
-        needsColorMigration
-          ? isArabic
-            ? "فعّل migration اللون أولًا ثم أعد المحاولة"
-            : "Apply the color migration first, then try again"
-          : isArabic
-            ? "تعذر حفظ المهمة الرئيسية"
-            : "Could not save main task",
-      );
-      return;
-    }
-
-    if (!error && data) {
-      await fetchTasks();
-      setNewMainText("");
-      setNewMainCriteria("");
-      setNewMainWeight(6);
-      setNewMainColor(null);
-      setAddingMain(false);
-    }
-  };
-
-  const handleAddSub = async (parentId: string) => {
-    if (!newSubText.trim()) return;
-    const siblingsCount = tasks.filter(
-      (t) => t.parent_task_id === parentId,
-    ).length;
-    const { error } = await supabase.from("sub_layers").insert({
-      goal_id: goal.id,
-      task_description: newSubText.trim(),
-      frequency: newSubFreq,
-      impact_weight: Math.max(1, Math.min(5, newSubWeight)),
-      task_type: "sub",
-      parent_task_id: parentId,
-      sort_order: siblingsCount,
-      time_required_minutes: 0,
-      completion_criteria: newSubCriteria.trim() || null,
-    });
-
-    if (!error) {
-      await fetchTasks();
-      setNewSubText("");
-      setNewSubCriteria("");
-      setNewSubWeight(3);
-      setAddingSubFor(null);
-    }
-  };
-
-  const [editingTask, setEditingTask] = useState<EditableTask | null>(null);
-  const [taskEditorOpen, setTaskEditorOpen] = useState(false);
-
-  const handleOpenTaskEditor = (task: EditableTask) => {
-    setEditingTask(task);
-    setTaskEditorOpen(true);
-  };
-
-  const handleDeleteTask = (taskId: string) => {
-    const isMain = tasks.find((t) => t.id === taskId)?.task_type === "main";
-    const title = isArabic ? "حذف المهمة" : "Delete Task";
-    const message = isArabic
-      ? `هل أنت متأكد من حذف هذه المهمة${isMain ? " وجميع المهام الفرعية المرتبطة بها" : ""}؟ لا يمكن التراجع عن هذا الإجراء.`
-      : `Are you sure you want to delete this task${isMain ? " and all its subtasks" : ""}? This cannot be undone.`;
-
-    setConfirmModal({
-      isOpen: true,
-      title,
-      message,
-      onConfirm: async () => {
-        await supabase.from("sub_layers").delete().eq("id", taskId);
-        await fetchTasks();
-        await fetchCheckins();
-      },
-    });
-  };
-
-  const handleRenameTask = async (taskId: string) => {
-    if (!editingText.trim()) return;
-    await supabase
-      .from("sub_layers")
-      .update({ task_description: editingText.trim() })
-      .eq("id", taskId);
-    setEditingTaskId(null);
-    setEditingText("");
-    await fetchTasks();
-  };
-
-  const handleUpdateTaskIcon = async (taskId: string, newIcon: string) => {
-    await supabase
-      .from("sub_layers")
-      .update({ icon: newIcon })
-      .eq("id", taskId);
-    await fetchTasks();
-  };
-
-  const handleUpdateTaskColor = async (
-    taskId: string,
-    color: TaskColorKey | null,
-  ) => {
-    const { error } = await supabase
-      .from("sub_layers")
-      .update({ accent_color: color })
-      .eq("id", taskId);
-    if (error) {
-      const needsColorMigration = error.message?.includes("accent_color");
-      showSuccessToast(
-        needsColorMigration
-          ? isArabic
-            ? "فعّل migration اللون أولًا ثم أعد المحاولة"
-            : "Apply the color migration first, then try again"
-          : isArabic
-            ? "تعذر حفظ اللون"
-            : "Could not save color",
-      );
-      return;
-    }
-    await fetchTasks();
-    showSuccessToast(isArabic ? "تم تحديث اللون" : "Color updated");
-  };
-
-  /** Saves every editable field of a task at once — main tasks and subtasks alike. */
-  const handleUpdateTask = async (taskId: string, patch: TaskPatch) => {
-    const { error } = await supabase
-      .from("sub_layers")
-      .update({
-        task_description: patch.task_description,
-        frequency: patch.frequency,
-        impact_weight: patch.impact_weight,
-        time_required_minutes: patch.time_required_minutes,
-        completion_criteria: patch.completion_criteria,
-      })
-      .eq("id", taskId);
-
-    if (error) {
-      throw error;
-    }
-
-    await fetchTasks();
-    showSuccessToast(isArabic ? "تم تحديث المهمة" : "Task updated");
-  };
-
-  const handleUpdateTaskWeight = async (taskId: string, newWeight: number) => {
-    const { error } = await supabase
-      .from("sub_layers")
-      .update({ impact_weight: newWeight })
-      .eq("id", taskId);
-    if (error) {
-      showSuccessToast(isArabic ? "تعذر حفظ الوزن" : "Could not save weight");
-      return;
-    }
-    await fetchTasks();
-    showSuccessToast(isArabic ? "تم تحديث الوزن" : "Weight updated");
-  };
-
-  const handleUpdateTaskScheduleDays = async (taskId: string, scheduleDays: number[] | null) => {
-    // 1. Optimistic UI update
-    setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, schedule_days: scheduleDays } : t))
-    );
-
-    // 2. Persist locally
-    try {
-      if (scheduleDays && scheduleDays.length > 0) {
-        localStorage.setItem(`metrix:task_schedule:${taskId}`, JSON.stringify(scheduleDays));
-      } else {
-        localStorage.removeItem(`metrix:task_schedule:${taskId}`);
-      }
-    } catch {}
-
-    // 3. Attempt database sync
-    try {
-      const { error } = await supabase
-        .from("sub_layers")
-        .update({ schedule_days: scheduleDays })
-        .eq("id", taskId);
-
-      if (error) {
-        const isMissingCol = (error.message || "").includes("schedule_days") || (error as { code?: string }).code === "42703";
-        if (isMissingCol) {
-          showSuccessToast(isArabic ? "تم حفظ أيام التكرار" : "Repeat days saved");
-          return;
-        }
-        throw error;
-      }
-      showSuccessToast(isArabic ? "تم حفظ أيام التكرار" : "Repeat days saved");
-    } catch (err) {
-      console.warn("Schedule days remote update notice:", err);
-      showSuccessToast(isArabic ? "تم حفظ أيام التكرار" : "Repeat days saved");
-    }
-  };
-
-  const handleTogglePin = async () => {
-    await supabase
-      .from("goals")
-      .update({ is_pinned: !goal.is_pinned })
-      .eq("id", goal.id);
-    if (onGoalUpdated) onGoalUpdated();
-  };
-
-  const handleDeleteGoal = () => {
-    const title = isArabic ? "حذف الهدف" : "Delete Goal";
-    const message = isArabic
-      ? `هل أنت متأكد من حذف الهدف "${goal.title}"؟ سيتم حذف جميع المهام والسجلات المرتبطة به. لا يمكن التراجع.`
-      : `Are you sure you want to delete "${goal.title}"? All associated tasks and logs will be deleted. This cannot be undone.`;
-
-    setConfirmModal({
-      isOpen: true,
-      title,
-      message,
-      onConfirm: async () => {
-        try {
-          const { error } = await supabase
-            .from("goals")
-            .delete()
-            .eq("id", goal.id);
-          if (error) throw error;
-          if (onGoalUpdated) onGoalUpdated();
-          window.location.href = "/";
-        } catch (err: unknown) {
-          const errMessage = err instanceof Error ? err.message : "";
-          console.error("Error deleting goal:", err);
-          showSuccessToast(
-            (isArabic ? "فشل حذف الهدف: " : "Failed to delete goal: ") +
-              errMessage,
-          );
-        }
-      },
-    });
-  };
-
-  const handleUpdateIcon = async (newIcon: string) => {
-    await supabase.from("goals").update({ icon: newIcon }).eq("id", goal.id);
-    if (onGoalUpdated) onGoalUpdated();
-  };
-
-  const toggleExpand = (mainId: string) => {
-    setExpandedMains((prev) => {
-      const next = new Set(prev);
-      if (next.has(mainId)) next.delete(mainId);
-      else next.add(mainId);
-      return next;
-    });
-  };
-
-  const handleStartAddingSub = (mainId: string) => {
-    setAddingSubFor(mainId);
-    setNewSubText("");
-    setNewSubWeight(3);
-    setNewSubFreq("daily");
-    setExpandedMains((prev) => {
-      const next = new Set(prev);
-      next.add(mainId);
-      return next;
-    });
-  };
-
-  const handleStartEditingTask = (taskId: string, taskDescription: string) => {
-    setEditingTaskId(taskId);
-    setEditingText(taskDescription);
-  };
-
-  const openNewMainComposer = () => {
-    setAddingMain(true);
-    setNewMainText("");
-    setNewMainWeight(6);
-    setNewMainFreq("weekly");
-    setNewMainColor(null);
-  };
-
-  const closeNewMainComposer = () => {
-    setAddingMain(false);
-    setNewMainText("");
-    setNewMainCriteria("");
-    setNewMainWeight(6);
-    setNewMainFreq("weekly");
-    setNewMainColor(null);
-  };
-
-  const showSuccessToast = (message: string) => {
-    setToastMessage(message);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 2000);
-  };
-
-  const updateDailyFocusSession = useCallback(
-    (updater: (current: DailyFocusSession) => DailyFocusSession) => {
-      setDailyFocus((current) => {
-        if (!current) return current;
-        return updater(current);
-      });
-    },
-    [],
-  );
-
-  const handleDailyFocusAnswerChange = useCallback(
-    (text: string) => {
-      setDailyFocusAnswer(text);
-      updateDailyFocusSession((current) => ({ ...current, answer: text }));
-    },
-    [updateDailyFocusSession],
-  );
-
-  const handleAppendDailyFocusTranscript = useCallback(
-    (transcript: string) => {
-      setDailyFocusAnswer((currentAnswer) => {
-        const nextAnswer = currentAnswer
-          ? `${currentAnswer} ${transcript}`.replace(/\s+/g, " ").trim()
-          : transcript.trim();
-        updateDailyFocusSession((current) => ({
-          ...current,
-          answer: nextAnswer,
-        }));
-        return nextAnswer;
-      });
-    },
-    [updateDailyFocusSession],
-  );
-
-  const handleSubmitDailyFocusAnswer = useCallback(async () => {
-    if (!dailyFocus || !dailyFocusAnswer.trim()) return;
-
-    const nextSession = await generateDailyFocus({
-      answer: dailyFocusAnswer,
-      existingQuestion: dailyFocus.question,
-      force: true,
-    });
-
-    if (nextSession) {
-      showSuccessToast(
-        isArabic ? "تم حفظ جواب اليوم" : "Today's answer was saved",
-      );
-      await supabase.rpc("increment_goal_points", {
-        goal_uuid: goal.id,
-        points_to_add: 2,
-      });
-      onGoalUpdated?.();
-    }
-  }, [
-    dailyFocus,
-    dailyFocusAnswer,
-    generateDailyFocus,
-    isArabic,
-    supabase,
-    goal.id,
-    onGoalUpdated,
-  ]);
-
-  const handleAddDailyFocusSuggestion = useCallback(
-    async (suggestionId: string) => {
-      const suggestion = dailyFocus?.suggestions.find(
-        (item) => item.id === suggestionId,
-      );
-      if (!suggestion) return;
-      if (dailyFocus?.addedSuggestionIds.includes(suggestionId)) return;
-      if (
-        suggestion.support_type !== "task_adjustment" &&
-        tasks.some(
-          (task) =>
-            task.task_description.trim().toLowerCase() ===
-            suggestion.title.trim().toLowerCase(),
-        )
-      ) {
-        showSuccessToast(
-          isArabic ? "هذه المهمة موجودة أصلًا" : "This task already exists",
-        );
-        return;
-      }
-
-      setAddingSuggestionId(suggestionId);
-
-      try {
-        if (suggestion.support_type === "task_adjustment" && suggestion.target_task_id) {
-          const { error } = await supabase
-            .from("sub_layers")
-            .update({
-              task_description: suggestion.title.trim(),
-              completion_criteria:
-                suggestion.completion_criteria || suggestion.reason || null,
-              ...(suggestion.adjusted_time_required
-                ? { time_required_minutes: suggestion.adjusted_time_required }
-                : {}),
-            })
-            .eq("id", suggestion.target_task_id);
-
-          if (error) throw error;
-
-          await fetchTasks();
-          updateDailyFocusSession((current) => ({
-            ...current,
-            addedSuggestionIds: current.addedSuggestionIds.includes(suggestionId)
-              ? current.addedSuggestionIds
-              : [...current.addedSuggestionIds, suggestionId],
-          }));
-          showSuccessToast(
-            isArabic
-              ? "تم تطبيق التعديل على المهمة بنجاح"
-              : "Task adjustment applied successfully",
-          );
-          return;
-        }
-
-        const preferredParentId =
-          suggestion.target_type === "sub" &&
-          hierarchy.some((main) => main.id === suggestion.parent_task_id)
-            ? suggestion.parent_task_id
-            : hierarchy[0]?.id || null;
-
-        if (suggestion.target_type === "sub" && preferredParentId) {
-          const siblingsCount = tasks.filter(
-            (task) => task.parent_task_id === preferredParentId,
-          ).length;
-
-          const { error } = await supabase.from("sub_layers").insert({
-            goal_id: goal.id,
-            task_description: suggestion.title.trim(),
-            frequency: suggestion.frequency,
-            impact_weight: Math.max(1, Math.min(5, suggestion.impact_weight)),
-            task_type: "sub",
-            parent_task_id: preferredParentId,
-            sort_order: siblingsCount,
-            time_required_minutes: 0,
-            completion_criteria:
-              suggestion.completion_criteria || suggestion.reason || null,
-          });
-
-          if (error) throw error;
-
-          setExpandedMains((current) => {
-            const next = new Set(current);
-            next.add(preferredParentId);
-            return next;
-          });
-        } else {
-          const mainCount = tasks.filter(
-            (task) => (task.task_type || "main") === "main",
-          ).length;
-
-          const { error } = await supabase.from("sub_layers").insert({
-            goal_id: goal.id,
-            task_description: suggestion.title.trim(),
-            frequency: suggestion.frequency,
-            impact_weight: Math.max(1, Math.min(10, suggestion.impact_weight)),
-            task_type: "main",
-            parent_task_id: null,
-            sort_order: mainCount,
-            time_required_minutes: 0,
-            completion_criteria:
-              suggestion.completion_criteria || suggestion.reason || null,
-          });
-
-          if (error) throw error;
-        }
-
-        await fetchTasks();
-        updateDailyFocusSession((current) => ({
-          ...current,
-          addedSuggestionIds: current.addedSuggestionIds.includes(suggestionId)
-            ? current.addedSuggestionIds
-            : [...current.addedSuggestionIds, suggestionId],
-        }));
-        showSuccessToast(
-          isArabic
-            ? "تمت إضافة الاقتراح إلى مهامك"
-            : "Suggestion added to your tasks",
-        );
-      } catch (error) {
-        console.error("Failed to add daily focus suggestion:", error);
-        showSuccessToast(
-          isArabic
-            ? "تعذر إضافة هذا الاقتراح"
-            : "Could not add this suggestion",
-        );
-      } finally {
-        setAddingSuggestionId(null);
-      }
-    },
-    [
-      dailyFocus,
-      fetchTasks,
-      goal.id,
-      hierarchy,
-      isArabic,
-      supabase,
-      tasks,
-      updateDailyFocusSession,
-    ],
-  );
-
-  // --- Tab Config ---
+  // Tab definitions
   const tabItems: {
     key: DashboardTab;
     label: string;
@@ -1752,35 +175,11 @@ export default function Dashboard({
     },
   ];
 
-  const activeIndex = tabItems.findIndex((t) => t.key === activeTab);
-
-  // --- Render ---
-  const taskCount = useMemo(() => {
-    let count = 0;
-    for (const m of hierarchy) {
-      if (m.subtasks.length > 0) {
-        count += m.subtasks.length;
-      } else {
-        count += 1;
-      }
-    }
-    return count;
-  }, [hierarchy]);
-  const completedTaskCount = useMemo(() => {
-    let count = 0;
-    for (const m of hierarchy) {
-      if (m.subtasks.length > 0) {
-        count += m.subtasks.filter((sub) => isChecked(sub.id, sub.frequency)).length;
-      } else {
-        if (isChecked(m.id, m.frequency)) count += 1;
-      }
-    }
-    return count;
-  }, [hierarchy, isChecked]);
+  const activeIndex = tabItems.findIndex((tab) => tab.key === activeTab);
 
   return (
     <div
-      className="mx-auto flex h-full min-h-0 w-full max-w-4xl lg:max-w-[1041px] flex-col gap-3 overflow-hidden"
+      className="mx-auto flex h-full min-h-0 w-full max-w-4xl lg:max-w-[1041px] flex-col gap-2 sm:gap-3 overflow-hidden"
       dir={isArabic ? "rtl" : "ltr"}
     >
       {/* ===== Header Card ===== */}
@@ -1788,63 +187,31 @@ export default function Dashboard({
         <DashboardHeader
           goal={goal}
           progress={progress}
-          streak={streak}
+          streak={data.streak}
           taskCount={taskCount}
           completedTaskCount={completedTaskCount}
           language={language}
-          showGoalDetails={showGoalDetails}
-          freezableDate={freezableDate}
-          freezing={freezing}
-          onUseStreakFreeze={handleUseStreakFreeze}
-          onToggleDetails={() => setShowGoalDetails(!showGoalDetails)}
-          onTogglePin={handleTogglePin}
-          onEditGoal={() => setShowGoalEditDialog(true)}
-          onDeleteGoal={handleDeleteGoal}
-          onUpdateIcon={handleUpdateIcon}
+          showGoalDetails={ops.showGoalDetails}
+          freezableDate={data.freezableDate}
+          freezing={data.freezing}
+          onUseStreakFreeze={data.handleUseStreakFreeze}
+          onToggleDetails={() => ops.setShowGoalDetails(!ops.showGoalDetails)}
+          onTogglePin={ops.handleTogglePin}
+          onEditGoal={() => ops.setShowGoalEditDialog(true)}
+          onDeleteGoal={ops.handleDeleteGoal}
+          onUpdateIcon={ops.handleUpdateIcon}
+          onExportGoal={ops.handleExportGoal}
+          isExportingGoal={ops.isExportingGoal}
         />
       </div>
-
-      <GoalEditDialog
-        goal={goal}
-        open={showGoalEditDialog}
-        onOpenChange={setShowGoalEditDialog}
-        language={language}
-        onSaved={() => {
-          if (onGoalUpdated) onGoalUpdated();
-          showSuccessToast(isArabic ? "تم تحديث الهدف" : "Goal updated");
-        }}
-      />
-
-      <DailyFocusQuestionDialog
-        open={showDailyFocusPrompt}
-        onOpenChange={(open) => {
-          setShowDailyFocusPrompt(open);
-          if (!open) {
-            setDailyFocusPromptDismissed(true);
-            if (typeof window !== "undefined") {
-              window.localStorage.setItem(dailyFocusPromptStorageKey, "seen");
-            }
-          }
-        }}
-        language={language}
-        isArabic={isArabic}
-        dailyFocus={dailyFocus}
-        loading={dailyFocusLoading}
-        submitting={dailyFocusSubmitting}
-        error={dailyFocusError}
-        answer={dailyFocusAnswer}
-        onAnswerChange={handleDailyFocusAnswerChange}
-        onAppendTranscript={handleAppendDailyFocusTranscript}
-        onSubmit={handleSubmitDailyFocusAnswer}
-      />
 
       {/* ===== Log Progress Button ===== */}
       <button
         onClick={() => {
-          setShowDailyFocusPrompt(false);
-          setShowLogModal(true);
+          focus.setShowDailyFocusPrompt(false);
+          ops.setShowLogModal(true);
         }}
-        className="flex w-full shrink-0 items-center justify-center gap-2.5 rounded-xl bg-primary h-11 sm:h-12 text-sm sm:text-base font-medium text-primary-foreground shadow-xs shadow-primary/25 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.22)] hover:bg-primary/90 active:scale-[0.98] transition-all cursor-pointer select-none"
+        className="flex w-full shrink-0 items-center justify-center gap-2.5 rounded-xl bg-primary h-10 min-[400px]:h-11 sm:h-12 text-sm sm:text-base font-medium text-primary-foreground shadow-xs shadow-primary/25 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.22)] hover:bg-primary/90 active:scale-[0.98] transition-all cursor-pointer select-none touch-manipulation"
       >
         <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary-foreground/20">
           <Flame className="w-3.5 h-3.5 fill-current" />
@@ -1853,19 +220,19 @@ export default function Dashboard({
       </button>
 
       {/* ===== Tabs ===== */}
-      <div className="relative flex shrink-0 gap-1 overflow-x-auto rounded-xl border border-border/70 bg-muted/60 p-1 h-11 shadow-xs">
+      <div className="relative flex shrink-0 gap-1 overflow-hidden rounded-xl border border-border/70 bg-muted/60 p-1 h-10 sm:h-11 shadow-xs select-none">
         {/* Sliding active background indicator */}
-        <div 
+        <div
           className="absolute top-1 bottom-1 rounded-lg bg-card border border-border/70 shadow-xs"
           style={{
-            width: 'calc((100% - 16px) / 3)',
-            left: isArabic 
-              ? 'auto' 
+            width: "calc((100% - 16px) / 3)",
+            left: isArabic
+              ? "auto"
               : `calc(4px + ${activeIndex} * ((100% - 16px) / 3 + 4px))`,
-            right: isArabic 
-              ? `calc(4px + ${activeIndex} * ((100% - 16px) / 3 + 4px))` 
-              : 'auto',
-            transition: 'all 300ms cubic-bezier(0.25, 1, 0.5, 1)'
+            right: isArabic
+              ? `calc(4px + ${activeIndex} * ((100% - 16px) / 3 + 4px))`
+              : "auto",
+            transition: "all 300ms cubic-bezier(0.25, 1, 0.5, 1)",
           }}
         />
         {tabItems.map((tab) => (
@@ -1873,7 +240,7 @@ export default function Dashboard({
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
             className={cn(
-              "relative z-10 flex-1 min-w-0 flex items-center justify-center gap-2 py-1.5 px-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-150 whitespace-nowrap cursor-pointer active:scale-95",
+              "relative z-10 flex-1 min-w-0 flex items-center justify-center gap-1.5 sm:gap-2 py-1.5 px-1.5 sm:px-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-150 whitespace-nowrap cursor-pointer active:scale-95 touch-manipulation select-none",
               activeTab === tab.key
                 ? "text-foreground font-semibold"
                 : "text-muted-foreground hover:text-foreground",
@@ -1886,21 +253,31 @@ export default function Dashboard({
       </div>
 
       {/* ===== Error Banner ===== */}
-      {fetchError && (
+      {data.fetchError && (
         <div className="shrink-0 rounded-xl border border-destructive/15 bg-destructive/12 px-4 py-3 text-sm text-destructive shadow-sm">
           <div className="flex items-center gap-2.5">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-destructive/12">
-              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              <svg
+                className="h-4 w-4 shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
               </svg>
             </span>
-            <span className="font-semibold">{fetchError}</span>
+            <span className="min-w-0 flex-1 break-words font-semibold text-xs sm:text-sm">{data.fetchError}</span>
             <button
               onClick={() => {
-                setFetchError(null);
-                fetchTasks();
+                data.setFetchError(null);
+                data.fetchTasks();
               }}
-              className="ms-auto rounded-xl bg-destructive/12 px-3 py-1.5 text-xs font-bold hover:bg-destructive/20 transition-colors active:scale-95"
+              className="ms-auto shrink-0 whitespace-nowrap rounded-xl bg-destructive/12 px-3 py-1.5 text-xs font-bold hover:bg-destructive/20 transition-colors active:scale-95 touch-manipulation"
             >
               {isArabic ? "إعادة المحاولة" : "Retry"}
             </button>
@@ -1913,7 +290,10 @@ export default function Dashboard({
         className={cn(
           "min-h-0 flex-1",
           activeTab === "chart"
-            ? cn("rounded-2xl p-3 sm:p-4 scrollbar-hide relative z-0 touch-pan-y overflow-y-scroll overscroll-contain pb-24 [-webkit-overflow-scrolling:touch] sm:pb-4", WELL_SURFACE)
+            ? cn(
+                "rounded-2xl p-3 sm:p-4 scrollbar-hide relative z-0 touch-pan-y overflow-y-scroll overscroll-contain pb-24 [-webkit-overflow-scrolling:touch] sm:pb-4",
+                WELL_SURFACE,
+              )
             : activeTab === "challenge"
               ? cn("rounded-2xl p-3 sm:p-4 overflow-hidden", WELL_SURFACE)
               : "overflow-hidden",
@@ -1929,113 +309,121 @@ export default function Dashboard({
           <FocusTab
             language={language}
             isArabic={isArabic}
-            dailyFocus={dailyFocus}
-            dailyFocusHistory={dailyFocusHistory}
-            missedDailyFocusHistory={missedDailyFocusHistory}
-            dailyFocusLoading={dailyFocusLoading}
-            dailyFocusSubmitting={dailyFocusSubmitting}
-            dailyFocusAddingSuggestionId={addingSuggestionId}
-            dailyFocusError={dailyFocusError}
-            dailyFocusAnswer={dailyFocusAnswer}
-            isSuggestionsLocked={suggestionsUnlockStatus.isLocked}
-            daysUntilSuggestionsUnlock={suggestionsUnlockStatus.daysRemaining}
-            daysPassedSinceGoalCreation={suggestionsUnlockStatus.daysPassed}
+            dailyFocus={focus.dailyFocus}
+            dailyFocusHistory={focus.dailyFocusHistory}
+            missedDailyFocusHistory={focus.missedDailyFocusHistory}
+            dailyFocusLoading={focus.dailyFocusLoading}
+            dailyFocusSubmitting={focus.dailyFocusSubmitting}
+            dailyFocusAddingSuggestionId={focus.addingSuggestionId}
+            dailyFocusError={focus.dailyFocusError}
+            dailyFocusAnswer={focus.dailyFocusAnswer}
+            isSuggestionsLocked={focus.suggestionsUnlockStatus.isLocked}
+            daysUntilSuggestionsUnlock={focus.suggestionsUnlockStatus.daysRemaining}
+            daysPassedSinceGoalCreation={focus.suggestionsUnlockStatus.daysPassed}
             filteredHierarchy={filteredHierarchy}
             hierarchy={hierarchy}
-            loadingTasks={loadingTasks}
+            loadingTasks={data.loadingTasks}
             focusStats={focusStats}
-            expandedMains={expandedMains}
-            addingMain={addingMain}
-            addingSubFor={addingSubFor}
-            newMainText={newMainText}
-            newMainCriteria={newMainCriteria}
-            newMainFreq={newMainFreq}
-            newMainWeight={newMainWeight}
-            newMainColor={newMainColor}
-            newMainAccent={newMainAccent}
-            newSubText={newSubText}
-            newSubCriteria={newSubCriteria}
-            newSubFreq={newSubFreq}
-            newSubWeight={newSubWeight}
-            editingTaskId={editingTaskId}
-            editingText={editingText}
-            isChecked={isChecked}
-            isCompletedToday={isCompletedToday}
-            getSkipReason={getSkipReason}
-            onSetSkipReason={handleSetSkipReason}
-            onClearSkipReason={handleClearSkipReason}
-            onRequestMini={handleRequestMini}
-            onCompleteMini={handleCompleteMini}
-            shouldAnimateTask={shouldAnimateTask}
-            onToggleExpand={toggleExpand}
-            onToggleCheckin={toggleCheckin}
-            onOpenNewMainComposer={openNewMainComposer}
-            onCloseNewMainComposer={closeNewMainComposer}
-            onAddMain={handleAddMain}
-            onStartAddingSub={handleStartAddingSub}
+            expandedMains={ops.expandedMains}
+            addingMain={ops.addingMain}
+            addingSubFor={ops.addingSubFor}
+            newMainText={ops.newMainText}
+            newMainCriteria={ops.newMainCriteria}
+            newMainFreq={ops.newMainFreq}
+            newMainWeight={ops.newMainWeight}
+            newMainColor={ops.newMainColor}
+            newMainAccent={ops.newMainAccent}
+            newSubText={ops.newSubText}
+            newSubCriteria={ops.newSubCriteria}
+            newSubFreq={ops.newSubFreq}
+            newSubWeight={ops.newSubWeight}
+            editingTaskId={ops.editingTaskId}
+            editingText={ops.editingText}
+            isChecked={data.isChecked}
+            getTaskProgress={data.getTaskProgress}
+            isCompletedToday={data.isCompletedToday}
+            getSkipReason={data.getSkipReason}
+            onSetSkipReason={ops.handleSetSkipReason}
+            onClearSkipReason={ops.handleClearSkipReason}
+            onRequestMini={ops.handleRequestMini}
+            onCompleteMini={ops.handleCompleteMini}
+            shouldAnimateTask={data.shouldAnimateTask}
+            onToggleExpand={ops.toggleExpand}
+            onToggleCheckin={ops.toggleCheckin}
+            onOpenNewMainComposer={ops.openNewMainComposer}
+            onCloseNewMainComposer={ops.closeNewMainComposer}
+            onAddMain={ops.handleAddMain}
+            onStartAddingSub={ops.handleStartAddingSub}
             onCancelAddingSub={() => {
-              setAddingSubFor(null);
-              setNewSubText("");
-              setNewSubCriteria("");
+              ops.setAddingSubFor(null);
+              ops.setNewSubText("");
+              ops.setNewSubCriteria("");
             }}
-            onAddSub={handleAddSub}
-            onStartEditingTask={handleStartEditingTask}
-            onCancelEditingTask={() => setEditingTaskId(null)}
-            onRenameTask={handleRenameTask}
-            onDeleteTask={handleDeleteTask}
-            onUpdateTaskIcon={handleUpdateTaskIcon}
-            onUpdateTaskColor={handleUpdateTaskColor}
-            onUpdateTaskWeight={handleUpdateTaskWeight}
-            onOpenTaskEditor={handleOpenTaskEditor}
-            onSetDailyFocusAnswer={handleDailyFocusAnswerChange}
-            onAppendDailyFocusTranscript={handleAppendDailyFocusTranscript}
-            onSubmitDailyFocusAnswer={handleSubmitDailyFocusAnswer}
-            onAddDailyFocusSuggestion={handleAddDailyFocusSuggestion}
-            onSetNewMainText={setNewMainText}
-            onSetNewMainCriteria={setNewMainCriteria}
-            onSetNewMainFreq={setNewMainFreq}
-            onSetNewMainWeight={setNewMainWeight}
-            onSetNewMainColor={setNewMainColor}
-            onSetNewSubText={setNewSubText}
-            onSetNewSubCriteria={setNewSubCriteria}
-            onSetNewSubFreq={setNewSubFreq}
-            onSetNewSubWeight={setNewSubWeight}
-            onSetEditingText={setEditingText}
+            onAddSub={ops.handleAddSub}
+            onStartEditingTask={ops.handleStartEditingTask}
+            onCancelEditingTask={() => ops.setEditingTaskId(null)}
+            onRenameTask={ops.handleRenameTask}
+            onDeleteTask={ops.handleDeleteTask}
+            onUpdateTaskIcon={ops.handleUpdateTaskIcon}
+            onUpdateTaskColor={ops.handleUpdateTaskColor}
+            onUpdateTaskWeight={ops.handleUpdateTaskWeight}
+            onOpenTaskEditor={ops.handleOpenTaskEditor}
+            onSetDailyFocusAnswer={focus.handleDailyFocusAnswerChange}
+            onAppendDailyFocusTranscript={focus.handleAppendDailyFocusTranscript}
+            onSubmitDailyFocusAnswer={focus.handleSubmitDailyFocusAnswer}
+            onAddDailyFocusSuggestion={focus.handleAddDailyFocusSuggestion}
+            onRejectDailyFocusSuggestion={focus.handleRejectDailyFocusSuggestion}
+            onUndoRejectDailyFocusSuggestion={focus.handleUndoRejectSuggestion}
+            onSetNewMainText={ops.setNewMainText}
+            onSetNewMainCriteria={ops.setNewMainCriteria}
+            onSetNewMainFreq={ops.setNewMainFreq}
+            onSetNewMainWeight={ops.setNewMainWeight}
+            onSetNewMainColor={ops.setNewMainColor}
+            onSetNewSubText={ops.setNewSubText}
+            onSetNewSubCriteria={ops.setNewSubCriteria}
+            onSetNewSubFreq={ops.setNewSubFreq}
+            onSetNewSubWeight={ops.setNewSubWeight}
+            onSetEditingText={ops.setEditingText}
             goalTitle={goal.title}
-            onRefreshTasks={fetchTasks}
-            onUpdateTaskScheduleDays={handleUpdateTaskScheduleDays}
+            goalId={goal.id}
+            manualTaskOrder={goal.manual_task_order}
+            onGoalUpdated={onGoalUpdated}
+            supabase={data.supabase}
+            onRefreshTasks={data.fetchTasks}
+            onUpdateTaskScheduleDays={ops.handleUpdateTaskScheduleDays}
           />
         </div>
 
         {/* Growth Trajectory Tab */}
         <div
           className={cn(
-            "h-full min-h-0",
+            "md:h-full min-h-0",
             activeTab !== "chart" && "hidden",
           )}
         >
-          <div className="scrollbar-thin min-h-full space-y-3">
-            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_18rem] md:items-stretch">
+          <div className="scrollbar-thin md:min-h-full space-y-3">
+            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_19.5rem] lg:grid-cols-[minmax(0,1fr)_21.5rem] xl:grid-cols-[minmax(0,1fr)_22.5rem] md:items-stretch">
               <div className="w-full min-w-0 md:flex md:min-h-0">
                 <GrowthChart
-                  data={chartData}
+                  data={data.chartData}
                   language={language}
                   fillHeight
                   className="w-full"
                 />
               </div>
-              <div className="w-full min-w-0 md:flex">
+              <div className="w-full min-w-0 md:flex md:min-h-0">
                 <DayCalendarGrid
-                  logs={logs}
+                  logs={data.logs}
                   goalStartDate={goal.created_at}
-                  dailyCap={calculateDailyCap(tasks)}
+                  dailyCap={calculateDailyCap(data.tasks)}
                   language={language}
-                  loading={!logsLoaded}
-                  streakFreezes={streakFreezes}
+                  loading={!data.logsLoaded}
+                  streakFreezes={data.streakFreezes}
+                  className="h-full"
                 />
               </div>
             </div>
-            <TaskInsights goalId={goal.id} tasks={tasks} language={language} />
+            <TaskInsights goalId={goal.id} tasks={data.tasks} language={language} />
           </div>
         </div>
 
@@ -2055,64 +443,43 @@ export default function Dashboard({
         </div>
       </div>
 
-      {/* ===== Log Modal ===== */}
-      {showLogModal && (
-        <ProgressLogDialog
-          goal={goal}
-          tasks={tasks}
-          initialMode="select"
-          onClose={() => setShowLogModal(false)}
-          onSuccess={() => {
-            fetchTasks();
-            fetchCheckins();
-            fetchTodayLoggedTasks();
-            fetchStreak();
-            fetchChartData();
-            fetchLogs();
-            if (onGoalUpdated) onGoalUpdated();
-          }}
-          language={language}
-        />
-      )}
-
-      {/* ===== Task Editor — full edit for main tasks and subtasks ===== */}
-      <TaskEditDialog
-        task={editingTask}
-        open={taskEditorOpen}
-        onOpenChange={setTaskEditorOpen}
-        onSave={handleUpdateTask}
+      {/* ===== Modals, Dialogs & Notifications ===== */}
+      <DashboardDialogs
+        goal={goal}
         language={language}
-        goalTitle={goal.title}
+        isArabic={isArabic}
+        onGoalUpdated={onGoalUpdated}
+        refreshAll={data.refreshAll}
+        showSuccessToast={showSuccessToast}
+        showGoalEditDialog={ops.showGoalEditDialog}
+        setShowGoalEditDialog={ops.setShowGoalEditDialog}
+        showDailyFocusPrompt={focus.showDailyFocusPrompt}
+        setShowDailyFocusPrompt={focus.setShowDailyFocusPrompt}
+        setDailyFocusPromptDismissed={focus.setDailyFocusPromptDismissed}
+        dailyFocusPromptStorageKey={focus.dailyFocusPromptStorageKey}
+        dailyFocus={focus.dailyFocus}
+        dailyFocusLoading={focus.dailyFocusLoading}
+        dailyFocusSubmitting={focus.dailyFocusSubmitting}
+        dailyFocusError={focus.dailyFocusError}
+        dailyFocusAnswer={focus.dailyFocusAnswer}
+        onDailyFocusAnswerChange={focus.handleDailyFocusAnswerChange}
+        onAppendDailyFocusTranscript={focus.handleAppendDailyFocusTranscript}
+        onSubmitDailyFocusAnswer={focus.handleSubmitDailyFocusAnswer}
+        showLogModal={ops.showLogModal}
+        setShowLogModal={ops.setShowLogModal}
+        tasks={data.tasks}
+        editingTask={ops.editingTask}
+        taskEditorOpen={ops.taskEditorOpen}
+        setTaskEditorOpen={ops.setTaskEditorOpen}
+        handleUpdateTask={ops.handleUpdateTask}
+        confirmModal={ops.confirmModal}
+        setConfirmModal={ops.setConfirmModal}
+        viewingLog={ops.viewingLog}
+        setViewingLog={ops.setViewingLog}
+        streak={data.streak}
+        showToast={showToast}
+        toastMessage={toastMessage}
       />
-
-      {/* ===== Confirm Modal ===== */}
-      <ConfirmModal
-        isOpen={confirmModal.isOpen}
-        title={confirmModal.title}
-        message={confirmModal.message}
-        onConfirm={confirmModal.onConfirm}
-        onCancel={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
-        language={language}
-      />
-
-      {/* ===== Log Evaluation Modal (Re-view evaluation & updates) ===== */}
-      {viewingLog && (
-        <LogEvaluationModal
-          log={viewingLog}
-          goal={{
-            id: goal.id,
-            title: goal.title,
-            current_points: goal.current_points,
-            target_points: goal.target_points,
-          }}
-          streak={streak}
-          language={language}
-          onClose={() => setViewingLog(null)}
-        />
-      )}
-
-      {/* ===== Toast Notification ===== */}
-      <ToastNotification visible={showToast} message={toastMessage} />
     </div>
   );
 }

@@ -12,7 +12,7 @@ export function FeedbackBanner({ feedback }: FeedbackBannerProps) {
   return (
     <div
       className={cn(
-        'rounded-xl border px-3 py-2.5 text-xs font-semibold',
+        'rounded-xl border px-3 py-2.5 text-xs font-semibold break-words',
         feedback.type === 'success'
           ? 'border-primary/25 bg-primary/12 text-primary'
           : 'border-destructive/25 bg-destructive/12 text-destructive',

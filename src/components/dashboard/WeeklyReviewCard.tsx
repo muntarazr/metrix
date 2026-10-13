@@ -126,7 +126,7 @@ export default function WeeklyReviewCard({
           onClick={generate}
           disabled={generating || loading}
           className={cn(
-            "inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-all duration-150 cursor-pointer active:scale-95 disabled:opacity-50",
+            "inline-flex min-h-8 sm:min-h-0 shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-all duration-150 cursor-pointer active:scale-95 disabled:opacity-50 touch-manipulation select-none",
             review
               ? "border border-border/70 bg-card text-foreground shadow-xs hover:bg-accent"
               : "bg-primary text-primary-foreground shadow-xs shadow-primary/20 hover:bg-primary/90",

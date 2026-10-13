@@ -44,10 +44,21 @@ export interface DailyFocusEntryRow {
 }
 
 export type DailyFocusSupportType = 'goal_task' | 'external_booster' | 'task_adjustment';
+export type DailyFocusChangeType = 'modify_task' | 'add_task' | 'remove_task' | 'adjust_timeline';
+
+export interface TaskFieldChanges {
+  time_required_minutes?: number | null;
+  completion_criteria?: string | null;
+  frequency?: 'daily' | 'weekly' | null;
+  schedule_days?: number[] | null;
+  impact_weight?: number | null;
+}
 
 export interface DailyFocusSuggestion {
   id: string;
+  change_type: DailyFocusChangeType;
   title: string;
+  action_summary?: string;
   reason: string;
   completion_criteria?: string;
   emoji: string;
@@ -56,8 +67,12 @@ export interface DailyFocusSuggestion {
   target_type: DailyFocusSuggestionTarget;
   parent_task_id: string | null;
   target_task_id?: string | null;
+  target_task_title?: string | null;
   support_type: DailyFocusSupportType;
+  time_required_minutes?: number | null;
   adjusted_time_required?: number | null;
+  changes?: TaskFieldChanges;
+  status?: 'pending' | 'applied' | 'rejected';
 }
 
 export interface DailyFocusResult {
@@ -83,6 +98,8 @@ export interface DailyFocusSession extends DailyFocusResult {
   answer: string;
   answered_at: string | null;
   addedSuggestionIds: string[];
+  appliedSuggestionIds: string[];
+  rejectedSuggestionIds: string[];
 }
 
 export interface DailyFocusRequestPayload {
@@ -132,9 +149,20 @@ function normalizeSuggestion(
   const rawWeight = Number(value.impact_weight) || Number(value.weight) || 1;
   const maxWeight = targetType === 'sub' ? 5 : 10;
 
+  const rawChangeType = value.change_type;
+  const changeType: DailyFocusChangeType =
+    rawChangeType === 'modify_task' ||
+    rawChangeType === 'add_task' ||
+    rawChangeType === 'remove_task' ||
+    rawChangeType === 'adjust_timeline'
+      ? rawChangeType
+      : (value.target_task_id || value.support_type === 'task_adjustment')
+        ? 'modify_task'
+        : 'add_task';
+
   const rawSupport = value.support_type;
   const supportType: DailyFocusSupportType =
-    rawSupport === 'task_adjustment'
+    changeType === 'modify_task' || rawSupport === 'task_adjustment'
       ? 'task_adjustment'
       : rawSupport === 'external_booster'
         ? 'external_booster'
@@ -145,33 +173,80 @@ function normalizeSuggestion(
       ? value.target_task_id.trim()
       : null;
 
+  const targetTaskTitle =
+    typeof value.target_task_title === 'string' && value.target_task_title.trim()
+      ? value.target_task_title.trim()
+      : null;
+
+  const actionSummary =
+    typeof value.action_summary === 'string' && value.action_summary.trim()
+      ? value.action_summary.trim()
+      : undefined;
+
+  let changes: TaskFieldChanges | undefined;
+  if (isRecord(value.changes)) {
+    changes = {
+      time_required_minutes:
+        typeof value.changes.time_required_minutes === 'number'
+          ? Math.max(0, value.changes.time_required_minutes)
+          : null,
+      completion_criteria:
+        typeof value.changes.completion_criteria === 'string'
+          ? value.changes.completion_criteria.trim()
+          : null,
+      frequency:
+        value.changes.frequency === 'weekly' || value.changes.frequency === 'daily'
+          ? value.changes.frequency
+          : null,
+      schedule_days: Array.isArray(value.changes.schedule_days)
+        ? value.changes.schedule_days.filter((d): d is number => typeof d === 'number')
+        : null,
+      impact_weight:
+        typeof value.changes.impact_weight === 'number'
+          ? clamp(value.changes.impact_weight, 1, maxWeight)
+          : null,
+    };
+  }
+
   const adjustedTime =
     typeof value.adjusted_time_required === 'number'
       ? value.adjusted_time_required
-      : null;
+      : changes?.time_required_minutes ?? null;
+
+  const rawStatus = value.status;
+  const status: 'pending' | 'applied' | 'rejected' =
+    rawStatus === 'applied' || rawStatus === 'rejected'
+      ? rawStatus
+      : 'pending';
 
   return {
     id:
       typeof value.id === 'string' && value.id.trim()
         ? value.id.trim()
         : `${DAILY_FOCUS_ID_PREFIX}-${index + 1}`,
+    change_type: changeType,
     title,
+    action_summary: actionSummary,
     reason:
       typeof value.reason === 'string'
         ? value.reason.trim()
         : typeof value.why === 'string'
           ? value.why.trim()
           : '',
+    completion_criteria:
+      typeof value.completion_criteria === 'string'
+        ? value.completion_criteria.trim()
+        : changes?.completion_criteria ?? undefined,
     emoji:
       typeof value.emoji === 'string' && value.emoji.trim()
         ? value.emoji.trim()
-        : supportType === 'task_adjustment'
+        : changeType === 'modify_task' || supportType === 'task_adjustment'
           ? '🛠️'
           : supportType === 'external_booster'
             ? '⚡'
             : '🎯',
-    frequency: normalizeFrequency(value.frequency),
-    impact_weight: clamp(rawWeight, 1, maxWeight),
+    frequency: normalizeFrequency(changes?.frequency ?? value.frequency),
+    impact_weight: clamp(changes?.impact_weight ?? rawWeight, 1, maxWeight),
     target_type: supportType === 'external_booster' ? 'main' : targetType,
     parent_task_id:
       supportType === 'external_booster'
@@ -180,8 +255,12 @@ function normalizeSuggestion(
           ? value.parent_task_id
           : null,
     target_task_id: targetTaskId,
+    target_task_title: targetTaskTitle,
     support_type: supportType,
+    time_required_minutes: adjustedTime,
     adjusted_time_required: adjustedTime,
+    changes,
+    status,
   };
 }
 
@@ -270,17 +349,31 @@ export function normalizeDailyFocusSession(
   const result = normalizeDailyFocusResult(value, '');
   if (!result) return null;
 
+  const appliedIds = Array.isArray(value.appliedSuggestionIds)
+    ? value.appliedSuggestionIds.filter(
+        (item): item is string => typeof item === 'string',
+      )
+    : Array.isArray(value.addedSuggestionIds)
+      ? value.addedSuggestionIds.filter(
+          (item): item is string => typeof item === 'string',
+        )
+      : [];
+
+  const rejectedIds = Array.isArray(value.rejectedSuggestionIds)
+    ? value.rejectedSuggestionIds.filter(
+        (item): item is string => typeof item === 'string',
+      )
+    : [];
+
   return {
     ...result,
     id: typeof value.id === 'string' ? value.id : undefined,
     answer: typeof value.answer === 'string' ? value.answer : '',
     answered_at:
       typeof value.answered_at === 'string' ? value.answered_at : null,
-    addedSuggestionIds: Array.isArray(value.addedSuggestionIds)
-      ? value.addedSuggestionIds.filter(
-          (item): item is string => typeof item === 'string',
-        )
-      : [],
+    addedSuggestionIds: appliedIds,
+    appliedSuggestionIds: appliedIds,
+    rejectedSuggestionIds: rejectedIds,
   };
 }
 
@@ -319,6 +412,9 @@ export function buildDailyFocusSessionFromRow(
   let rawSuggestions: unknown[] = [];
   let quickOptions: string[] = [];
 
+  let appliedIds: string[] = [];
+  let rejectedIds: string[] = [];
+
   if (Array.isArray(row.suggestions)) {
     rawSuggestions = row.suggestions;
   } else if (isRecord(row.suggestions)) {
@@ -332,10 +428,27 @@ export function buildDailyFocusSessionFromRow(
         .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
         .map((item) => item.trim());
     }
+    if (Array.isArray(row.suggestions.applied_ids)) {
+      appliedIds = row.suggestions.applied_ids.filter((item): item is string => typeof item === 'string');
+    } else if (Array.isArray(row.suggestions.addedSuggestionIds)) {
+      appliedIds = row.suggestions.addedSuggestionIds.filter((item): item is string => typeof item === 'string');
+    }
+    if (Array.isArray(row.suggestions.rejected_ids)) {
+      rejectedIds = row.suggestions.rejected_ids.filter((item): item is string => typeof item === 'string');
+    }
   }
 
   const normalizedSuggestions = rawSuggestions
-    .map((item, index) => normalizeSuggestion(item, index))
+    .map((item, index) => {
+      const suggestion = normalizeSuggestion(item, index);
+      if (!suggestion) return null;
+      if (appliedIds.includes(suggestion.id)) {
+        suggestion.status = 'applied';
+      } else if (rejectedIds.includes(suggestion.id)) {
+        suggestion.status = 'rejected';
+      }
+      return suggestion;
+    })
     .filter((item): item is DailyFocusSuggestion => Boolean(item));
 
   const requiredAnswerDays = Math.max(
@@ -359,7 +472,9 @@ export function buildDailyFocusSessionFromRow(
     required_answer_days: requiredAnswerDays,
     answer: row.answer || '',
     answered_at: row.answered_at || null,
-    addedSuggestionIds: [],
+    addedSuggestionIds: appliedIds,
+    appliedSuggestionIds: appliedIds,
+    rejectedSuggestionIds: rejectedIds,
   };
 }
 

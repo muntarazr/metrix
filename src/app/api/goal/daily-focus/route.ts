@@ -21,6 +21,7 @@ export async function POST(req: NextRequest) {
       tasks = [],
       logs = [],
       history = [],
+      rejectedSuggestions = [],
       answer,
       existingQuestion,
       date,
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
       existingQuestion,
       date,
       history,
+      rejectedSuggestions,
       language,
     });
 

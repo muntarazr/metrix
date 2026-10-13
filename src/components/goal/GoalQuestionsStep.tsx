@@ -75,7 +75,7 @@ export default function GoalQuestionsStep({
                 dir={isArabic ? 'rtl' : 'ltr'}
             >
                 {/* Goal echo */}
-                <div className={cn(PANEL_SURFACE, "rounded-2xl px-5 py-4")}>
+                <div className={cn(PANEL_SURFACE, "rounded-2xl px-3.5 py-3.5 sm:px-5 sm:py-4")}>
                     <p className="text-xs font-medium text-muted-foreground mb-1">
                         {isArabic ? 'هدفك' : 'Your goal'}
                     </p>
@@ -85,7 +85,7 @@ export default function GoalQuestionsStep({
                 </div>
 
                 {/* The question */}
-                <div className="rounded-2xl border border-primary/25 bg-primary/12 px-5 py-4 space-y-2">
+                <div className="rounded-2xl border border-primary/25 bg-primary/12 px-3.5 py-3.5 sm:px-5 sm:py-4 space-y-2">
                     <p className="flex items-center gap-2 text-base font-bold text-foreground">
                         <Sparkles className="w-4 h-4 text-primary shrink-0" />
                         {isArabic ? 'هل عندك أي تفاصيل أو إضافة أخرى؟' : 'Anything else to add?'}
@@ -103,7 +103,7 @@ export default function GoalQuestionsStep({
                 </div>
 
                 {/* Everything collected */}
-                <div className={cn(PANEL_SURFACE, "rounded-2xl px-5 py-4 space-y-3")}>
+                <div className={cn(PANEL_SURFACE, "rounded-2xl px-3.5 py-3.5 sm:px-5 sm:py-4 space-y-3")}>
                     <p className="text-xs font-medium text-muted-foreground">
                         {isArabic
                             ? `ملخص إجاباتك السابقة (${summaryEntries.length})`
@@ -114,7 +114,7 @@ export default function GoalQuestionsStep({
                             {isArabic ? 'لم تُجب عن أي سؤال بعد.' : 'No answers collected yet.'}
                         </p>
                     ) : (
-                        <ul className="space-y-2.5 max-h-72 overflow-y-auto pe-1">
+                        <ul className="space-y-2.5 max-h-48 sm:max-h-72 overflow-y-auto overscroll-contain pe-1">
                             {summaryEntries.map(([question, answer]) => (
                                 <li
                                     key={question}
@@ -153,7 +153,7 @@ export default function GoalQuestionsStep({
                 </div>
 
                 {showAddition && (
-                    <div className={cn(PANEL_SURFACE, "rounded-2xl px-5 py-4 space-y-3 animate-in fade-in")}>
+                    <div className={cn(PANEL_SURFACE, "rounded-2xl px-3.5 py-3.5 sm:px-5 sm:py-4 space-y-3 animate-in fade-in")}>
                         <textarea
                             rows={3}
                             value={additionText}
@@ -198,7 +198,7 @@ export default function GoalQuestionsStep({
             dir={isArabic ? 'rtl' : 'ltr'}
         >
             {/* Goal echo */}
-            <div className={cn(PANEL_SURFACE, "rounded-2xl px-5 py-4")}>
+            <div className={cn(PANEL_SURFACE, "rounded-2xl px-3.5 py-3.5 sm:px-5 sm:py-4")}>
                 <p className="text-xs font-medium text-muted-foreground mb-1">
                     {isArabic ? 'هدفك' : 'Your goal'}
                 </p>
@@ -209,7 +209,7 @@ export default function GoalQuestionsStep({
 
             {/* AI understanding */}
             {goalSummary && (
-                <div className="rounded-2xl border border-primary/25 bg-primary/12 px-5 py-4 flex gap-3">
+                <div className="rounded-2xl border border-primary/25 bg-primary/12 px-3.5 py-3.5 sm:px-5 sm:py-4 flex gap-3">
                     <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                     <p className="text-sm text-foreground/75 leading-relaxed">{goalSummary}</p>
                 </div>
@@ -218,8 +218,8 @@ export default function GoalQuestionsStep({
             {/* Questions list */}
             {questions.length > 0 && (
                 <div className="space-y-4">
-                    <div className="flex items-center justify-between gap-3 px-1">
-                        <p className="text-sm font-semibold text-muted-foreground">
+                    <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3 px-1">
+                        <p className="text-xs sm:text-sm font-semibold text-muted-foreground">
                             {isArabic
                                 ? 'أجب على هذه الأسئلة لتحديد المهام الأنسب لك:'
                                 : 'Answer these questions to calibrate tasks:'}
@@ -259,15 +259,15 @@ export default function GoalQuestionsStep({
                         const unansweredRequired = Boolean(q.required) && !(answers[q.id] || '').trim();
 
                         return (
-                            <div key={q.id} className={cn(PANEL_SURFACE, "rounded-2xl px-5 py-4 space-y-3")}>
-                                <div className="flex items-start justify-between gap-3">
-                                    <label className="text-sm font-semibold text-foreground leading-snug">
+                            <div key={q.id} className={cn(PANEL_SURFACE, "rounded-2xl px-3.5 py-3.5 sm:px-5 sm:py-4 space-y-3")}>
+                                <div className="flex items-start justify-between gap-2 sm:gap-3">
+                                    <label className="min-w-0 flex-1 text-sm font-semibold text-foreground leading-snug">
                                         {idx + 1}. {q.question}
                                         {q.required && (
                                             <span className="text-destructive ms-1" aria-hidden="true">*</span>
                                         )}
                                     </label>
-                                    <span className="text-[11px] font-medium text-muted-foreground whitespace-nowrap shrink-0 pt-0.5">
+                                    <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground whitespace-nowrap shrink-0 pt-0.5">
                                         {isArabic
                                             ? `السؤال ${idx + 1} من ${questions.length}`
                                             : `Question ${idx + 1} of ${questions.length}`}
@@ -312,18 +312,21 @@ export default function GoalQuestionsStep({
                         type="button"
                         onClick={onSkipToPlan}
                         disabled={loading}
-                        className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-border/80 bg-muted/40 hover:bg-muted text-xs font-semibold text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2.5 rounded-xl border border-border/80 bg-muted/40 hover:bg-muted text-xs font-semibold text-muted-foreground hover:text-foreground transition-all cursor-pointer"
                         title={isArabic ? 'تخطي الأسئلة وبناء الخطة مباشرة بالمعلومات المتاحة' : 'Skip questions and build plan with available info'}
                     >
-                        <FastForward className="w-3.5 h-3.5" />
-                        <span>{isArabic ? 'تخطي وإنشاء الخطة الآن' : 'Skip & Create Plan'}</span>
+                        <FastForward className="w-3.5 h-3.5 shrink-0" />
+                        <span>
+                            <span className="hidden min-[420px]:inline">{isArabic ? 'تخطي وإنشاء الخطة الآن' : 'Skip & Create Plan'}</span>
+                            <span className="min-[420px]:hidden">{isArabic ? 'تخطي للخطة' : 'Skip'}</span>
+                        </span>
                     </button>
 
                     <button
                         type="button"
                         onClick={onSubmitAnswers}
                         disabled={loading || missingRequired}
-                        className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold disabled:opacity-50 transition-all hover:opacity-90 cursor-pointer shadow-xs active:scale-95"
+                        className="flex items-center gap-2 px-4 sm:px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold disabled:opacity-50 transition-all hover:opacity-90 cursor-pointer shadow-xs active:scale-95"
                     >
                         {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                         <span>{isArabic ? 'متابعة' : 'Continue'}</span>

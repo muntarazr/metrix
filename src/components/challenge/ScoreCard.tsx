@@ -37,11 +37,11 @@ export function ScoreCard({
   const displayName = person?.displayName || fallbackName;
 
   return (
-    <div className="rounded-xl border border-border/70 bg-card p-2.5 sm:p-3 shadow-sm shadow-black/[0.02]">
+    <div className="min-w-0 rounded-xl border border-border/70 bg-card p-2.5 sm:p-3 shadow-sm shadow-black/[0.02]">
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex items-center gap-2.5">
+        <div className="min-w-0 flex-1 flex items-center gap-2.5">
           <PlayerAvatar avatarUrl={person?.avatarUrl} displayName={displayName} />
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{laneLabel}</div>
             <div className="truncate text-sm font-bold tracking-tight text-foreground">{displayName}</div>
             <GoalTitleReveal title={person?.goalTitle} isArabic={isArabic} />

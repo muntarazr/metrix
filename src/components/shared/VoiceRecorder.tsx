@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
-import { Mic, MicOff, Loader2 } from "lucide-react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { Mic, Loader2, StopCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { translations, type Language } from "@/lib/translations";
 import { apiUrl } from "@/lib/api";
@@ -10,10 +10,18 @@ interface VoiceRecorderProps {
   onTranscript: (text: string) => void;
   language?: Language;
   className?: string;
-  /** Smaller control for toolbars and dialogs */
+  /** Smaller control for textareas, toolbars and dialogs */
   size?: "default" | "sm";
-  /** In corner overlays, stack status lines above the button so they grow into the field */
+  /** In corner overlays, stack status lines above the button */
   statusAboveButton?: boolean;
+  /** Optional variant (kept for backwards compatibility) */
+  variant?: "default" | "button" | "toolbar";
+  /** Optional hint (unused in minimal icon style) */
+  idleHint?: string;
+  /** Optional notification when recording status changes */
+  onRecordingChange?: (isRecording: boolean) => void;
+  /** Optional notification when processing status changes */
+  onProcessingChange?: (isProcessing: boolean) => void;
 }
 
 export default function VoiceRecorder({
@@ -21,22 +29,48 @@ export default function VoiceRecorder({
   language = "ar",
   className,
   size = "default",
-  statusAboveButton = false,
+  statusAboveButton = true,
+  onRecordingChange,
+  onProcessingChange,
 }: VoiceRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const t = translations[language];
 
+  useEffect(() => {
+    onRecordingChange?.(isRecording);
+  }, [isRecording, onRecordingChange]);
+
+  useEffect(() => {
+    onProcessingChange?.(isProcessing);
+  }, [isProcessing, onProcessingChange]);
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
+
+  // Auto-dismiss errors after 3.5 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(null), 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
+  const cleanup = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    mediaRecorderRef.current = null;
+    audioChunksRef.current = [];
+  }, []);
 
   const startRecording = useCallback(async () => {
     try {
       setError(null);
 
-      // Request microphone access
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 1,
@@ -49,7 +83,6 @@ export default function VoiceRecorder({
       streamRef.current = stream;
       audioChunksRef.current = [];
 
-      // Create MediaRecorder
       const mimeType = MediaRecorder.isTypeSupported("audio/webm")
         ? "audio/webm"
         : "audio/mp4";
@@ -68,12 +101,10 @@ export default function VoiceRecorder({
         const copy = translations[language];
 
         try {
-          // Create audio blob
           const audioBlob = new Blob(audioChunksRef.current, {
             type: mimeType,
           });
 
-          // Send to transcription API
           const formData = new FormData();
           formData.append(
             "audio",
@@ -90,7 +121,7 @@ export default function VoiceRecorder({
           const data = await response.json();
 
           if (!response.ok || data.fallback) {
-            console.warn("Mistral transcription failed:", response.status);
+            console.warn("Transcription failed:", response.status);
             setError(copy.voiceTranscribeFailed);
           } else if (data.text) {
             onTranscript(data.text);
@@ -113,7 +144,7 @@ export default function VoiceRecorder({
       setError(translations[language].voiceMicAccessError);
       setIsRecording(false);
     }
-  }, [language, onTranscript]);
+  }, [language, onTranscript, cleanup]);
 
   const stopRecording = useCallback(() => {
     if (
@@ -125,99 +156,63 @@ export default function VoiceRecorder({
     }
   }, []);
 
-  const cleanup = useCallback(() => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    mediaRecorderRef.current = null;
-    audioChunksRef.current = [];
-  }, []);
-
   const toggleRecording = useCallback(() => {
+    if (isProcessing) return;
     if (isRecording) {
       stopRecording();
     } else {
       startRecording();
     }
-  }, [isRecording, startRecording, stopRecording]);
+  }, [isProcessing, isRecording, startRecording, stopRecording]);
 
-  const iconClass = size === "sm" ? "size-5" : "size-6";
-  const btnPad = size === "sm" ? "p-3" : "p-4";
-  const statusClass =
+  const sizeClasses =
     size === "sm"
-      ? "max-w-[12rem] text-center text-[11px] leading-snug font-medium"
-      : "max-w-[200px] text-center text-xs font-medium";
+      ? "h-9 w-9"
+      : "h-10 w-10";
+
+  const iconClasses = size === "sm" ? "size-3.5 sm:size-4" : "size-4";
 
   return (
-    <div
-      className={cn(
-        "flex flex-col items-center gap-1.5 sm:gap-2",
-        statusAboveButton && "flex-col-reverse",
-        size === "sm" && "gap-1",
-        className,
+    <div className={cn("relative inline-flex items-center", className)}>
+      {error && (
+        <div
+          role="alert"
+          className={cn(
+            "absolute z-20 w-max max-w-[min(15rem,calc(100vw-3rem))] whitespace-normal break-words text-start rounded-md border border-destructive/25 bg-card/95 px-2.5 py-1 text-[11px] leading-snug font-medium text-destructive shadow-xs backdrop-blur-xs",
+            statusAboveButton
+              ? "bottom-full mb-1.5 end-0"
+              : "top-full mt-1.5 end-0",
+          )}
+        >
+          {error}
+        </div>
       )}
-    >
+
       <button
         type="button"
         onClick={toggleRecording}
         disabled={isProcessing}
-        className={cn(
-          "relative rounded-full transition-all duration-300",
-          btnPad,
-          isRecording
-            ? "animate-pulse bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            : "bg-primary text-primary-foreground hover:bg-primary/90",
-          isProcessing && "cursor-not-allowed opacity-50",
-        )}
+        aria-pressed={isRecording}
         title={isRecording ? t.voiceMicStopAria : t.voiceMicStartAria}
         aria-label={isRecording ? t.voiceMicStopAria : t.voiceMicStartAria}
+        className={cn(
+          "relative inline-flex shrink-0 items-center justify-center rounded-full border transition-all duration-200 cursor-pointer active:scale-95 select-none touch-manipulation",
+          sizeClasses,
+          isProcessing
+            ? "border-primary/45 bg-primary/12 text-primary cursor-not-allowed"
+            : isRecording
+              ? "border-destructive/45 bg-destructive/12 text-destructive hover:bg-destructive/20 animate-pulse shadow-xs"
+              : "border-border bg-background text-muted-foreground hover:bg-muted/60 hover:text-foreground shadow-2xs hover:border-border",
+        )}
       >
         {isProcessing ? (
-          <Loader2 className={cn("animate-spin", iconClass)} />
+          <Loader2 className={cn("animate-spin shrink-0", iconClasses)} />
         ) : isRecording ? (
-          <MicOff className={iconClass} />
+          <StopCircle className={cn("shrink-0", iconClasses)} />
         ) : (
-          <Mic className={iconClass} />
-        )}
-
-        {isRecording && (
-          <span className="absolute -top-1 end-1 flex h-3 w-3">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive/60 opacity-75" />
-            <span className="relative inline-flex h-3 w-3 rounded-full bg-destructive" />
-          </span>
+          <Mic className={cn("shrink-0", iconClasses)} />
         )}
       </button>
-
-      {error && (
-        <p className={cn("text-destructive", statusClass)} role="status">
-          {error}
-        </p>
-      )}
-
-      {isRecording && (
-        <p
-          className={cn(
-            "animate-pulse text-muted-foreground",
-            size === "sm" ? "text-[11px]" : "text-xs",
-          )}
-          role="status"
-        >
-          {t.voiceRecordingLabel}
-        </p>
-      )}
-
-      {isProcessing && (
-        <p
-          className={cn(
-            "text-muted-foreground",
-            size === "sm" ? "text-[11px]" : "text-xs",
-          )}
-          role="status"
-        >
-          {t.voiceProcessingLabel}
-        </p>
-      )}
     </div>
   );
 }

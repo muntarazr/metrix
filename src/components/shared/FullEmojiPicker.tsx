@@ -45,7 +45,7 @@ export default function FullEmojiPicker({ onSelect, value, language = 'ar', chil
         align="start"
         sideOffset={8}
       >
-        <div className="scrollbar-thin mb-2 flex gap-1 overflow-x-auto pb-0.5">
+        <div className="scrollbar-thin mb-2 flex gap-1 overflow-x-auto overscroll-x-contain touch-pan-x pb-0.5">
           {TASK_EMOJI_CATEGORIES.map((category) => {
             const isSelected = emojiCategory === category.key;
             const label = language === 'ar' ? category.labelAr : category.labelEn;
@@ -70,7 +70,7 @@ export default function FullEmojiPicker({ onSelect, value, language = 'ar', chil
           })}
         </div>
 
-        <div className="grid grid-cols-6 gap-1.5">
+        <div className="grid grid-cols-6 gap-1.5 max-h-[min(16rem,var(--radix-popover-content-available-height,16rem))] overflow-y-auto overscroll-contain pe-0.5">
           {emojiOptions.map((emoji) => {
             const isSelected = emoji === value;
 

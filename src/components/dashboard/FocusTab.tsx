@@ -17,6 +17,7 @@ import { FocusTaskList } from "./focus/FocusTaskList";
 import { FocusModals } from "./focus/FocusModals";
 import { useFocusModeState } from "./focus/useFocusModeState";
 import { useFocusReorder } from "./focus/useFocusReorder";
+import type { TaskProgressInfo } from "./ReorderableTaskCards";
 
 interface FocusTabProps {
   language?: Language;
@@ -52,6 +53,7 @@ interface FocusTabProps {
   editingTaskId: string | null;
   editingText: string;
   isChecked: (taskId: string, frequency: string) => boolean;
+  getTaskProgress?: (taskId: string, frequency?: string) => TaskProgressInfo;
   isCompletedToday?: (taskId: string) => boolean;
   shouldAnimateTask?: (taskId: string) => boolean;
   getSkipReason?: (taskId: string, frequency: string) => string | null;
@@ -83,6 +85,8 @@ interface FocusTabProps {
   onAppendDailyFocusTranscript: (text: string) => void;
   onSubmitDailyFocusAnswer: () => void;
   onAddDailyFocusSuggestion: (suggestionId: string) => void;
+  onRejectDailyFocusSuggestion?: (suggestionId: string) => void;
+  onUndoRejectDailyFocusSuggestion?: (suggestionId: string) => void;
   onSetNewMainText: (text: string) => void;
   onSetNewMainCriteria?: (criteria: string) => void;
   onSetNewMainFreq: (freq: "daily" | "weekly") => void;
@@ -94,8 +98,12 @@ interface FocusTabProps {
   onSetNewSubWeight?: (weight: number) => void;
   onSetEditingText: (text: string) => void;
   goalTitle?: string;
+  goalId?: string;
+  manualTaskOrder?: boolean;
   onRefreshTasks?: () => Promise<void>;
+  onGoalUpdated?: () => void;
   onUpdateTaskScheduleDays?: (taskId: string, days: number[] | null) => Promise<void> | void;
+  supabase?: any;
 }
 
 export default function FocusTab({
@@ -120,6 +128,7 @@ export default function FocusTab({
   editingTaskId,
   editingText,
   isChecked,
+  getTaskProgress,
   onToggleExpand,
   onToggleCheckin,
   onAddMain,
@@ -128,12 +137,15 @@ export default function FocusTab({
   onCancelEditingTask,
   onRenameTask,
   onDeleteTask,
+  onUpdateTaskIcon,
   onUpdateTaskWeight,
   onOpenTaskEditor,
   onSetDailyFocusAnswer,
   onAppendDailyFocusTranscript,
   onSubmitDailyFocusAnswer,
   onAddDailyFocusSuggestion,
+  onRejectDailyFocusSuggestion,
+  onUndoRejectDailyFocusSuggestion,
   onSetNewMainText,
   onSetNewMainCriteria,
   onSetNewMainFreq,
@@ -144,8 +156,12 @@ export default function FocusTab({
   onSetNewSubWeight,
   onSetEditingText,
   goalTitle = "",
+  goalId,
+  manualTaskOrder,
   onRefreshTasks,
+  onGoalUpdated,
   onUpdateTaskScheduleDays,
+  supabase,
 }: FocusTabProps) {
   const t = translations[language];
   const [focusSection, setFocusSection] = useState<
@@ -166,18 +182,24 @@ export default function FocusTab({
   const {
     tasksList,
     animatingId,
+    manualOrder,
     handleReorderMains,
     handleReorderSubs,
     handlePersistMainOrder,
     handlePersistSubOrder,
     handleMoveMain,
     handleMoveSub,
+    handleResetToAutoOrder,
     sinkCompleted,
     isMainDone,
   } = useFocusReorder({
+    goalId,
+    initialManualOrder: manualTaskOrder,
     filteredHierarchy,
     isChecked,
     onRefreshTasks,
+    onGoalUpdated,
+    supabase,
   });
 
   // Modal dialog states
@@ -221,6 +243,8 @@ export default function FocusTab({
           t={t}
           isSuggestionsLocked={isSuggestionsLocked}
           daysUntilSuggestionsUnlock={daysUntilSuggestionsUnlock}
+          manualOrder={manualOrder}
+          onResetToAutoOrder={handleResetToAutoOrder}
           onOpenAddModal={() =>
             setAddModalConfig({ isOpen: true, type: "main" })
           }
@@ -235,6 +259,7 @@ export default function FocusTab({
                 language={language}
                 isArabic={isArabic}
                 dailyFocus={dailyFocus}
+                tasks={tasksList.flatMap((m) => [m, ...m.subtasks])}
                 dailyFocusHistory={dailyFocusHistory}
                 missedDailyFocusHistory={missedDailyFocusHistory}
                 loading={dailyFocusLoading}
@@ -246,6 +271,8 @@ export default function FocusTab({
                 onAnswerSubmit={onSubmitDailyFocusAnswer}
                 onAppendTranscript={onAppendDailyFocusTranscript}
                 onAddSuggestion={onAddDailyFocusSuggestion}
+                onRejectSuggestion={onRejectDailyFocusSuggestion}
+                onUndoRejectSuggestion={onUndoRejectDailyFocusSuggestion}
                 onNavigateToSection={setFocusSection}
                 isSuggestionsLocked={isSuggestionsLocked}
                 daysUntilSuggestionsUnlock={daysUntilSuggestionsUnlock}
@@ -286,7 +313,9 @@ export default function FocusTab({
               editingTaskId={editingTaskId}
               editingText={editingText}
               isChecked={isChecked}
+              getTaskProgress={getTaskProgress}
               isMainDone={isMainDone}
+              manualOrder={manualOrder}
               sinkCompleted={sinkCompleted}
               handleReorderMains={handleReorderMains}
               handlePersistMainOrder={handlePersistMainOrder}
@@ -303,6 +332,7 @@ export default function FocusTab({
               onRenameTask={onRenameTask}
               onSetEditingText={onSetEditingText}
               onUpdateTaskWeight={onUpdateTaskWeight}
+              onUpdateTaskIcon={onUpdateTaskIcon}
               onOpenTaskEditor={onOpenTaskEditor}
               onToggleCheckin={onToggleCheckin}
               setAddModalConfig={setAddModalConfig}

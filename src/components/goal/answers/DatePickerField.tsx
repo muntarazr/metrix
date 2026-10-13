@@ -25,20 +25,20 @@ export function DatePickerField({ value, onChange, language = 'ar', disabled }: 
                         variant="outline"
                         disabled={disabled}
                         className={cn(
-                            'flex-1 font-normal gap-2 h-9',
+                            'flex-1 min-w-0 font-normal gap-2 h-9',
                             isAr ? 'justify-end text-right flex-row-reverse' : 'justify-start text-left',
                             !value && 'text-muted-foreground',
                         )}
                     >
                         <CalendarDays className="size-4 text-primary/75 shrink-0" />
-                        <span>
+                        <span className="truncate">
                             {parsed
                                 ? format(parsed, 'PPP', { locale: isAr ? arSA : enUS })
                                 : (isAr ? 'اختر تاريخاً' : 'Select date')}
                         </span>
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 shadow-lg border-border" align={isAr ? 'end' : 'start'} dir={isAr ? 'rtl' : 'ltr'}>
+                <PopoverContent className="w-auto max-w-[calc(100vw-1.5rem)] p-0 shadow-lg border-border" align={isAr ? 'end' : 'start'} dir={isAr ? 'rtl' : 'ltr'}>
                     <Calendar
                         mode="single"
                         selected={parsed ?? undefined}

@@ -48,7 +48,7 @@ export default function TaskCriteriaDialog({
       className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-xs animate-in fade-in duration-150"
       dir={isArabic ? "rtl" : "ltr"}
     >
-      <div className="relative flex w-full max-w-md flex-col rounded-xl border border-border/70 bg-card p-5 shadow-lg">
+      <div className="relative flex w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain flex-col rounded-xl border border-border/70 bg-card p-4 sm:p-5 shadow-lg">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-border/70">
           <div className="flex items-center gap-2">
@@ -84,7 +84,7 @@ export default function TaskCriteriaDialog({
                 : "Describe specific conditions for this task to be considered done..."
             }
             rows={3}
-            className="w-full rounded-lg border border-border/80 bg-muted/20 p-3 text-xs leading-relaxed focus:bg-background focus:border-primary outline-none transition-colors placeholder:text-muted-foreground/60 shadow-xs"
+            className="w-full rounded-lg border border-border/80 bg-muted/20 p-3 text-base sm:text-xs leading-relaxed focus:bg-background focus:border-primary outline-none transition-colors placeholder:text-muted-foreground/60 shadow-xs"
             autoFocus
           />
         </div>

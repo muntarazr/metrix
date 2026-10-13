@@ -33,10 +33,10 @@ export default function ConfirmModal({
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
       <div 
-        className="bg-card rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 border border-border"
+        className="bg-card rounded-2xl w-full max-w-sm max-h-[90dvh] flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 border border-border"
         dir={isArabic ? 'rtl' : 'ltr'}
       >
-        <div className="p-5 sm:p-6 space-y-4">
+        <div className="p-4 sm:p-6 space-y-3 sm:space-y-4 overflow-y-auto overscroll-contain flex-1">
           <h3 className="text-lg font-bold text-foreground">{title}</h3>
           <p className="text-sm text-muted-foreground leading-relaxed">{message}</p>
         </div>

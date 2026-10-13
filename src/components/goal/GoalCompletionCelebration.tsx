@@ -58,12 +58,12 @@ export default function GoalCompletionCelebration({ goalTitle, language = 'ar', 
 
             {/* Card */}
             <div
-                className="relative z-10 bg-card border border-border rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl"
+                className="relative z-10 bg-card border border-border rounded-3xl w-full max-w-sm max-h-[85dvh] flex flex-col overflow-hidden shadow-2xl"
                 style={{ animation: 'celebrationPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) both' }}
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Gradient header */}
-                <div className="bg-gradient-to-br from-primary/20 via-primary/20 to-chart-1/20 p-8 text-center relative overflow-hidden">
+                <div className="bg-gradient-to-br from-primary/20 via-primary/20 to-chart-1/20 p-5 sm:p-8 text-center relative overflow-hidden shrink-0">
                     <div className="absolute inset-0 bg-gradient-to-b from-transparent to-card/20" />
 
                     {/* Stars background */}
@@ -74,7 +74,7 @@ export default function GoalCompletionCelebration({ goalTitle, language = 'ar', 
 
                     <div className="relative z-10">
                         <div
-                            className="w-24 h-24 mx-auto mb-4 rounded-full flex items-center justify-center shadow-xl"
+                            className="w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-3 sm:mb-4 rounded-full flex items-center justify-center shadow-xl"
                             style={{
                                 background: 'linear-gradient(135deg, var(--chart-5), var(--chart-1))',
                                 animation: 'trophyBounce 0.8s ease 0.3s both',
@@ -96,18 +96,18 @@ export default function GoalCompletionCelebration({ goalTitle, language = 'ar', 
                 </div>
 
                 {/* Goal name */}
-                <div className="px-6 py-5 text-center" dir={isArabic ? 'rtl' : 'ltr'}>
+                <div className="px-4 sm:px-6 py-4 sm:py-5 text-center overflow-y-auto overscroll-contain min-h-0 flex-1" dir={isArabic ? 'rtl' : 'ltr'}>
                     <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">
                         {isArabic ? 'الهدف' : 'Goal'}
                     </p>
-                    <p className="text-lg font-bold text-foreground leading-snug">{goalTitle}</p>
+                    <p className="text-base sm:text-lg font-bold text-foreground leading-snug break-words">{goalTitle}</p>
                 </div>
 
                 {/* Footer */}
-                <div className="px-6 pb-6">
+                <div className="px-4 sm:px-6 pb-4 sm:pb-6 shrink-0">
                     <button
                         onClick={handleClose}
-                        className="w-full py-4 rounded-2xl font-bold text-base text-white shadow-lg transition-all hover:opacity-90 active:scale-[0.98]"
+                        className="w-full py-3.5 sm:py-4 rounded-2xl font-bold text-base text-white shadow-lg transition-all hover:opacity-90 active:scale-[0.98]"
                         style={{ background: 'linear-gradient(135deg, var(--chart-5), var(--primary))' }}
                     >
                         {isArabic ? 'رائع! شكراً' : 'Amazing! Keep Going 🚀'}

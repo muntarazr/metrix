@@ -200,7 +200,7 @@ export default function ProgressUpdatesStep({
 
   return (
     <div
-      className="space-y-6 animate-in fade-in zoom-in-95 duration-300"
+      className="space-y-4 sm:space-y-6 animate-in fade-in zoom-in-95 duration-300"
       dir={isArabic ? "rtl" : "ltr"}
     >
       {/* Header Banner: Differentiated for Milestone vs Daily Log */}
@@ -247,13 +247,13 @@ export default function ProgressUpdatesStep({
 
       {/* Main Liquid Progress Tube Card */}
       <div
-        className={`rounded-xl border p-5 space-y-3.5 shadow-xs transition-all duration-500 ${
+        className={`rounded-xl border p-3.5 sm:p-5 space-y-3.5 shadow-xs transition-all duration-500 ${
           isMilestone
             ? "border-amber-500/30 bg-gradient-to-b from-amber-500/10 via-card to-card shadow-amber-500/10"
             : "border-primary/20 bg-gradient-to-b from-primary/5 via-card to-card"
         } ${barHighlight ? "ring-2 ring-primary/40 scale-[1.01]" : ""}`}
       >
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {isArabic ? "شريط التقدم الكلي" : "Total Goal Progress"}
@@ -293,21 +293,21 @@ export default function ProgressUpdatesStep({
       </div>
 
       {/* Grid of Key Updating Metrics: Streak, Days Remaining, Tasks */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         {/* 1. Streak Card */}
         <div
-          className={`rounded-2xl p-4 border transition-all duration-500 flex flex-col justify-between relative overflow-hidden ${
+          className={`rounded-xl sm:rounded-2xl p-2.5 sm:p-4 min-w-0 border transition-all duration-500 flex flex-col justify-between relative overflow-hidden ${
             streakHighlight
               ? "bg-amber-500/20 border-amber-500/50 shadow-lg shadow-amber-500/15 scale-105"
               : "bg-muted/30 border-border/70"
           }`}
         >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-muted-foreground">
+          <div className="flex items-center justify-between gap-1">
+            <span className="text-[11px] sm:text-xs font-bold truncate text-muted-foreground">
               {isArabic ? "سلسلة الأيام" : "Streak"}
             </span>
             <div
-              className={`p-2 rounded-xl border transition-all duration-300 ${
+              className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl shrink-0 border transition-all duration-300 ${
                 animatedStreak > 0
                   ? "bg-amber-500/15 border-amber-500/30 text-amber-500"
                   : "bg-muted text-muted-foreground border-border"
@@ -316,9 +316,9 @@ export default function ProgressUpdatesStep({
               <Flame className={`w-4 h-4 ${animatedStreak > 0 ? "fill-amber-500" : ""}`} />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
+          <div className="mt-2 sm:mt-3 flex flex-wrap items-baseline gap-1 sm:gap-2">
             <span
-              className={`text-2xl font-black tabular-nums transition-all duration-300 ${
+              className={`text-lg sm:text-2xl font-black tabular-nums transition-all duration-300 ${
                 streakHighlight ? "text-amber-600 dark:text-amber-400 scale-110" : "text-foreground"
               }`}
             >
@@ -337,18 +337,18 @@ export default function ProgressUpdatesStep({
 
         {/* 2. Days Remaining Card (Decreasing) */}
         <div
-          className={`rounded-2xl p-4 border transition-all duration-500 flex flex-col justify-between relative overflow-hidden ${
+          className={`rounded-xl sm:rounded-2xl p-2.5 sm:p-4 min-w-0 border transition-all duration-500 flex flex-col justify-between relative overflow-hidden ${
             daysHighlight
               ? "bg-sky-500/20 border-sky-500/50 shadow-lg shadow-sky-500/15 scale-105"
               : "bg-muted/30 border-border/70"
           }`}
         >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-muted-foreground">
+          <div className="flex items-center justify-between gap-1">
+            <span className="text-[11px] sm:text-xs font-bold truncate text-muted-foreground">
               {isArabic ? "الأيام المتبقية" : "Days Left"}
             </span>
             <div
-              className={`p-2 rounded-xl border transition-all duration-300 ${
+              className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl shrink-0 border transition-all duration-300 ${
                 daysHighlight
                   ? "bg-sky-500/25 border-sky-500/40 text-sky-600 dark:text-sky-400 scale-125 -rotate-6"
                   : "bg-muted text-muted-foreground border-border"
@@ -357,9 +357,9 @@ export default function ProgressUpdatesStep({
               <Clock className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
+          <div className="mt-2 sm:mt-3 flex flex-wrap items-baseline gap-1 sm:gap-2">
             <span
-              className={`text-2xl font-black tabular-nums transition-all duration-300 ${
+              className={`text-lg sm:text-2xl font-black tabular-nums transition-all duration-300 ${
                 daysHighlight ? "text-sky-600 dark:text-sky-400 scale-110" : "text-foreground"
               }`}
             >
@@ -381,18 +381,18 @@ export default function ProgressUpdatesStep({
 
         {/* 3. Tasks Completed Today Card */}
         <div
-          className={`rounded-2xl p-4 border transition-all duration-500 flex flex-col justify-between relative overflow-hidden ${
+          className={`rounded-xl sm:rounded-2xl p-2.5 sm:p-4 min-w-0 border transition-all duration-500 flex flex-col justify-between relative overflow-hidden ${
             tasksHighlight
               ? "bg-emerald-500/20 border-emerald-500/50 shadow-lg shadow-emerald-500/15 scale-105"
               : "bg-muted/30 border-border/70"
           }`}
         >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-muted-foreground">
+          <div className="flex items-center justify-between gap-1">
+            <span className="text-[11px] sm:text-xs font-bold truncate text-muted-foreground">
               {isArabic ? "مهام اليوم" : "Today's Tasks"}
             </span>
             <div
-              className={`p-2 rounded-xl border transition-all duration-300 ${
+              className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl shrink-0 border transition-all duration-300 ${
                 animatedTasks >= updates.totalTasks && updates.totalTasks > 0
                   ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
                   : "bg-muted text-muted-foreground border-border"
@@ -401,9 +401,9 @@ export default function ProgressUpdatesStep({
               <ListChecks className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
+          <div className="mt-2 sm:mt-3 flex flex-wrap items-baseline gap-1 sm:gap-2">
             <span
-              className={`text-2xl font-black tabular-nums transition-all duration-300 ${
+              className={`text-lg sm:text-2xl font-black tabular-nums transition-all duration-300 ${
                 tasksHighlight ? "text-emerald-600 dark:text-emerald-400 scale-110" : "text-foreground"
               }`}
               dir="ltr"
@@ -421,7 +421,7 @@ export default function ProgressUpdatesStep({
       </div>
 
       {/* Action Buttons: Replay Animation & Done */}
-      <div className="pt-2 flex flex-col sm:flex-row items-center gap-2.5">
+      <div className="pt-1 sm:pt-2 flex flex-row items-center gap-2 sm:gap-2.5">
         <button
           type="button"
           onClick={() => {
@@ -434,7 +434,7 @@ export default function ProgressUpdatesStep({
             setPhase(0);
             setTimeout(() => setPhase(1), 100);
           }}
-          className="w-full sm:w-auto px-5 py-3.5 bg-muted/60 hover:bg-muted text-foreground border border-border/70 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 shadow-xs"
+          className="w-auto shrink-0 px-3.5 sm:px-5 py-3 sm:py-3.5 bg-muted/60 hover:bg-muted text-foreground border border-border/70 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 shadow-xs"
           title={isArabic ? "إعادة تشغيل الحركة" : "Replay Animation"}
         >
           <RotateCcw className="w-4 h-4 text-muted-foreground" />
@@ -444,7 +444,7 @@ export default function ProgressUpdatesStep({
         <button
           type="button"
           onClick={onDone}
-          className={`w-full flex-1 py-3.5 rounded-xl font-medium text-base active:scale-[0.98] transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer ${
+          className={`flex-1 py-3 sm:py-3.5 rounded-xl font-medium text-base active:scale-[0.98] transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer ${
             isMilestone
               ? "bg-amber-500 hover:bg-amber-600 text-amber-950 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)]"
               : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)]"

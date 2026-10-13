@@ -105,7 +105,7 @@ const faqs = [
 
 export default function LandingPage() {
   return (
-    <main className="min-h-svh bg-canvas text-foreground">
+    <main className="min-h-svh overflow-x-clip bg-canvas text-foreground">
       {/* Hero — clean canvas with a fading grid and a single soft accent glow */}
       <section className="relative overflow-hidden">
         <div aria-hidden className="pointer-events-none absolute inset-0">
@@ -118,56 +118,56 @@ export default function LandingPage() {
             className="absolute inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_55%_100%_at_50%_0%,--alpha(var(--color-primary)/10%),transparent)]"
           />
         </div>
-        <div className="relative mx-auto flex max-w-3xl flex-col items-center px-6 pt-20 pb-20 text-center sm:pt-28">
-          <BrandLockup className="h-auto w-40 text-foreground" />
-          <h1 className="mt-8 text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
+        <div className="relative mx-auto flex max-w-3xl flex-col items-center px-4 sm:px-6 pt-[max(3rem,calc(env(safe-area-inset-top)+1.5rem))] pb-14 text-center sm:pt-28 sm:pb-20">
+          <BrandLockup className="h-auto w-36 sm:w-40 text-foreground" />
+          <h1 className="mt-6 sm:mt-8 text-2xl min-[380px]:text-3xl font-bold leading-tight tracking-tight sm:text-5xl text-balance">
             حوّل أي هدف إلى{" "}
             <span className="text-primary">
               (خطة تستطيع فعلًا إتمامها)
             </span>
           </h1>
-          <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground">
+          <p className="mt-4 sm:mt-5 max-w-xl text-base sm:text-lg leading-relaxed text-muted-foreground text-balance">
             نظام صارم قائم على النقاط: خطة تلقائية، تسجيل يومي يقيّمه الذكاء
             الاصطناعي، وسلاسل إنجاز تحاسبك على التزامك.
           </p>
-          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
-            <Magnet padding={35} magnetStrength={3}>
-              <Button size="lg" asChild className="gap-2">
+          <div className="mt-6 sm:mt-8 flex flex-col items-center gap-3 w-full max-w-xs sm:max-w-none sm:w-auto sm:flex-row">
+            <Magnet padding={35} magnetStrength={3} className="w-full sm:w-auto">
+              <Button size="lg" asChild className="gap-2 w-full sm:w-auto">
                 <Link href="/login">
                   ابدأ مجانًا الآن
                   <ArrowLeft className="size-4" />
                 </Link>
               </Button>
             </Magnet>
-            <Button size="lg" variant="outline" asChild>
+            <Button size="lg" variant="outline" asChild className="w-full sm:w-auto">
               <Link href="#pricing">اطّلع على الأسعار</Link>
             </Button>
           </div>
-          <p className="mt-4 text-xs text-muted-foreground">
+          <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
             بلا بطاقة ائتمانية · ألغِ في أي وقت ·{" "}
-            <ShinyText text="(المجاني للأبد)" className="font-semibold text-primary" />
+            <ShinyText text="(المجاني للأبد)" className="font-semibold text-primary whitespace-nowrap" />
           </p>
         </div>
       </section>
 
       {/* Features */}
-      <section className="mx-auto max-w-6xl px-6 py-20">
-        <h2 className="text-center text-3xl font-bold tracking-tight">
+      <section className="mx-auto max-w-6xl px-4 sm:px-6 py-12 sm:py-20">
+        <h2 className="text-center text-2xl sm:text-3xl font-bold tracking-tight">
           لماذا ماتريكس؟
         </h2>
-        <p className="mx-auto mt-3 max-w-xl text-center text-muted-foreground">
+        <p className="mx-auto mt-2 sm:mt-3 max-w-xl text-center text-sm sm:text-base text-muted-foreground text-balance">
           لست بحاجة إلى قائمة مهام أخرى. تحتاج إلى نظام يحاسبك.
         </p>
-        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-8 sm:mt-12 grid gap-3.5 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((f) => (
             <SpotlightCard
               key={f.title}
-              className="p-6"
+              className="p-5 sm:p-6"
             >
               <div className="flex size-10 items-center justify-center rounded-xl bg-primary/12 text-primary">
                 <f.icon className="size-5" />
               </div>
-              <h3 className="mt-4 font-semibold">{f.title}</h3>
+              <h3 className="mt-4 font-semibold text-foreground">{f.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                 {f.description}
               </p>
@@ -177,18 +177,18 @@ export default function LandingPage() {
       </section>
       {/* How it works */}
       <section className="border-y border-border bg-card/50">
-        <div className="mx-auto max-w-4xl px-6 py-20">
-          <h2 className="text-center text-3xl font-bold tracking-tight">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6 py-12 sm:py-20">
+          <h2 className="text-center text-2xl sm:text-3xl font-bold tracking-tight">
             كيف يعمل؟
           </h2>
-          <div className="mt-12 grid gap-8 sm:grid-cols-3">
+          <div className="mt-8 sm:mt-12 grid gap-6 sm:gap-8 sm:grid-cols-3">
             {steps.map((s) => (
               <div key={s.num} className="text-center">
                 <div className="mx-auto flex size-12 items-center justify-center rounded-full border border-primary/25 bg-primary/12 font-mono text-sm font-bold text-primary tabular-nums">
                   {s.num}
                 </div>
-                <h3 className="mt-4 font-semibold">{s.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                <h3 className="mt-4 font-semibold text-foreground">{s.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground text-balance">
                   {s.description}
                 </p>
               </div>
@@ -201,19 +201,19 @@ export default function LandingPage() {
       <PricingSection />
       {/* FAQ */}
       <section className="border-t border-border bg-card/50">
-        <div className="mx-auto max-w-3xl px-6 py-20">
-          <h2 className="text-center text-3xl font-bold tracking-tight">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 py-12 sm:py-20">
+          <h2 className="text-center text-2xl sm:text-3xl font-bold tracking-tight">
             أسئلة شائعة
           </h2>
-          <div className="mt-10 space-y-4">
+          <div className="mt-8 sm:mt-10 space-y-3 sm:space-y-4">
             {faqs.map((item) => (
               <details
                 key={item.q}
-                className="group rounded-2xl border border-border bg-card p-5"
+                className="group rounded-2xl border border-border bg-card p-4 sm:p-5"
               >
-                <summary className="cursor-pointer list-none font-semibold">
-                  {item.q}
-                  <span className="float-end text-muted-foreground transition-transform duration-200 group-open:rotate-45">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-sm sm:text-base [&::-webkit-details-marker]:hidden">
+                  <span>{item.q}</span>
+                  <span className="shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-45">
                     +
                   </span>
                 </summary>
@@ -228,16 +228,16 @@ export default function LandingPage() {
 
       {/* Final CTA */}
       <section className="border-t border-border">
-        <div className="mx-auto max-w-3xl px-6 py-24 text-center">
-          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 py-14 sm:py-24 text-center">
+          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-balance">
             هدفك يستحق أكثر من نية حسنة
           </h2>
-          <p className="mx-auto mt-4 max-w-md text-muted-foreground">
+          <p className="mx-auto mt-3 sm:mt-4 max-w-md text-sm sm:text-base text-muted-foreground text-balance">
             أنشئ هدفك الأول اليوم وشاهد كيف يحوّل النظام نيّتك إلى إنجاز مقيس.
           </p>
-          <div className="mt-8">
-            <Magnet padding={35} magnetStrength={3}>
-              <Button size="lg" asChild className="gap-2">
+          <div className="mx-auto mt-6 sm:mt-8 max-w-xs sm:max-w-none">
+            <Magnet padding={35} magnetStrength={3} className="w-full sm:w-auto">
+              <Button size="lg" asChild className="gap-2 w-full sm:w-auto">
                 <Link href="/login">
                   ابدأ مجانًا الآن
                   <ArrowLeft className="size-4" />
@@ -250,16 +250,16 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="border-t border-border">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-6 py-10 sm:flex-row">
-          <BrandLockup className="h-auto w-28 text-foreground" />
-          <nav className="flex items-center gap-6 text-sm text-muted-foreground">
-            <Link href="/privacy" className="hover:text-foreground">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 sm:px-6 pt-8 pb-[max(2rem,calc(env(safe-area-inset-bottom)+1.5rem))] sm:py-8 sm:flex-row">
+          <BrandLockup className="h-auto w-24 sm:w-28 text-foreground" />
+          <nav className="flex flex-wrap justify-center items-center gap-4 sm:gap-6 text-sm text-muted-foreground">
+            <Link href="/privacy" className="py-1.5 px-1 sm:p-0 hover:text-foreground">
               الخصوصية
             </Link>
-            <Link href="/terms" className="hover:text-foreground">
+            <Link href="/terms" className="py-1.5 px-1 sm:p-0 hover:text-foreground">
               الشروط
             </Link>
-            <Link href="/login" className="hover:text-foreground">
+            <Link href="/login" className="py-1.5 px-1 sm:p-0 hover:text-foreground">
               تسجيل الدخول
             </Link>
           </nav>

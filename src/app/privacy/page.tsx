@@ -35,9 +35,9 @@ export default function PrivacyPolicyPage() {
   return (
     <main
       dir={isArabic ? "rtl" : "ltr"}
-      className="mx-auto max-w-2xl px-6 py-16 text-foreground"
+      className="mx-auto max-w-2xl px-4 sm:px-6 pt-[max(2rem,calc(env(safe-area-inset-top)+1rem))] pb-[max(2.5rem,calc(env(safe-area-inset-bottom)+1.5rem))] sm:py-16 text-foreground"
     >
-      <Link href="/" className="text-sm text-primary underline">
+      <Link href="/" className="inline-flex items-center -my-2 py-2 text-sm text-primary underline">
         {isArabic ? "العودة إلى METRIX" : "Back to METRIX"}
       </Link>
 
@@ -83,7 +83,7 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="font-semibold text-lg">التواصل</h2>
             <p className="mt-2 text-sm">
-              لأي استفسار يخص خصوصيتك: <a className="text-primary underline" href="mailto:muntzr557@gmail.com">muntzr557@gmail.com</a>
+              لأي استفسار يخص خصوصيتك: <a className="text-primary underline break-all sm:break-normal" href="mailto:muntzr557@gmail.com">muntzr557@gmail.com</a>
             </p>
           </section>
         </div>
@@ -122,7 +122,7 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="font-semibold text-lg">Contact</h2>
             <p className="mt-2 text-sm">
-              For any privacy question: <a className="text-primary underline" href="mailto:muntzr557@gmail.com">muntzr557@gmail.com</a>
+              For any privacy question: <a className="text-primary underline break-all sm:break-normal" href="mailto:muntzr557@gmail.com">muntzr557@gmail.com</a>
             </p>
           </section>
         </div>

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -H localhost",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "test": "node --import ./scripts/test-alias-loader.mjs --test src/**/__tests__/*.test.ts"

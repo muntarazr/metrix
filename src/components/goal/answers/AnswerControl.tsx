@@ -194,7 +194,7 @@ export function AnswerControl({
                                 ? `Add details about your choice "${matchedOption}" (optional)...`
                                 : 'Or type your custom answer here...')
                     }
-                    className={cn(FREE_TEXT_CLASSES, 'disabled:opacity-50 text-xs sm:text-sm')}
+                    className={cn(FREE_TEXT_CLASSES, 'disabled:opacity-50 text-base sm:text-sm')}
                     dir={isAr ? 'rtl' : 'ltr'}
                 />
             </div>

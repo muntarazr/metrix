@@ -19,9 +19,9 @@ export default function GoalProgressBar({
   targetPoints,
   progress,
   className,
-  labelClassName = 'px-2 sm:px-5 text-[10px] sm:text-sm',
+  labelClassName = 'px-2.5 sm:px-4 text-[10.5px] sm:text-xs',
   currentClassName,
-  percentClassName = 'text-xs sm:text-base',
+  percentClassName = 'text-xs sm:text-sm',
   targetClassName,
   showXpLabel = false,
 }: GoalProgressBarProps) {
@@ -29,8 +29,9 @@ export default function GoalProgressBar({
 
   return (
     <div
+      dir="ltr"
       className={cn(
-        'relative h-8 sm:h-9 w-full overflow-hidden rounded-full border border-border/70 bg-muted/40 shadow-inner',
+        'relative h-7 sm:h-8 w-full overflow-hidden rounded-full border border-border/70 bg-muted/40 shadow-inner',
         className
       )}
       role="progressbar"
@@ -70,7 +71,7 @@ export default function GoalProgressBar({
       >
         <span
           className={cn(
-            'text-foreground/90 tabular-nums flex min-w-0 max-w-[32%] items-center gap-1 text-xs sm:text-sm',
+            'text-foreground/90 tabular-nums flex min-w-0 max-w-[32%] items-center gap-1 font-semibold text-[10.5px] sm:text-xs',
             currentClassName
           )}
         >
@@ -89,7 +90,7 @@ export default function GoalProgressBar({
         </span>
         <span
           className={cn(
-            'text-foreground/90 tabular-nums flex min-w-0 max-w-[32%] items-center justify-end text-xs sm:text-sm',
+            'text-foreground/90 tabular-nums flex min-w-0 max-w-[32%] items-center justify-end font-semibold text-[10.5px] sm:text-xs',
             targetClassName
           )}
         >

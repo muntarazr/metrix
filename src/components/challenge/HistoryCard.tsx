@@ -44,7 +44,7 @@ export function HistoryCard({ history, historyLoading, locale, ui, t, embedded =
         <button
           type="button"
           onClick={() => setCollapsed((prev) => !prev)}
-          className="flex w-full items-start justify-between gap-3 text-left"
+          className="flex w-full items-start justify-between gap-3 text-start"
         >
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-muted/60 text-muted-foreground border border-border/70">
@@ -76,7 +76,7 @@ export function HistoryCard({ history, historyLoading, locale, ui, t, embedded =
         <button
           type="button"
           onClick={() => setCollapsed((prev) => !prev)}
-          className="flex w-full items-start justify-between gap-3 text-left"
+          className="flex w-full items-start justify-between gap-3 text-start"
         >
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-muted/60 text-muted-foreground border border-border/70">
@@ -106,7 +106,7 @@ export function HistoryCard({ history, historyLoading, locale, ui, t, embedded =
       <button
         type="button"
         onClick={() => setCollapsed((prev) => !prev)}
-        className="flex w-full items-start justify-between gap-3 text-left"
+        className="flex w-full items-start justify-between gap-3 text-start"
       >
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-muted/60 text-muted-foreground ring-1 ring-border/45">
@@ -127,7 +127,7 @@ export function HistoryCard({ history, historyLoading, locale, ui, t, embedded =
 
       {!collapsed && (
         <div className={innerPanelClass}>
-          <div className="space-y-2 max-h-[22rem] overflow-y-auto pr-0.5 scrollbar-thin sm:max-h-[24rem] lg:max-h-[26rem]">
+          <div className="space-y-2 max-h-[22rem] overflow-y-auto overscroll-contain pe-0.5 scrollbar-thin sm:max-h-[24rem] lg:max-h-[26rem]">
             {history.map((item) => (
               <div
                 key={item.challengeId}
@@ -137,12 +137,12 @@ export function HistoryCard({ history, historyLoading, locale, ui, t, embedded =
                 )}
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
                     <PlayerAvatar avatarUrl={item.me?.avatarUrl} displayName={item.me?.displayName || t.challengeYou} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1 text-sm font-bold tracking-tight text-foreground">
                         <span className="truncate">{item.me?.displayName || t.challengeYou}</span>
-                        <span className="text-muted-foreground">{t.challengeVs}</span>
+                        <span className="shrink-0 text-muted-foreground">{t.challengeVs}</span>
                         <span className="truncate">{item.opponent?.displayName || '—'}</span>
                       </div>
                       <div className="mt-1 text-xs leading-5 text-muted-foreground sm:hidden">

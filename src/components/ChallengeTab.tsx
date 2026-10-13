@@ -224,21 +224,21 @@ export default function ChallengeTab({ goalId, currentPoints, targetPoints, lang
       <FeedbackBanner feedback={feedback} />
 
       <ScrollArea className="flex-1 min-h-0" dir={isArabic ? 'rtl' : 'ltr'}>
-        <div className="space-y-2.5 pr-0.5">
+        <div className="space-y-2.5 pe-0.5 pb-4 sm:pb-1">
         <section className={cn(PANEL_SURFACE, "rounded-xl p-3 sm:p-4")}>
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-muted/60 border border-border/70 text-muted-foreground">
                 <Users className="h-4 w-4" />
               </div>
-              <div className="text-sm font-bold tracking-tight text-foreground">
+              <div className="text-sm font-bold tracking-tight text-foreground truncate">
                 {isArabic ? 'التحدي مع الأصدقاء' : 'Challenge with Friends'}
               </div>
             </div>
             <button
               type="button"
               onClick={() => setIsChallengePanelCollapsed((prev) => !prev)}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-muted px-2.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:opacity-90 active:scale-[0.98]"
+              className="inline-flex h-9 sm:h-8 shrink-0 touch-manipulation select-none items-center gap-1.5 rounded-lg border border-border bg-muted px-2.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:opacity-90 active:scale-[0.98]"
               aria-expanded={!isChallengePanelCollapsed}
             >
               {isChallengePanelCollapsed ? (

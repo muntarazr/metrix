@@ -92,13 +92,13 @@ export default function UpdatePasswordPage() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center bg-canvas p-4"
+      className="min-h-dvh flex items-center justify-center bg-canvas px-3 sm:px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:py-4"
       dir={isArabic ? 'rtl' : 'ltr'}
     >
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md my-auto">
         <form
           onSubmit={handleSubmit}
-          className="bg-card border border-border rounded-2xl shadow-2xl p-8 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700"
+          className="bg-card border border-border rounded-2xl shadow-xl sm:shadow-2xl p-4 min-[380px]:p-5 sm:p-8 space-y-5 sm:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700"
         >
           <div className="space-y-2 text-center">
             <h1 className="text-xl font-semibold">{t.title}</h1>
@@ -116,17 +116,20 @@ export default function UpdatePasswordPage() {
                 type={showPassword ? 'text' : 'password'}
                 dir="ltr"
                 autoComplete="new-password"
+                autoCapitalize="none"
+                autoCorrect="off"
+                enterKeyHint="next"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="h-11 pe-10 text-start"
+                className="h-11 pe-11 text-base sm:text-sm text-start"
                 required
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
                 aria-label={showPassword ? t.hidePassword : t.showPassword}
-                className="absolute inset-y-0 end-0 flex items-center px-3 text-muted-foreground transition-colors hover:text-foreground"
+                className="absolute inset-y-0 end-0 flex w-11 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
               >
                 {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
               </button>
@@ -141,10 +144,13 @@ export default function UpdatePasswordPage() {
               type={showPassword ? 'text' : 'password'}
               dir="ltr"
               autoComplete="new-password"
+              autoCapitalize="none"
+              autoCorrect="off"
+              enterKeyHint="done"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               placeholder="••••••••"
-              className="h-11 text-start"
+              className="h-11 text-base sm:text-sm text-start"
               required
             />
           </div>
