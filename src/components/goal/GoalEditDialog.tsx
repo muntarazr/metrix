@@ -5,7 +5,6 @@ import {
   Edit3,
   Loader2,
   Sparkles,
-  Target,
 } from 'lucide-react';
 import { translations } from '@/lib/translations';
 import { cn } from '@/lib/utils';
@@ -83,29 +82,20 @@ export default function GoalEditDialog({
     <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? onOpenChange(true) : handleClose())}>
       <DialogContent
         dir={isArabic ? 'rtl' : 'ltr'}
-        className="w-[calc(100vw-1.5rem)] sm:max-w-2xl max-h-[85dvh] sm:max-h-[90dvh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl sm:rounded-3xl border border-border/80 bg-card shadow-2xl transition-all duration-200"
+        className="w-[calc(100vw-1.5rem)] sm:max-w-[460px] max-h-[85dvh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl border border-border/70 bg-card shadow-2xl transition-all duration-200"
       >
-        {/* Visible, Distinctive Header */}
-        <div className="shrink-0 border-b border-border/60 bg-muted/15 px-4 sm:px-6 pt-3.5 sm:pt-5 pb-3 sm:pb-4">
-          <div className="flex items-start justify-between gap-3 pe-8 sm:pe-10">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20">
-                <Target className="h-5 w-5" />
-              </div>
-              <div>
-                <DialogTitle className="text-base sm:text-lg font-bold tracking-tight text-foreground">
-                  {labels.title}
-                </DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                  {labels.subtitle}
-                </DialogDescription>
-              </div>
-            </div>
-          </div>
+        {/* Sleek, Compact Header */}
+        <div className="shrink-0 border-b border-border/50 px-4 sm:px-5 py-3">
+          <div className="flex items-center justify-between gap-2 pe-7">
+            <DialogTitle className="text-sm sm:text-base font-bold text-foreground tracking-tight">
+              {labels.title}
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              {labels.subtitle}
+            </DialogDescription>
 
-          {/* Mode Switcher Tabs */}
-          <div className="mt-3 sm:mt-4 flex items-center justify-between gap-2">
-            <div className="inline-flex w-full sm:w-auto rounded-xl bg-muted/70 p-1 border border-border/60 shadow-xs">
+            {/* Mode Switcher Tabs */}
+            <div className="inline-flex shrink-0 rounded-lg bg-muted/50 p-1 border border-border/40">
               <button
                 type="button"
                 onClick={() => {
@@ -113,13 +103,13 @@ export default function GoalEditDialog({
                   setErrorMessage(null);
                 }}
                 className={cn(
-                  "flex flex-1 sm:flex-initial items-center justify-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all duration-150 cursor-pointer",
+                  "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-all cursor-pointer font-medium",
                   activeTab === 'manual'
-                    ? "bg-card text-foreground shadow-xs border border-border/40"
+                    ? "bg-background text-foreground shadow-xs font-semibold"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <Edit3 className="size-3.5" />
+                <Edit3 className="size-3" />
                 <span>{aiLabels.tabManual}</span>
               </button>
               <button
@@ -129,13 +119,13 @@ export default function GoalEditDialog({
                   setErrorMessage(null);
                 }}
                 className={cn(
-                  "flex flex-1 sm:flex-initial items-center justify-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all duration-150 cursor-pointer",
+                  "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-all cursor-pointer font-medium",
                   activeTab === 'ai'
-                    ? "bg-primary text-primary-foreground shadow-xs"
+                    ? "bg-primary text-primary-foreground shadow-xs font-semibold"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <Sparkles className="size-3.5" />
+                <Sparkles className="size-3" />
                 <span>{aiLabels.tabAi}</span>
               </button>
             </div>
@@ -143,17 +133,17 @@ export default function GoalEditDialog({
         </div>
 
         {/* Dialog Body */}
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-3.5">
           {errorMessage && (
-            <div className="flex items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-xs sm:text-sm text-destructive font-medium shadow-xs">
-              <AlertCircle className="size-4 shrink-0" />
+            <div className="flex items-center gap-2 rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2 text-xs text-destructive font-medium shadow-xs">
+              <AlertCircle className="size-3.5 shrink-0" />
               <span>{errorMessage}</span>
             </div>
           )}
 
           {aiSuccessMessage && (
-            <div className="flex items-center gap-2.5 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-xs sm:text-sm text-primary font-medium shadow-xs">
-              <Sparkles className="size-4 shrink-0 text-primary" />
+            <div className="flex items-center gap-2 rounded-lg border border-primary/25 bg-primary/10 px-3 py-2 text-xs text-primary font-medium shadow-xs">
+              <Sparkles className="size-3.5 shrink-0 text-primary" />
               <span>{aiSuccessMessage}</span>
             </div>
           )}
@@ -211,7 +201,7 @@ export default function GoalEditDialog({
         {/* Dialog Footer */}
         <DialogFooter
           className={cn(
-            'shrink-0 border-t border-border/60 bg-muted/15 px-4 sm:px-6 py-2.5 sm:py-3.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] sm:pb-[calc(0.875rem+env(safe-area-inset-bottom))] flex flex-row items-center justify-end gap-2 sm:gap-2.5',
+            'shrink-0 border-t border-border/50 px-4 sm:px-5 py-2.5 sm:py-3 pb-[calc(0.625rem+env(safe-area-inset-bottom))] sm:pb-[calc(0.75rem+env(safe-area-inset-bottom))] flex flex-row items-center justify-end gap-2',
             isArabic && 'sm:flex-row-reverse sm:space-x-reverse',
           )}
         >
@@ -220,7 +210,7 @@ export default function GoalEditDialog({
             variant="ghost"
             onClick={handleClose}
             disabled={isSaving || isAiProcessing}
-            className="h-10 flex-1 sm:flex-initial sm:w-auto rounded-xl font-medium text-xs sm:text-sm text-muted-foreground hover:text-foreground"
+            className="h-9.5 flex-1 sm:flex-initial sm:w-auto rounded-xl font-medium text-xs sm:text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer"
           >
             {t.cancel}
           </Button>
@@ -228,9 +218,9 @@ export default function GoalEditDialog({
             type="button"
             onClick={handleSave}
             disabled={isSaving || isAiProcessing}
-            className="h-10 flex-1 sm:flex-initial sm:w-auto rounded-xl font-semibold text-xs sm:text-sm bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+            className="h-9.5 flex-1 sm:flex-initial sm:w-auto rounded-xl font-semibold text-xs sm:text-sm bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs cursor-pointer"
           >
-            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin shrink-0 rtl:mr-0 rtl:ml-2" />}
+            {isSaving && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin shrink-0 rtl:mr-0 rtl:ml-2" />}
             {t.saveChanges}
           </Button>
         </DialogFooter>

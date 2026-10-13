@@ -26,6 +26,9 @@ export default function HomePage({
   onGoalUpdated,
   language = "ar",
   recentGoalsLimit = 6,
+  activeBoxMode,
+  onBoxModeChange,
+  focusInputSignal,
 }: HomePageProps) {
   const [goalInput, setGoalInput] = useState("");
   const isArabic = language === "ar";
@@ -36,7 +39,19 @@ export default function HomePage({
   );
 
   /* ---- Dual-mode box state ---- */
-  const [boxModePref, setBoxModePref] = useState<"new" | "log" | null>(null);
+  const [boxModePref, setBoxModePref] = useState<"new" | "log" | null>(activeBoxMode ?? null);
+
+  useEffect(() => {
+    if (activeBoxMode) {
+      setBoxModePref(activeBoxMode);
+    }
+  }, [activeBoxMode, focusInputSignal]);
+
+  const handleBoxModeChange = useCallback((mode: "new" | "log") => {
+    setBoxModePref(mode);
+    onBoxModeChange?.(mode);
+  }, [onBoxModeChange]);
+
   const boxMode: "new" | "log" =
     goals.length === 0 ? "new" : (boxModePref ?? "log");
 
@@ -175,7 +190,7 @@ export default function HomePage({
         <HomeInputSection
           goals={goals}
           boxMode={boxMode}
-          onBoxModeChange={setBoxModePref}
+          onBoxModeChange={handleBoxModeChange}
           goalInput={goalInput}
           onGoalInputChange={setGoalInput}
           selectedLogGoalIds={selectedLogGoalIds}
@@ -185,6 +200,7 @@ export default function HomePage({
           onDailyLogSubmit={() => handleLogSubmit()}
           logTasksLoading={logTasksLoading}
           language={language}
+          focusInputSignal={focusInputSignal}
         />
       </div>
 

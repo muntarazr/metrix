@@ -23,4 +23,7 @@ export interface HomePageProps {
   onGoalUpdated?: () => void;
   language?: Language;
   recentGoalsLimit?: number;
+  activeBoxMode?: "new" | "log" | null;
+  onBoxModeChange?: (mode: "new" | "log") => void;
+  focusInputSignal?: number;
 }

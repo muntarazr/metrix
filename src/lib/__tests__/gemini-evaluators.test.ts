@@ -125,6 +125,57 @@ test("sanitizeGoalEdit drops operations on unknown task IDs and preserves valid 
   assert.equal(sanitized.task_changes[2].id, "s1");
 });
 
+test("sanitizeGoalEdit normalizes updated_goal and goal properties", () => {
+  const existingTasks = [{ id: "m1", task_type: "main", task_description: "Main 1" }];
+
+  // Case 1: AI returns updated_goal
+  const rawWithUpdatedGoal = {
+    status: "ok",
+    explanation: "تم تعديل الهدف بنجاح",
+    updated_goal: {
+      title: "  تعلم البرمجة المتقدمة  ",
+      ai_summary: "  خطة شاملة لتعلم البرمجة  ",
+      created_at: "2026-05-01T00:00:00Z",
+      estimated_completion_date: "2026-09-30T12:00:00Z",
+      current_points: -5,
+      target_points: 1500.8,
+      icon: " Code ",
+    },
+    task_changes: [],
+  };
+
+  const sanitized1 = sanitizeGoalEdit(rawWithUpdatedGoal, existingTasks);
+  assert.equal(sanitized1.status, "ok");
+  assert.equal(sanitized1.explanation, "تم تعديل الهدف بنجاح");
+  assert.ok(sanitized1.goal);
+  assert.ok(sanitized1.updated_goal);
+  assert.equal(sanitized1.goal.title, "تعلم البرمجة المتقدمة");
+  assert.equal(sanitized1.updated_goal.title, "تعلم البرمجة المتقدمة");
+  assert.equal(sanitized1.goal.ai_summary, "خطة شاملة لتعلم البرمجة");
+  assert.equal(sanitized1.goal.created_at, "2026-05-01");
+  assert.equal(sanitized1.goal.estimated_completion_date, "2026-09-30");
+  assert.equal(sanitized1.goal.current_points, 0); // clamped to >= 0
+  assert.equal(sanitized1.goal.target_points, 1501); // rounded
+  assert.equal(sanitized1.goal.icon, "Code");
+
+  // Case 2: AI returns goal directly
+  const rawWithGoal = {
+    status: "ok",
+    explanation: "Updated title",
+    goal: {
+      title: "New Goal Title",
+      target_points: 500,
+    },
+  };
+
+  const sanitized2 = sanitizeGoalEdit(rawWithGoal, existingTasks);
+  assert.ok(sanitized2.goal);
+  assert.ok(sanitized2.updated_goal);
+  assert.equal(sanitized2.goal.title, "New Goal Title");
+  assert.equal(sanitized2.updated_goal.title, "New Goal Title");
+  assert.equal(sanitized2.goal.target_points, 500);
+});
+
 test("evaluator safety checks reject prohibited self-harm or violence input", async () => {
   const dangerousInput = "I want to bomb a building and hurt people";
 

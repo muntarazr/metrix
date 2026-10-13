@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Clock, Target, Trash2, MoreVertical, Pin, PinOff, Edit2, ListChecks, BarChart3, Plus, ChevronDown, Edit3, Sparkles, Tag, Download, Loader2 } from 'lucide-react';
+import { Clock, Target, Trash2, MoreVertical, Pin, PinOff, Edit2, ListChecks, BarChart3, Plus, Tag, Download, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { translations, type Language } from '@/lib/translations';
 import {
@@ -145,54 +145,17 @@ export default function GoalsList({ goals, taskStatsMap = {}, selectedGoalId, on
                         </button>
                     </div>
 
-                    {/* New Goal Dropdown (Manual or AI) */}
-                    {(onNavigateToManualCreate || onNavigateToCreate) && (
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <button
-                                    type="button"
-                                    className="h-11 px-2.5 sm:px-4 rounded-xl font-bold flex items-center gap-1 sm:gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm active:scale-95 transition-all text-xs sm:text-sm cursor-pointer select-none shrink-0"
-                                    aria-label={isArabic ? 'إضافة هدف جديد' : 'New Goal'}
-                                >
-                                    <Plus className="w-4 h-4 shrink-0" />
-                                    <span className="hidden min-[400px]:inline">{t.newGoal || (isArabic ? 'هدف جديد' : 'New Goal')}</span>
-                                    <ChevronDown className="w-3.5 h-3.5 opacity-70 shrink-0" />
-                                </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align={isArabic ? 'start' : 'end'} className="w-56 p-1.5">
-                                {onNavigateToManualCreate && (
-                                    <DropdownMenuItem
-                                        onClick={onNavigateToManualCreate}
-                                        className="cursor-pointer gap-2.5 font-medium py-2 rounded-lg"
-                                    >
-                                        <div className="w-7 h-7 rounded-lg bg-primary/12 text-primary flex items-center justify-center shrink-0">
-                                            <Edit3 className="w-4 h-4" />
-                                        </div>
-                                        <div className="flex flex-col">
-                                            <span className="font-bold text-xs sm:text-sm text-foreground">{t.addManualGoal || (isArabic ? 'إضافة هدف يدوي' : 'Add Manual Goal')}</span>
-                                            <span className="text-[10px] text-muted-foreground">{isArabic ? 'أنت تحدد المعايير والمهام' : 'Set your own criteria & tasks'}</span>
-                                        </div>
-                                    </DropdownMenuItem>
-                                )}
-                                {onNavigateToCreate && (
-                                    <>
-                                        {onNavigateToManualCreate && <DropdownMenuSeparator className="my-1" />}
-                                        <DropdownMenuItem
-                                            onClick={onNavigateToCreate}
-                                            className="cursor-pointer gap-2.5 font-medium py-2 rounded-lg"
-                                        >
-                                            <div className="w-7 h-7 rounded-lg bg-primary/12 text-primary flex items-center justify-center shrink-0">
-                                                <Sparkles className="w-4 h-4" />
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span className="font-bold text-xs sm:text-sm text-foreground">{isArabic ? 'هدف بالذكاء الاصطناعي' : 'AI Goal Plan'}</span>
-                                                <span className="text-[10px] text-muted-foreground">{isArabic ? 'توليد واستكشاف ذكي' : 'Intelligent plan generation'}</span>
-                                            </div>
-                                        </DropdownMenuItem>
-                                    </>
-                                )}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                    {/* New Goal Button */}
+                    {(onNavigateToCreate || onNavigateToManualCreate) && (
+                        <button
+                            type="button"
+                            onClick={onNavigateToCreate || onNavigateToManualCreate}
+                            className="h-11 px-3 sm:px-4 rounded-xl font-bold flex items-center gap-1.5 sm:gap-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm active:scale-95 transition-all text-xs sm:text-sm cursor-pointer select-none shrink-0"
+                            aria-label={isArabic ? 'إضافة هدف جديد' : (t.newGoal || 'New Goal')}
+                        >
+                            <Plus className="w-4 h-4 shrink-0" />
+                            <span>{isArabic ? 'إضافة هدف جديد' : (t.newGoal || 'New Goal')}</span>
+                        </button>
                     )}
                 </div>
 
@@ -206,31 +169,21 @@ export default function GoalsList({ goals, taskStatsMap = {}, selectedGoalId, on
                                 <p className="text-foreground font-bold text-base sm:text-lg">{t.noGoalsYet}</p>
                                 <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                                     {isArabic
-                                        ? 'ابدأ الآن بإنشاء هدفك الأول سواء بتحديد معاييرك يدوياً أو بمساعدة الذكاء الاصطناعي.'
-                                        : 'Start your journey by defining your goal manually or with AI guidance.'}
+                                        ? 'ابدأ الآن بإنشاء هدفك الأول وتحديد المسار نحو تحقيقه.'
+                                        : 'Start your journey by defining your first goal.'}
                                 </p>
                             </div>
-                            <div className="flex flex-col sm:flex-row items-center gap-2 w-full pt-1">
-                                {onNavigateToManualCreate && (
+                            {(onNavigateToCreate || onNavigateToManualCreate) && (
+                                <div className="flex items-center justify-center w-full pt-1">
                                     <Button
-                                        onClick={onNavigateToManualCreate}
-                                        className="w-full sm:flex-1 h-10 rounded-xl font-bold gap-2 text-xs sm:text-sm"
+                                        onClick={onNavigateToCreate || onNavigateToManualCreate}
+                                        className="w-full sm:w-auto px-6 h-10 rounded-xl font-bold gap-2 text-xs sm:text-sm"
                                     >
                                         <Plus className="w-4 h-4" />
-                                        <span>{t.addManualGoal || (isArabic ? 'إضافة هدف يدوي' : 'Add Manual Goal')}</span>
+                                        <span>{isArabic ? 'إضافة هدف جديد' : (t.newGoal || 'New Goal')}</span>
                                     </Button>
-                                )}
-                                {onNavigateToCreate && (
-                                    <Button
-                                        onClick={onNavigateToCreate}
-                                        variant="outline"
-                                        className="w-full sm:flex-1 h-10 rounded-xl font-bold gap-2 text-xs sm:text-sm"
-                                    >
-                                        <Sparkles className="w-4 h-4 text-primary" />
-                                        <span>{isArabic ? 'بالذكاء الاصطناعي' : 'With AI'}</span>
-                                    </Button>
-                                )}
-                            </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 ) : activeTab === 'goals' ? (

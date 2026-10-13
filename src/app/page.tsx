@@ -80,6 +80,8 @@ export default function Home() {
   const [isAiGoalCreationGuardActive, setIsAiGoalCreationGuardActive] =
     useState(false);
   const [isProgressLogOpen, setIsProgressLogOpen] = useState(false);
+  const [homeBoxMode, setHomeBoxMode] = useState<"new" | "log" | null>(null);
+  const [homeFocusSignal, setHomeFocusSignal] = useState(0);
   const [pendingNavigation, setPendingNavigation] =
     useState<PendingNavigation | null>(null);
 
@@ -349,6 +351,9 @@ export default function Home() {
               <HomePage
                 goals={goals}
                 taskStatsMap={taskStatsMap}
+                activeBoxMode={homeBoxMode}
+                onBoxModeChange={setHomeBoxMode}
+                focusInputSignal={homeFocusSignal}
                 onSelectGoal={(id) => {
                   setSelectedGoalId(id);
                   setCurrentView("dashboard");
@@ -416,13 +421,9 @@ export default function Home() {
                   setPendingNavigation(null);
                   setIsAiGoalCreationGuardActive(false);
                   setCreateGoalText("");
-                  setCurrentView("create-goal");
-                }}
-                onNavigateToManualCreate={() => {
-                  setPendingNavigation(null);
-                  setIsAiGoalCreationGuardActive(false);
-                  setCreateGoalText("");
-                  setCurrentView("create-goal-manual");
+                  setHomeBoxMode("new");
+                  setHomeFocusSignal((prev) => prev + 1);
+                  setCurrentView("home");
                 }}
                 language={language}
               />
@@ -441,7 +442,9 @@ export default function Home() {
                   setPendingNavigation(null);
                   setIsAiGoalCreationGuardActive(false);
                   setCreateGoalText("");
-                  setCurrentView("create-goal");
+                  setHomeBoxMode("new");
+                  setHomeFocusSignal((prev) => prev + 1);
+                  setCurrentView("home");
                 }}
                 onGoalsDeleted={() => {
                   fetchGoals();

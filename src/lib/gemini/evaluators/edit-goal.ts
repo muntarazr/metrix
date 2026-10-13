@@ -101,7 +101,58 @@ export function sanitizeGoalEdit(parsed: any, tasks: any[]) {
     console.warn("editGoalWithAI: dropped invalid task operations:", dropped);
   }
 
-  return { ...parsed, task_changes: changes };
+  const rawGoal =
+    parsed.goal && typeof parsed.goal === "object"
+      ? parsed.goal
+      : parsed.updated_goal && typeof parsed.updated_goal === "object"
+        ? parsed.updated_goal
+        : null;
+
+  let sanitizedGoal: Record<string, any> | undefined = undefined;
+  if (rawGoal) {
+    sanitizedGoal = {};
+    if (typeof rawGoal.title === "string" && rawGoal.title.trim()) {
+      sanitizedGoal.title = rawGoal.title.trim();
+    }
+    const summary = typeof rawGoal.ai_summary === "string"
+      ? rawGoal.ai_summary.trim()
+      : typeof rawGoal.description === "string"
+        ? rawGoal.description.trim()
+        : undefined;
+    if (summary !== undefined) {
+      sanitizedGoal.ai_summary = summary;
+    }
+    if (typeof rawGoal.created_at === "string" && /^\d{4}-\d{2}-\d{2}/.test(rawGoal.created_at)) {
+      sanitizedGoal.created_at = rawGoal.created_at.slice(0, 10);
+    }
+    if (typeof rawGoal.estimated_completion_date === "string" && /^\d{4}-\d{2}-\d{2}/.test(rawGoal.estimated_completion_date)) {
+      sanitizedGoal.estimated_completion_date = rawGoal.estimated_completion_date.slice(0, 10);
+    }
+    if (rawGoal.current_points !== undefined && Number.isFinite(Number(rawGoal.current_points))) {
+      sanitizedGoal.current_points = Math.max(0, Math.round(Number(rawGoal.current_points)));
+    }
+    if (rawGoal.target_points !== undefined && Number.isFinite(Number(rawGoal.target_points)) && Number(rawGoal.target_points) > 0) {
+      sanitizedGoal.target_points = Math.max(1, Math.round(Number(rawGoal.target_points)));
+    }
+    if (typeof rawGoal.icon === "string" && rawGoal.icon.trim()) {
+      sanitizedGoal.icon = rawGoal.icon.trim();
+    }
+  }
+
+  const explanation = typeof parsed.explanation === "string"
+    ? parsed.explanation
+    : typeof parsed.summary === "string"
+      ? parsed.summary
+      : "";
+
+  return {
+    ...parsed,
+    status: parsed.status ?? "ok",
+    explanation,
+    goal: sanitizedGoal ?? parsed.goal ?? parsed.updated_goal,
+    updated_goal: sanitizedGoal ?? parsed.updated_goal ?? parsed.goal,
+    task_changes: changes,
+  };
 }
 
 export async function editGoalWithAI(
@@ -199,7 +250,7 @@ OUTPUT JSON SCHEMA:
 {
   "status": "ok" | "refused",
   "explanation": "string",
-  "updated_goal": {
+  "goal": {
     "title"?: "string",
     "ai_summary"?: "string",
     "created_at"?: "YYYY-MM-DD",

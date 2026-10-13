@@ -452,20 +452,49 @@ export function useGoalEditState(
       }
 
       const result = await response.json();
+      if (!result || typeof result !== 'object') {
+        throw new Error(isArabic ? 'لم يتم استلام بيانات صالحة من الذكاء الاصطناعي.' : 'No valid data received from AI.');
+      }
+
       if (result.status === 'refused') {
         throw new Error(result.explanation || (isArabic ? 'تم رفض الطلب لدواعي الأمان.' : 'Request was refused due to safety policies.'));
       }
 
-      if (result.goal) {
-        const g = result.goal;
-        
-        if (g.title) setTitle(g.title);
-        if (g.ai_summary !== undefined) setDescription(g.ai_summary);
-        if (g.created_at) setStartDate(getDateInputValue(g.created_at));
-        if (g.estimated_completion_date) setEndDate(getDateInputValue(g.estimated_completion_date));
-        if (g.current_points !== undefined) setCurrentPoints(String(g.current_points));
-        if (g.target_points !== undefined) setTargetPoints(String(g.target_points));
-        if (g.icon) setIcon(g.icon);
+      const g = (result.goal && typeof result.goal === 'object')
+        ? result.goal
+        : (result.updated_goal && typeof result.updated_goal === 'object')
+          ? result.updated_goal
+          : null;
+
+      const hasTaskChanges = Array.isArray(result.task_changes) && result.task_changes.length > 0;
+      const hasGoalChanges = Boolean(
+        g && (
+          g.title ||
+          g.ai_summary !== undefined ||
+          g.description !== undefined ||
+          g.created_at ||
+          g.estimated_completion_date ||
+          g.current_points !== undefined ||
+          g.target_points !== undefined ||
+          g.icon
+        )
+      );
+
+      if (result.status === 'ok' || hasGoalChanges || hasTaskChanges || Boolean(result.explanation)) {
+        if (g) {
+          if (typeof g.title === 'string' && g.title.trim()) setTitle(g.title.trim());
+          if (typeof g.ai_summary === 'string' && g.ai_summary.trim()) setDescription(g.ai_summary.trim());
+          else if (typeof g.description === 'string' && g.description.trim()) setDescription(g.description.trim());
+          if (typeof g.created_at === 'string' && g.created_at.trim()) setStartDate(getDateInputValue(g.created_at));
+          if (typeof g.estimated_completion_date === 'string' && g.estimated_completion_date.trim()) setEndDate(getDateInputValue(g.estimated_completion_date));
+          if (g.current_points !== undefined && Number.isFinite(Number(g.current_points))) {
+            setCurrentPoints(String(Math.max(0, Math.round(Number(g.current_points)))));
+          }
+          if (g.target_points !== undefined && Number.isFinite(Number(g.target_points)) && Number(g.target_points) > 0) {
+            setTargetPoints(String(Math.max(1, Math.round(Number(g.target_points)))));
+          }
+          if (typeof g.icon === 'string' && g.icon.trim()) setIcon(g.icon.trim());
+        }
 
         setTaskChanges(Array.isArray(result.task_changes) ? result.task_changes : []);
         setAiSuccessMessage(result.explanation || (isArabic ? 'تم تعديل الخطة بنجاح بالذكاء الاصطناعي!' : 'Plan updated successfully with AI!'));

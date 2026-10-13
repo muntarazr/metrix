@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useRef, useState, useEffect, useTransition } from "react";
 import {
   CircleAlert,
   Plus,
@@ -31,6 +31,7 @@ interface HomeInputSectionProps {
   onDailyLogSubmit: () => void;
   logTasksLoading: boolean;
   language: Language;
+  focusInputSignal?: number;
 }
 
 const MINIMUM_GOAL_WORDS = 15;
@@ -65,10 +66,23 @@ export default function HomeInputSection({
   onDailyLogSubmit,
   logTasksLoading,
   language,
+  focusInputSignal,
 }: HomeInputSectionProps) {
   const isArabic = language === "ar";
   const t = translations[language];
   const goalTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    if (focusInputSignal && focusInputSignal > 0 && boxMode === "new") {
+      const timer = setTimeout(() => {
+        if (goalTextareaRef.current) {
+          goalTextareaRef.current.focus();
+          goalTextareaRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [focusInputSignal, boxMode]);
 
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);

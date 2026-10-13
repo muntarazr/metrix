@@ -1,6 +1,6 @@
 export function getGoalEditLabels(isArabic: boolean) {
   return {
-    title: isArabic ? 'تعديل معلومات الهدف' : 'Edit goal details',
+    title: isArabic ? 'تعديل الهدف' : 'Edit Goal',
     subtitle: isArabic
       ? 'حدّث بيانات الهدف، الفترة الزمنية، والنقاط المستهدفة بسهولة.'
       : 'Update goal details, timeline, and target points easily.',

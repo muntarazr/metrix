@@ -66,6 +66,7 @@ export interface DatePopoverFieldProps {
   icon: ElementType;
   isArabic: boolean;
   label: string;
+  badge?: React.ReactNode;
   locale: typeof arSA | typeof enUS;
   onChange: (value: string) => void;
   placeholder: string;
@@ -109,6 +110,7 @@ export function DatePopoverField({
   icon: Icon,
   isArabic,
   label,
+  badge,
   locale,
   onChange,
   placeholder,
@@ -118,11 +120,13 @@ export function DatePopoverField({
   const minimumDate = minDate ? dateInputToDate(minDate) : undefined;
 
   return (
-    <div className="space-y-1.5">
-      <Label className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground/80">
-        <Icon className="size-3.5 text-primary/70" />
-        <span>{label}</span>
-      </Label>
+    <div className="space-y-1">
+      <div className="flex items-center justify-between">
+        <Label className="text-[11px] text-muted-foreground font-medium">
+          {label}
+        </Label>
+        {badge}
+      </div>
 
       <Popover>
         <PopoverTrigger asChild>
@@ -130,13 +134,13 @@ export function DatePopoverField({
             type="button"
             variant="outline"
             className={cn(
-              'h-11 w-full rounded-xl border-border/80 bg-card px-3.5 font-normal shadow-xs hover:border-primary/40 transition-colors',
+              'h-10 w-full rounded-xl border border-border/70 bg-muted/20 px-3 font-normal shadow-xs hover:border-primary/40 hover:bg-muted/30 focus-visible:bg-background transition-all',
               isArabic ? 'justify-end text-right' : 'justify-start text-left',
               !value && 'text-muted-foreground',
             )}
           >
-            <Calendar className="size-4 shrink-0 text-primary/60 mr-2 rtl:mr-0 rtl:ml-2" />
-            <span className="truncate text-xs sm:text-sm font-medium">
+            <Calendar className="size-3.5 shrink-0 text-muted-foreground mr-1.5 rtl:mr-0 rtl:ml-1.5" />
+            <span className="truncate text-xs font-medium">
               {value ? format(dateInputToDate(value), 'PPP', { locale }) : placeholder}
             </span>
           </Button>
