@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createRequestClient } from "@/utils/supabase/server-request";
+import { requireUser } from "@/lib/api-auth";
 import { GeminiService, GeminiQuotaError } from "@/lib/gemini";
 import { requireAiQuota } from "@/lib/ai-quota";
-import { getErrorMessage } from "@/components/challenge/challenge-utils";
+import { getErrorMessage } from "@/lib/utils";
 import {
   buildMilestoneImagePrompt,
   buildMilestonePromptContext,
@@ -303,18 +304,11 @@ export async function POST(req: NextRequest) {
       language,
     } = parsedPayload.value;
 
-    const supabase = await createRequestClient(req);
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 },
-      );
+    const auth = await requireUser(req);
+    if (auth.error) {
+      return auth.error;
     }
+    const { supabase, user } = auth;
 
     // Verify goal ownership
     const { data: goal, error: goalError } = await supabase
@@ -582,18 +576,11 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    const supabase = await createRequestClient(req);
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 },
-      );
+    const auth = await requireUser(req);
+    if (auth.error) {
+      return auth.error;
     }
+    const { supabase, user } = auth;
 
     const { data: goal, error: goalError } = await supabase
       .from("goals")
@@ -680,18 +667,11 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    const supabase = await createRequestClient(req);
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 },
-      );
+    const auth = await requireUser(req);
+    if (auth.error) {
+      return auth.error;
     }
+    const { supabase, user } = auth;
 
     // Verify goal ownership
     const { data: goal, error: goalError } = await supabase

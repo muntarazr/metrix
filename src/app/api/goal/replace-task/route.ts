@@ -1,8 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { requireUser } from '@/lib/api-auth';
-import { GeminiQuotaError } from '@/lib/gemini';
 import { PlanArchitectService } from '@/lib/plan-architect.service';
-import { requireAiQuota } from '@/lib/ai-quota';
+import { requireAiQuota, handleAiRouteError } from '@/lib/ai-quota';
 import { rejectIfContentLengthTooLarge, rejectIfJsonBodyTooLarge } from '@/lib/request-limits';
 
 export async function POST(req: NextRequest) {
@@ -50,19 +49,6 @@ export async function POST(req: NextRequest) {
         });
     } catch (error: any) {
         console.error("API replace-task error:", error);
-        if (error instanceof GeminiQuotaError) {
-            return NextResponse.json({
-                error: 'quota_exceeded',
-                message_ar: `تم تجاوز حد الاستخدام اليومي. حاول مرة أخرى بعد ${Math.ceil(error.retryAfterSeconds / 60)} دقيقة.`,
-                message_en: `Daily usage limit exceeded. Please try again in ${Math.ceil(error.retryAfterSeconds / 60)} minute(s).`,
-                retryAfterSeconds: error.retryAfterSeconds,
-            }, { status: 429 });
-        }
-        return NextResponse.json({
-            error: 'Failed to replace task with AI',
-            ...(process.env.NODE_ENV !== 'production'
-                ? { detail: error instanceof Error ? error.message : String(error) }
-                : {}),
-        }, { status: 500 });
+        return handleAiRouteError(error, 'Failed to replace task with AI');
     }
 }

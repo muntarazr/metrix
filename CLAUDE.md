@@ -16,15 +16,14 @@ export PATH="$HOME/.nvm/versions/node/v24.19.0/bin:$PATH"
 | Production build | `npm run build` |
 | Lint | `npm run lint` |
 | Typecheck | `npx tsc --noEmit` |
+| Test suite | `npm test` (`node --test` on 86 tests) |
 | Android build | `./scripts/build-mobile.sh` |
 
-There is no test suite. `tsc --noEmit` plus `npm run build` is the verification loop.
+A unit test suite runs with `npm test` (86 tests covering streak calculation, task periods, task hierarchy, rebalancing, and translations). The full verification loop is `npm test && npx tsc --noEmit && npm run build`.
 `./scripts/check-db.sh` probes the live Supabase project and reports any table, RPC or
 storage bucket the app needs but the database lacks.
 
-`npm run lint` reports ~41 errors and ~139 warnings that predate current work — mostly
-`no-explicit-any` in `catch` blocks and React-compiler purity complaints in
-`src/components/ui/`. Treat the count as a baseline, not a clean slate.
+`npm run lint` baseline: ~119 issues (57 errors, 62 warnings in project code; external skills scripts add additional warnings). Treat the count as a baseline, not a clean slate.
 
 `.claude/launch.json` starts the dev server through `/usr/bin/env` with an explicit PATH. This is deliberate: Turbopack spawns a child `node` process to run PostCSS over `globals.css`, so invoking node by absolute path starts the server but then panics on the first request with `spawning node pooled process — No such file or directory`, surfaced only as a generic "unexpected Turbopack error".
 
@@ -38,7 +37,7 @@ storage bucket the app needs but the database lacks.
 
 ### One page, many views
 
-`src/app/page.tsx` is effectively the whole application. It holds an `AppView` state (`home | dashboard | settings | goals | create-goal`) and swaps components rather than using routes. The only real routes are `/login`, `/auth/callback`, `/auth/update-password`, and the API handlers.
+`src/app/page.tsx` is effectively the whole application. It holds an `AppView` state (`home | dashboard | settings | goals | create-goal`) and swaps components rather than using routes. The only real routes are `/home`, `/login`, `/auth/callback`, `/auth/update-password`, `/privacy`, `/terms`, and the API handlers.
 
 Consequences worth knowing before editing:
 
@@ -48,7 +47,7 @@ Consequences worth knowing before editing:
 
 ### Auth boundary
 
-`src/proxy.ts` is the Next 16 proxy (the former `middleware.ts`). It runs on every non-API path and redirects unauthenticated users to `/login`, and authenticated users away from `/login`. Only `/login` and `/auth/callback` are public — a new public page must be added to that check or it will bounce.
+`src/proxy.ts` is the Next 16 proxy (the former `middleware.ts`). It runs on every non-API path and redirects unauthenticated users to `/login`, and authenticated users away from `/login`. Public routes allowed without authentication are `/login`, `/auth/callback`, `/home`, `/privacy`, and `/terms`.
 
 **The proxy returns early for `/api/*` and never checks the session there**, so every API
 route must guard itself. Use `requireUser(req)` from `src/lib/api-auth.ts`:
@@ -63,12 +62,10 @@ Mistral routes means an open tap on the project's paid quota.
 
 It also emits CORS headers for `/api/*` so the Capacitor app on `https://localhost` can call the deployed API directly.
 
-There are four Supabase client factories in `src/utils/supabase/`, and picking the wrong one is the usual bug:
+Supabase client factories in `src/utils/supabase/`:
 
 - `client.ts` — browser components
-- `server.ts` — server components
-- `server-request.ts` — **API routes**; accepts either a `Bearer` token (mobile) or cookies (web) via `createRequestClient(request)`
-- `service-role.ts` — bypasses RLS, server only
+- `server-request.ts` — **API routes**; accepts either a `Bearer` token (mobile) or cookies (web) via `createRequestClient(request)` and is wrapped automatically by `requireUser(req)`
 
 ### Web and mobile share one codebase
 

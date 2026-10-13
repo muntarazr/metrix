@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 import { PANEL_SURFACE } from "@/lib/surfaces";
 import type { FlatTask } from './goal-creator-types';
 import { WEEK_DAYS } from './goal-creator-types';
-import { normalizeScheduleDays } from './goal-creator-helpers';
+import { toggleScheduleDay } from './goal-creator-helpers';
 
 export interface ReviewTaskCardProps {
     task: FlatTask;
@@ -176,14 +176,9 @@ export default function ReviewTaskCard({
                             type="button"
                             disabled={!task.included}
                             onClick={() => {
-                                const all = WEEK_DAYS.map(w => w.idx);
-                                const current = task.schedule_days && task.schedule_days.length > 0
-                                    ? task.schedule_days
-                                    : all;
-                                const next = current.includes(d.idx)
-                                    ? current.filter(i => i !== d.idx)
-                                    : [...current, d.idx];
-                                onUpdate(task.id, { schedule_days: normalizeScheduleDays(next) });
+                                onUpdate(task.id, {
+                                    schedule_days: toggleScheduleDay(task.schedule_days, d.idx),
+                                });
                             }}
                             title={isArabic ? `ال${d.ar}` : d.en}
                             className={cn(

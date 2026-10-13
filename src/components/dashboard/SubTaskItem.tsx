@@ -31,6 +31,7 @@ import type { EditableTask } from "./TaskEditDialog";
 import TaskProgressRing from "./TaskProgressRing";
 import TaskScheduleDaysPicker from "./TaskScheduleDaysPicker";
 import { getGoalIcon } from "@/components/goal/IconPicker";
+import FullEmojiPicker from "@/components/shared/FullEmojiPicker";
 
 export interface TaskProgressInfo {
   points: number;
@@ -101,6 +102,7 @@ export interface SubTaskItemProps {
     } | null>
   >;
   onUpdateTaskScheduleDays?: (taskId: string, days: number[] | null) => Promise<void> | void;
+  onUpdateTaskIcon?: (taskId: string, icon: string) => void;
 }
 
 export function SubTaskItem({
@@ -131,6 +133,7 @@ export function SubTaskItem({
   setCriteriaDialogTask,
   setTaskToDelete,
   onUpdateTaskScheduleDays,
+  onUpdateTaskIcon,
 }: SubTaskItemProps) {
   const checked = isChecked(sub.id, sub.frequency);
   const subProg = getTaskProgress
@@ -148,7 +151,7 @@ export function SubTaskItem({
       className={cn(
         "group/sub flex items-center gap-1.5 sm:gap-2 rounded-xl border ps-1.5 pe-2.5 py-1.5 sm:ps-2 sm:pe-3 sm:py-2 transition-all duration-200 select-none",
         subProg.isCompleted
-          ? "border-border/40 bg-muted/30"
+          ? "border-border/60 bg-muted/30"
           : "border-border/80 bg-card hover:border-border",
         animatingId === sub.id &&
           "ring-2 ring-primary/50 border-primary bg-primary/5 shadow-xs",
@@ -159,19 +162,32 @@ export function SubTaskItem({
         <GripVertical className="h-3.5 w-3" />
       </SortableItemHandle>
 
-      <TaskProgressRing
-        progress={subProg.progress}
-        isCompleted={subProg.isCompleted}
-        size={24}
-        strokeWidth={2.5}
-        icon={
-          sub.icon ? (
-            <span className="h-2.5 w-2.5 flex items-center justify-center text-foreground">
-              {getGoalIcon(sub.icon)}
-            </span>
-          ) : undefined
-        }
-      />
+      <FullEmojiPicker
+        value={sub.icon}
+        language={isArabic ? "ar" : "en"}
+        onSelect={(emoji) => onUpdateTaskIcon?.(sub.id, emoji)}
+      >
+        <button
+          type="button"
+          onClick={(e) => e.stopPropagation()}
+          className="cursor-pointer hover:scale-110 active:scale-95 transition-transform"
+          title={isArabic ? "تغيير الأيقونة" : "Change icon"}
+        >
+          <TaskProgressRing
+            progress={subProg.progress}
+            isCompleted={subProg.isCompleted}
+            size={24}
+            strokeWidth={2.5}
+            icon={
+              sub.icon ? (
+                <span className="h-2.5 w-2.5 flex items-center justify-center text-foreground">
+                  {getGoalIcon(sub.icon)}
+                </span>
+              ) : undefined
+            }
+          />
+        </button>
+      </FullEmojiPicker>
 
       <div className="min-w-0 flex-1">
         {editingTaskId === sub.id ? (

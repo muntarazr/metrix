@@ -7,6 +7,7 @@ import TaskAddModal from "../TaskAddModal";
 import TaskCriteriaDialog from "../TaskCriteriaDialog";
 import TaskDeleteConfirmDialog from "../TaskDeleteConfirmDialog";
 import type { FocusModeTaskData } from "./useFocusModeState";
+import type { TaskColorKey } from "@/lib/task-colors";
 
 export interface FocusModalsProps {
   isArabic: boolean;
@@ -35,6 +36,7 @@ export interface FocusModalsProps {
   onSetNewMainCriteria?: (criteria: string) => void;
   onSetNewMainFreq: (freq: "daily" | "weekly") => void;
   onSetNewMainWeight?: (weight: number) => void;
+  onSetNewMainColor?: (color: TaskColorKey | null) => void;
   onAddMain: () => void;
 
   onSetNewSubText: (text: string) => void;
@@ -85,6 +87,7 @@ export function FocusModals({
   onSetNewMainCriteria,
   onSetNewMainFreq,
   onSetNewMainWeight,
+  onSetNewMainColor,
   onAddMain,
   onSetNewSubText,
   onSetNewSubCriteria,
@@ -103,12 +106,15 @@ export function FocusModals({
     criteria: string;
     frequency: "daily" | "weekly";
     weight: number;
+    color?: TaskColorKey | null;
+    icon?: string;
   }) => {
     if (addModalConfig.type === "main") {
       onSetNewMainText(data.title);
       onSetNewMainCriteria?.(data.criteria);
       onSetNewMainFreq(data.frequency);
       if (onSetNewMainWeight) onSetNewMainWeight(data.weight);
+      if (data.color !== undefined && onSetNewMainColor) onSetNewMainColor(data.color);
       // Execute creation
       setTimeout(() => {
         onAddMain();

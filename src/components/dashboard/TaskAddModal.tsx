@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, X, ListTodo } from "lucide-react";
+import { Plus, X, ListTodo, Palette } from "lucide-react";
 import { cn } from "@/lib/utils";
+import TaskColorPicker from "@/components/shared/TaskColorPicker";
+import FullEmojiPicker from "@/components/shared/FullEmojiPicker";
+import type { TaskColorKey } from "@/lib/task-colors";
 
 interface TaskAddModalProps {
   isOpen: boolean;
@@ -15,6 +18,8 @@ interface TaskAddModalProps {
     criteria: string;
     frequency: "daily" | "weekly";
     weight: number;
+    color?: TaskColorKey | null;
+    icon?: string;
   }) => void;
 }
 
@@ -28,6 +33,8 @@ export default function TaskAddModal({
   const [criteria, setCriteria] = useState("");
   const [frequency, setFrequency] = useState<"daily" | "weekly">("daily");
   const [weight, setWeight] = useState(3);
+  const [color, setColor] = useState<TaskColorKey | null>(null);
+  const [icon, setIcon] = useState("📝");
 
   useEffect(() => {
     if (isOpen) {
@@ -35,6 +42,8 @@ export default function TaskAddModal({
       setCriteria("");
       setFrequency("daily");
       setWeight(3);
+      setColor(null);
+      setIcon("📝");
     }
   }, [isOpen]);
 
@@ -48,6 +57,8 @@ export default function TaskAddModal({
       criteria: criteria.trim(),
       frequency,
       weight,
+      color,
+      icon,
     });
     onClose();
   };
@@ -176,6 +187,47 @@ export default function TaskAddModal({
                   </button>
                 ))}
               </div>
+            </div>
+          </div>
+
+          {/* Appearance: Emoji & Color Pickers */}
+          <div className="flex items-center gap-3 pt-1 border-t border-border/50">
+            <div>
+              <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
+                {isArabic ? "الأيقونة" : "Icon"}
+              </label>
+              <FullEmojiPicker
+                value={icon}
+                language={isArabic ? "ar" : "en"}
+                onSelect={(selected) => setIcon(selected)}
+              >
+                <button
+                  type="button"
+                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/80 bg-muted/20 text-base hover:bg-muted/60 transition-all active:scale-95 shadow-xs cursor-pointer"
+                  title={isArabic ? "اختر أيقونة" : "Choose icon"}
+                >
+                  {icon || "📝"}
+                </button>
+              </FullEmojiPicker>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
+                {isArabic ? "اللون" : "Color"}
+              </label>
+              <TaskColorPicker
+                value={color}
+                language={isArabic ? "ar" : "en"}
+                onSelect={(selected) => setColor(selected)}
+              >
+                <button
+                  type="button"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border/80 bg-muted/20 px-3 text-xs font-semibold text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all active:scale-95 shadow-xs cursor-pointer"
+                >
+                  <Palette className="h-3.5 w-3.5" />
+                  {color ? (isArabic ? "تغيير اللون" : "Change Color") : (isArabic ? "اختر لوناً" : "Choose Color")}
+                </button>
+              </TaskColorPicker>
             </div>
           </div>
 

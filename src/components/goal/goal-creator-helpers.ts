@@ -22,15 +22,8 @@ export const isInvestigationResult = (value: unknown): value is InvestigationRes
     value !== null &&
     ('status' in value || 'questions' in value || 'goal_understanding' in value || 'safe_redirection' in value);
 
-/** Normalize any AI/user-provided weekday list → sorted unique 0..6, or null (= all days). */
-export function normalizeScheduleDays(value: unknown): number[] | null {
-    if (!Array.isArray(value)) return null;
-    const days = Array.from(new Set(
-        value.map(d => Math.round(Number(d))).filter(d => Number.isFinite(d) && d >= 0 && d <= 6),
-    )).sort((a, b) => a - b);
-    if (days.length === 0 || days.length === 7) return null;
-    return days;
-}
+import { normalizeScheduleDays, toggleScheduleDay } from '@/lib/task-periods';
+export { normalizeScheduleDays, toggleScheduleDay };
 
 /**
  * Deterministic timeline extraction: pulls a duration in DAYS out of answers

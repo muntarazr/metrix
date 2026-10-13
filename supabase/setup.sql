@@ -673,15 +673,20 @@ create policy milestones_public_read on storage.objects
 -- ── goals.streak_freezes ────────────────────────────────────────────────────
 -- Array of local date keys ('YYYY-MM-DD') the user spent as rest days. One per
 -- Monday-start week is enforced in the app (src/lib/streak.ts), not here, so
--- the budget can change without a migration.
 alter table public.goals
   add column if not exists streak_freezes jsonb not null default '[]'::jsonb;
 
--- ── sub_layers.mini_version ─────────────────────────────────────────────────
+alter table public.goals
+  add column if not exists manual_task_order boolean not null default false;
+
+-- ── sub_layers.mini_version & schedule_days ──────────────────────────────────
 -- The two-minute version of the task, generated on demand by Gemini and cached
 -- here. Null means "not generated yet", not "unavailable".
 alter table public.sub_layers
   add column if not exists mini_version text;
+
+alter table public.sub_layers
+  add column if not exists schedule_days smallint[] default null;
 
 -- ── task_checkins: why it did not happen, and how it did ────────────────────
 -- A skipped task now gets a row too: completed = false plus a reason. The

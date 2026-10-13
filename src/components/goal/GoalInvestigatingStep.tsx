@@ -80,7 +80,6 @@ export default function GoalInvestigatingStep({
                 <MatrixOrb
                     state="thinking"
                     size={160}
-                    color="#0097b2"
                     labels={{
                         thinking: isArabic ? 'جارٍ دراسة أركان هدفك وتجهيز الأسئلة الذكية...' : 'Analyzing goal pillars & preparing smart questions...',
                         listening: isArabic ? 'جارٍ تحليل إمكانياتك وأدواتك...' : 'Analyzing your tools & abilities...',

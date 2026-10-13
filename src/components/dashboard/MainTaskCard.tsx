@@ -19,6 +19,8 @@ import TaskProgressRing from "./TaskProgressRing";
 import { getGoalIcon } from "@/components/goal/IconPicker";
 import { SubTaskItem, type TaskProgressInfo } from "./SubTaskItem";
 import { MainTaskCardMenu } from "./MainTaskCardMenu";
+import TaskAppearancePicker from "@/components/shared/TaskAppearancePicker";
+import type { TaskColorKey } from "@/lib/task-colors";
 
 export interface MainTaskCardProps {
   main: MainTask;
@@ -89,6 +91,7 @@ export interface MainTaskCardProps {
   >;
   onUpdateTaskScheduleDays?: (taskId: string, days: number[] | null) => Promise<void> | void;
   onUpdateTaskIcon?: (taskId: string, icon: string) => void;
+  onUpdateTaskColor?: (taskId: string, color: TaskColorKey | null) => void;
 }
 
 
@@ -126,6 +129,7 @@ export function MainTaskCard({
   setTaskToDelete,
   onUpdateTaskScheduleDays,
   onUpdateTaskIcon,
+  onUpdateTaskColor,
 }: MainTaskCardProps) {
   const totalSubs = main.subtasks.length;
   let mainCompletion = 0;
@@ -276,19 +280,35 @@ export function MainTaskCard({
                     }
                   }}
                 >
-                  <TaskProgressRing
-                    progress={mainCompletion}
-                    isCompleted={mainDone}
-                    size={36}
-                    strokeWidth={3.5}
-                    icon={
-                      main.icon ? (
-                        <span className="h-4 w-4 flex items-center justify-center text-foreground">
-                          {getGoalIcon(main.icon)}
-                        </span>
-                      ) : undefined
-                    }
-                  />
+                  <TaskAppearancePicker
+                    value={main.accent_color}
+                    seed={main.task_description}
+                    currentEmoji={main.icon || "📝"}
+                    language={isArabic ? "ar" : "en"}
+                    onEmojiSelect={(icon) => onUpdateTaskIcon?.(main.id, icon)}
+                    onColorSelect={(color) => onUpdateTaskColor?.(main.id, color)}
+                  >
+                    <button
+                      type="button"
+                      onClick={(e) => e.stopPropagation()}
+                      className="cursor-pointer hover:scale-105 active:scale-95 transition-transform"
+                      title={isArabic ? "تعديل المظهر" : "Edit appearance"}
+                    >
+                      <TaskProgressRing
+                        progress={mainCompletion}
+                        isCompleted={mainDone}
+                        size={36}
+                        strokeWidth={3.5}
+                        icon={
+                          main.icon ? (
+                            <span className="h-4 w-4 flex items-center justify-center text-foreground">
+                              {getGoalIcon(main.icon)}
+                            </span>
+                          ) : undefined
+                        }
+                      />
+                    </button>
+                  </TaskAppearancePicker>
 
                   <div className="min-w-0 flex-1 flex flex-col justify-center">
                     <span
@@ -405,6 +425,7 @@ export function MainTaskCard({
                             setCriteriaDialogTask={setCriteriaDialogTask}
                             setTaskToDelete={setTaskToDelete}
                             onUpdateTaskScheduleDays={onUpdateTaskScheduleDays}
+                            onUpdateTaskIcon={onUpdateTaskIcon}
                           />
                         </SortableItem>
                       ))}

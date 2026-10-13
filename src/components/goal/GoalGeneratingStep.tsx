@@ -79,7 +79,6 @@ export default function GoalGeneratingStep({
                 <MatrixOrb
                     state="listening"
                     size={150}
-                    color="#0097b2"
                     labels={{
                         thinking: isArabic ? 'جارٍ التوليد المتسلسل للمراحل...' : 'Generating sequential stages...',
                         listening: isArabic ? 'جارٍ صياغة خطتك الذكية وحساب النقاط...' : 'Crafting smart plan & calculating points...',

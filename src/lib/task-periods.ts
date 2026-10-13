@@ -39,3 +39,32 @@ export function getLocalDayWindow(referenceDate = new Date()): { start: Date; en
 
   return { start, end };
 }
+
+/**
+ * Normalize any AI/user-provided weekday list → sorted unique 0..6, or null (= all days).
+ */
+export function normalizeScheduleDays(value: unknown): number[] | null {
+  if (!Array.isArray(value)) return null;
+  const days = Array.from(new Set(
+    value.map(d => Math.round(Number(d))).filter(d => Number.isFinite(d) && d >= 0 && d <= 6),
+  )).sort((a, b) => a - b);
+  if (days.length === 0 || days.length === 7) return null;
+  return days;
+}
+
+/**
+ * Toggle a weekday (0..6) within a schedule_days list.
+ * If currentDays is null/empty, all days [0..6] are considered active initially.
+ */
+export function toggleScheduleDay(
+  currentDays: number[] | null | undefined,
+  dayIdx: number,
+  allDays: number[] = [0, 1, 2, 3, 4, 5, 6]
+): number[] | null {
+  const current = currentDays && currentDays.length > 0 ? currentDays : allDays;
+  const next = current.includes(dayIdx)
+    ? current.filter((i) => i !== dayIdx)
+    : [...current, dayIdx];
+  return normalizeScheduleDays(next);
+}
+

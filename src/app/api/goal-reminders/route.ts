@@ -1,17 +1,16 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { createRequestClient } from '@/utils/supabase/server-request';
+import { requireUser } from '@/lib/api-auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
-    const supabase = await createRequestClient(req);
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireUser(req);
+    if (auth.error) {
+      return auth.error;
     }
+    const { supabase, user } = auth;
 
     const { data, error } = await supabase
       .from('goal_reminders')
@@ -31,12 +30,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createRequestClient(req);
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireUser(req);
+    if (auth.error) {
+      return auth.error;
     }
+    const { supabase, user } = auth;
 
     const body = await req.json();
     const { goalId, reminderTime, reminderCount } = body;
@@ -81,12 +79,11 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const supabase = await createRequestClient(req);
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireUser(req);
+    if (auth.error) {
+      return auth.error;
     }
+    const { supabase, user } = auth;
 
     const body = await req.json();
     const { id, reminder_time, reminder_count, enabled, timezone } = body;
@@ -120,12 +117,11 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const supabase = await createRequestClient(req);
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireUser(req);
+    if (auth.error) {
+      return auth.error;
     }
+    const { supabase, user } = auth;
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');

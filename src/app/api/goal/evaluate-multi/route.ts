@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireUser } from "@/lib/api-auth";
-import { GeminiService, GeminiQuotaError } from "@/lib/gemini";
-import { requireAiQuota } from "@/lib/ai-quota";
+import { GeminiService } from "@/lib/gemini";
+import { requireAiQuota, handleAiRouteError } from "@/lib/ai-quota";
 import {
   rejectIfContentLengthTooLarge,
   rejectIfJsonBodyTooLarge,
@@ -61,26 +61,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error: unknown) {
-    if (error instanceof GeminiQuotaError) {
-      return NextResponse.json(
-        {
-          error: "quota_exceeded",
-          message_ar: `تم تجاوز حد الاستخدام اليومي. حاول مرة أخرى بعد ${Math.ceil(
-            error.retryAfterSeconds / 60,
-          )} دقيقة.`,
-          message_en: `Daily usage limit exceeded. Please try again in ${Math.ceil(
-            error.retryAfterSeconds / 60,
-          )} minute(s).`,
-          retryAfterSeconds: error.retryAfterSeconds,
-        },
-        { status: 429 },
-      );
-    }
-
     console.error("evaluate-multi route error:", error);
-    return NextResponse.json(
-      { error: "Failed to evaluate multi-goal log" },
-      { status: 500 },
-    );
+    return handleAiRouteError(error, "Failed to evaluate multi-goal log");
   }
 }

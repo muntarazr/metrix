@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { createRequestClient } from "@/utils/supabase/server-request";
-import { getErrorMessage } from "@/components/challenge/challenge-utils";
+import { requireUser } from "@/lib/api-auth";
+import type { createRequestClient } from "@/utils/supabase/server-request";
+import { getErrorMessage } from "@/lib/utils";
 
 const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 const ALLOWED_IMAGE_MIME_TYPES = ["image/png", "image/jpeg", "image/webp"];
@@ -80,18 +81,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const supabase = await createRequestClient(req);
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 },
-      );
+    const auth = await requireUser(req);
+    if (auth.error) {
+      return auth.error;
     }
+    const { supabase, user } = auth;
 
     const { data: goal, error: goalError } = await supabase
       .from("goals")

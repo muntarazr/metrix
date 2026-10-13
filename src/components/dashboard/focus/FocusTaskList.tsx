@@ -6,6 +6,7 @@ import { Sortable, SortableItem } from "@/components/reui/sortable";
 import { MainTaskCard, type TaskProgressInfo } from "../ReorderableTaskCards";
 import type { MainTask, SubTask } from "@/lib/task-hierarchy";
 import type { EditableTask } from "../TaskEditDialog";
+import type { TaskColorKey } from "@/lib/task-colors";
 
 export interface FocusTaskListProps {
   loadingTasks: boolean;
@@ -88,6 +89,7 @@ export interface FocusTaskListProps {
   >;
   onUpdateTaskScheduleDays?: (taskId: string, days: number[] | null) => Promise<void> | void;
   onUpdateTaskIcon?: (taskId: string, icon: string) => void;
+  onUpdateTaskColor?: (taskId: string, color: TaskColorKey | null) => void;
 }
 
 export function FocusTaskList({
@@ -122,6 +124,7 @@ export function FocusTaskList({
   onSetEditingText,
   onUpdateTaskWeight,
   onUpdateTaskIcon,
+  onUpdateTaskColor,
   onOpenTaskEditor,
   onToggleCheckin,
   setAddModalConfig,
@@ -267,6 +270,7 @@ export function FocusTaskList({
               onSetEditingText={onSetEditingText}
               onUpdateTaskWeight={onUpdateTaskWeight}
               onUpdateTaskIcon={onUpdateTaskIcon}
+              onUpdateTaskColor={onUpdateTaskColor}
               onOpenTaskEditor={onOpenTaskEditor}
               onToggleCheckin={onToggleCheckin}
               setAddModalConfig={setAddModalConfig}

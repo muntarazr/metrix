@@ -1,4 +1,7 @@
 import { apiUrl, getAuthHeaders } from "@/lib/api";
+import { getErrorMessage } from "@/lib/utils";
+
+export { getErrorMessage };
 
 export async function postJSON<T = unknown>(
   url: string,
@@ -19,12 +22,6 @@ export async function postJSON<T = unknown>(
   }
 
   return payload as T;
-}
-
-export function getErrorMessage(error: unknown, fallback: string) {
-  if (error instanceof Error && error.message) return error.message;
-  if (typeof error === "string" && error.trim()) return error;
-  return fallback;
 }
 
 export function formatTime(dateIso: string, locale: string) {

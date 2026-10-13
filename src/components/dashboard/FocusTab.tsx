@@ -138,6 +138,7 @@ export default function FocusTab({
   onRenameTask,
   onDeleteTask,
   onUpdateTaskIcon,
+  onUpdateTaskColor,
   onUpdateTaskWeight,
   onOpenTaskEditor,
   onSetDailyFocusAnswer,
@@ -150,6 +151,7 @@ export default function FocusTab({
   onSetNewMainCriteria,
   onSetNewMainFreq,
   onSetNewMainWeight,
+  onSetNewMainColor,
   onSetNewSubText,
   onSetNewSubCriteria,
   onSetNewSubFreq,
@@ -333,6 +335,7 @@ export default function FocusTab({
               onSetEditingText={onSetEditingText}
               onUpdateTaskWeight={onUpdateTaskWeight}
               onUpdateTaskIcon={onUpdateTaskIcon}
+              onUpdateTaskColor={onUpdateTaskColor}
               onOpenTaskEditor={onOpenTaskEditor}
               onToggleCheckin={onToggleCheckin}
               setAddModalConfig={setAddModalConfig}
@@ -357,6 +360,7 @@ export default function FocusTab({
           onSetNewMainCriteria={onSetNewMainCriteria}
           onSetNewMainFreq={onSetNewMainFreq}
           onSetNewMainWeight={onSetNewMainWeight}
+          onSetNewMainColor={onSetNewMainColor}
           onAddMain={onAddMain}
           onSetNewSubText={onSetNewSubText}
           onSetNewSubCriteria={onSetNewSubCriteria}

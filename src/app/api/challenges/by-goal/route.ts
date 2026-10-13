@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { createRequestClient } from '@/utils/supabase/server-request';
+import { requireUser } from '@/lib/api-auth';
 import { getErrorMessage } from '../shared';
 
 interface ScoreSlice {
@@ -170,15 +170,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'goalId is required' }, { status: 400 });
     }
 
-    const supabase = await createRequestClient(req);
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    const auth = await requireUser(req);
+    if (auth.error) {
+      return auth.error;
     }
+    const { supabase, user } = auth;
 
     const { data: ownedGoal, error: ownedGoalError } = await supabase
       .from('goals')

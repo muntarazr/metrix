@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { createRequestClient } from '@/utils/supabase/server-request';
+import { requireUser } from '@/lib/api-auth';
 import { getChallengeProfileSnapshot, getErrorMessage, parseChallengeRpcError } from '../shared';
 
 export async function POST(req: NextRequest) {
@@ -10,15 +10,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'goalId and inviteCode are required' }, { status: 400 });
     }
 
-    const supabase = await createRequestClient(req);
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    const auth = await requireUser(req);
+    if (auth.error) {
+      return auth.error;
     }
+    const { supabase, user } = auth;
 
     const { displayName, avatarUrl } = getChallengeProfileSnapshot(user);
 

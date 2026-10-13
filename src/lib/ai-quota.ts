@@ -70,3 +70,53 @@ export async function requireAiQuota(
 
   return null;
 }
+
+/**
+ * Formats a standardized 429 response when Gemini API quota is exceeded.
+ */
+export function createGeminiQuotaResponse(error: { retryAfterSeconds?: number }): NextResponse {
+  const retryAfterSeconds = Math.max(1, Number(error.retryAfterSeconds) || 60);
+  const retryMinutes = Math.ceil(retryAfterSeconds / 60);
+  return NextResponse.json(
+    {
+      error: "quota_exceeded",
+      message_ar: `تم تجاوز حد الاستخدام اليومي. حاول مرة أخرى بعد ${retryMinutes} دقيقة.`,
+      message_en: `Daily usage limit exceeded. Please try again in ${retryMinutes} minute(s).`,
+      retryAfterSeconds,
+    },
+    {
+      status: 429,
+      headers: { "Retry-After": String(retryAfterSeconds) },
+    },
+  );
+}
+
+/**
+ * Catches and maps route errors into appropriate JSON responses,
+ * mapping quota errors to 429 and unexpected errors to 500.
+ */
+export function handleAiRouteError(
+  error: unknown,
+  fallbackMessage = "AI operation failed",
+): NextResponse {
+  if (
+    error &&
+    typeof error === "object" &&
+    (("isQuotaExceeded" in error && Boolean((error as Record<string, unknown>).isQuotaExceeded)) ||
+      ("name" in error && (error as Record<string, unknown>).name === "GeminiQuotaError") ||
+      ("retryAfterSeconds" in error &&
+        typeof (error as Record<string, unknown>).retryAfterSeconds === "number"))
+  ) {
+    return createGeminiQuotaResponse(error as { retryAfterSeconds?: number });
+  }
+
+  return NextResponse.json(
+    {
+      error: fallbackMessage,
+      ...(process.env.NODE_ENV !== "production"
+        ? { detail: error instanceof Error ? error.message : String(error) }
+        : {}),
+    },
+    { status: 500 },
+  );
+}
