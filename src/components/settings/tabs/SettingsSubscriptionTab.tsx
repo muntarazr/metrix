@@ -113,11 +113,6 @@ export default function SettingsSubscriptionTab({
                                     {isArabic ? 'نشط' : 'Active'}
                                 </span>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                                {isArabic
-                                    ? 'أنت تستخدم الباقة المجانية مع الإمكانيات الأساسية'
-                                    : 'You are currently on the free plan with core capabilities'}
-                            </p>
                         </div>
                     </div>
 
@@ -298,16 +293,6 @@ export default function SettingsSubscriptionTab({
                         );
                     })}
                 </div>
-            </div>
-
-            {/* Help / Assurance note */}
-            <div className="flex items-center gap-2 p-3 rounded-xl bg-muted/30 border border-border/60 text-xs text-muted-foreground">
-                <HelpCircle className="w-4 h-4 shrink-0 text-primary" />
-                <p>
-                    {isArabic
-                        ? 'يمكنك إلغاء أو تغيير خطة اشتراكك في أي وقت بدون أي رسوم خفية.'
-                        : 'You can cancel or change your plan at any time without hidden fees.'}
-                </p>
             </div>
         </div>
     );

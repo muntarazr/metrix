@@ -115,7 +115,7 @@ export default function GoalsList({ goals, taskStatsMap = {}, selectedGoalId, on
     };
 
     return (
-        <div className="w-full max-w-4xl 2xl:max-w-5xl mx-auto flex-1 flex flex-col gap-4">
+        <div className="w-full max-w-4xl lg:max-w-[1041px] mx-auto flex-1 flex flex-col gap-4">
             <div className={cn(WELL_SURFACE, "p-3 sm:p-4 rounded-2xl sm:rounded-[22px] flex-1 flex flex-col min-h-0")}>
                 <div className="flex items-center gap-2 mb-3">
                     <div className="flex flex-1 gap-1 p-1 rounded-xl bg-muted/60 border border-border/70 h-11">
@@ -150,7 +150,7 @@ export default function GoalsList({ goals, taskStatsMap = {}, selectedGoalId, on
                         <button
                             type="button"
                             onClick={onNavigateToCreate || onNavigateToManualCreate}
-                            className="h-11 px-3 sm:px-4 rounded-xl font-bold flex items-center gap-1.5 sm:gap-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm active:scale-95 transition-all text-xs sm:text-sm cursor-pointer select-none shrink-0"
+                            className="self-stretch px-3 sm:px-4 rounded-xl font-bold flex items-center justify-center gap-1.5 sm:gap-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm active:scale-95 transition-all text-xs sm:text-sm cursor-pointer select-none shrink-0"
                             aria-label={isArabic ? 'إضافة هدف جديد' : (t.newGoal || 'New Goal')}
                         >
                             <Plus className="w-4 h-4 shrink-0" />
@@ -245,31 +245,14 @@ export default function GoalsList({ goals, taskStatsMap = {}, selectedGoalId, on
                                                             {goal.title}
                                                         </h3>
 
-                                                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                                        <div className="mt-1.5 flex items-center gap-1.5 flex-nowrap overflow-x-auto no-scrollbar py-0.5">
                                                             {goal.is_pinned && (
-                                                                <span className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary border border-primary/20 shadow-2xs">
-                                                                    <Pin className="h-2.5 w-2.5" />
-                                                                    <span>{isArabic ? 'مثبت' : 'Pinned'}</span>
-                                                                </span>
-                                                            )}
-                                                            {goal.domain && (
                                                                 <span
-                                                                    className="flex items-center gap-1 rounded-full bg-muted/60 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground border border-border/70 shadow-2xs"
-                                                                    title={isArabic ? 'تصنيف الهدف' : 'Category'}
+                                                                    className="inline-flex shrink-0 items-center justify-center rounded-full bg-primary/10 p-1 text-primary border border-primary/20 shadow-2xs"
+                                                                    title={isArabic ? 'هدف مثبت' : 'Pinned goal'}
+                                                                    aria-label={isArabic ? 'مثبت' : 'Pinned'}
                                                                 >
-                                                                    <Tag className="h-2.5 w-2.5 opacity-70 shrink-0" />
-                                                                    <span>
-                                                                        {(() => {
-                                                                            switch (goal.domain) {
-                                                                                case 'skills': return isArabic ? 'تعلّم ومهارات' : 'Skills & Learning';
-                                                                                case 'health': return isArabic ? 'صحة ولياقة' : 'Health & Fitness';
-                                                                                case 'career': return isArabic ? 'عمل ومشاريع' : 'Career & Projects';
-                                                                                case 'habits': return isArabic ? 'عادات ونمط حياة' : 'Habits & Routine';
-                                                                                case 'other': return isArabic ? 'عام' : 'General';
-                                                                                default: return goal.domain;
-                                                                            }
-                                                                        })()}
-                                                                    </span>
+                                                                    <Pin className="h-2.5 w-2.5 fill-current" />
                                                                 </span>
                                                             )}
                                                             {daysChip && (

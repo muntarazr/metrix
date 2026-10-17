@@ -12,7 +12,6 @@ export { HistoryCard } from './HistoryCard';
 export { EndChallengeDialog } from './EndChallengeDialog';
 export { LoadingSkeleton } from './LoadingSkeleton';
 export { FeedbackBanner } from './FeedbackBanner';
-export { RewardsSection } from './RewardsSection';
 
 export type {
   ScoreSlice,

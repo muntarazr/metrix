@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Loader2, Send, Sparkles } from "lucide-react";
+import { Check, ChevronDown, Loader2, Send, Sparkles } from "lucide-react";
 import { translations, type Language } from "@/lib/translations";
 import type { DailyFocusSession } from "@/lib/daily-focus";
 import { cn } from "@/lib/utils";
@@ -35,6 +35,7 @@ export function DailyFocusQuestionSection({
   const t = translations[language];
   const hasAnswer = Boolean(dailyFocus?.answered_at);
   const [editingAnswer, setEditingAnswer] = useState(false);
+  const [isAnswerExpanded, setIsAnswerExpanded] = useState(false);
 
   const submitDisabled = submitting || loading || !answer.trim();
   const showAnswerInput = !hasAnswer || editingAnswer;
@@ -188,22 +189,58 @@ export function DailyFocusQuestionSection({
         </div>
       ) : hasAnswer ? (
         <div className="mt-3.5 space-y-2.5">
-          <div className="rounded-xl border border-border/70 bg-muted/40 p-3.5 sm:p-4 shadow-xs">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-[10px] font-bold ltr:uppercase ltr:tracking-wider rtl:tracking-normal text-muted-foreground/75">
-                {t.answerQuestion}
-              </p>
-              <button
-                type="button"
-                onClick={() => setEditingAnswer(true)}
-                className="text-[11px] font-bold text-primary hover:underline"
+          <div className="rounded-xl border border-border/70 bg-muted/40 shadow-xs overflow-hidden transition-all duration-200">
+            <div
+              role="button"
+              tabIndex={0}
+              aria-expanded={isAnswerExpanded}
+              onClick={() => setIsAnswerExpanded((prev) => !prev)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setIsAnswerExpanded((prev) => !prev);
+                }
+              }}
+              className="flex items-center justify-between gap-2 p-2.5 sm:px-3.5 cursor-pointer hover:bg-muted/60 transition-colors select-none text-start"
+            >
+              <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                <ChevronDown
+                  className={cn(
+                    "h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform duration-200",
+                    isAnswerExpanded && "rotate-180"
+                  )}
+                />
+                <span className="text-[10px] font-bold ltr:uppercase ltr:tracking-wider rtl:tracking-normal text-muted-foreground/75 shrink-0">
+                  {t.answerQuestion}
+                </span>
+                {!isAnswerExpanded && dailyFocus?.answer && (
+                  <span className="text-[11px] text-muted-foreground/80 truncate font-normal">
+                    — {dailyFocus.answer}
+                  </span>
+                )}
+              </div>
+
+              <div
+                className="flex items-center gap-1.5 shrink-0"
+                onClick={(e) => e.stopPropagation()}
               >
-                {t.editSavedAnswer}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingAnswer(true)}
+                  className="text-[11px] font-bold text-primary hover:underline px-1.5 py-0.5 rounded hover:bg-primary/10 transition-colors"
+                >
+                  {t.editSavedAnswer}
+                </button>
+              </div>
             </div>
-            <p className="whitespace-pre-wrap text-xs sm:text-sm leading-relaxed text-foreground font-medium">
-              {dailyFocus?.answer || "—"}
-            </p>
+
+            {isAnswerExpanded && (
+              <div className="border-t border-border/60 bg-background/50 p-3 sm:p-3.5 animate-in fade-in-50 duration-150">
+                <p className="whitespace-pre-wrap text-xs sm:text-sm leading-relaxed text-foreground font-medium">
+                  {dailyFocus?.answer || "—"}
+                </p>
+              </div>
+            )}
           </div>
           {dailyFocus?.answer_coaching ? (
             <div className="rounded-xl border border-primary/20 bg-primary/5 p-3.5 sm:p-4 shadow-xs">

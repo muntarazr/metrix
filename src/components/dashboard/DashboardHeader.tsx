@@ -10,8 +10,6 @@ import {
   Pin,
   PinOff,
   Snowflake,
-  TrendingDown,
-  TrendingUp,
   Trash2,
   Download,
   Loader2,
@@ -30,10 +28,6 @@ import {
   textDirectionFor,
 } from "@/lib/utils";
 import { getGoalEndDaysChip, calendarDaysUntilGoalEnd } from "@/lib/goal-dates";
-import {
-  computeGoalProjection,
-  formatProjectionCopy,
-} from "@/lib/goal-projection";
 import { translations, type Language } from "@/lib/translations";
 import { getGoalIcon, GoalIconPicker } from "../goal/IconPicker";
 import GoalProgressBar from "@/components/shared/GoalProgressBar";
@@ -101,27 +95,16 @@ export default function DashboardHeader({
   const titleDir = textDirectionFor(goal.title);
   const dateLocale = localeWithEnglishDigits(language);
 
-  // The stored end date never moves; this is the one the current pace lands on.
-  const projection = computeGoalProjection({
-    currentPoints: goal.current_points,
-    targetPoints: goal.target_points,
-    createdAt: goal.created_at,
-    plannedEndDate: goal.estimated_completion_date,
-  });
-  const projectionCopy = projection
-    ? formatProjectionCopy(projection, isArabic)
-    : null;
-
   return (
     <div
       className={cn(
-        "rounded-xl border border-border/70 bg-card p-3 sm:p-4 shadow-xs flex flex-col transition-all duration-200 gap-2.5 sm:gap-3",
-        showGoalDetails && "gap-3 sm:gap-4",
+        "rounded-xl border border-border/70 bg-card p-2 min-[360px]:p-3 sm:p-4 shadow-xs flex flex-col transition-all duration-200 gap-2 min-[360px]:gap-2.5 sm:gap-3",
+        showGoalDetails && "gap-2.5 min-[360px]:gap-3 sm:gap-4",
       )}
     >
-      <div className="flex items-center justify-between gap-2.5 sm:gap-4 min-w-0">
+      <div className="flex items-center justify-between gap-2 sm:gap-4 min-w-0">
         <div
-          className="flex items-center gap-2.5 sm:gap-3.5 flex-1 min-w-0"
+          className="flex items-center gap-2 min-[360px]:gap-2.5 sm:gap-3.5 flex-1 min-w-0"
           dir={isArabic ? "rtl" : "ltr"}
         >
           <GoalIconPicker
@@ -130,7 +113,7 @@ export default function DashboardHeader({
           >
             <button
               aria-label={isArabic ? "تغيير أيقونة الهدف" : "Change goal icon"}
-              className="h-9 w-9 sm:h-10 sm:w-10 p-2 shrink-0 bg-muted/40 text-foreground hover:bg-muted/70 transition-all duration-150 rounded-xl flex items-center justify-center cursor-pointer border border-border/80 shadow-xs active:scale-95"
+              className="h-8 w-8 min-[360px]:h-9 min-[360px]:w-9 sm:h-10 sm:w-10 p-1.5 min-[360px]:p-2 shrink-0 bg-muted/40 text-foreground hover:bg-muted/70 transition-all duration-150 rounded-xl flex items-center justify-center cursor-pointer border border-border/80 shadow-xs active:scale-95"
             >
               <span className="transition-transform duration-200 hover:scale-110">
                 {getGoalIcon(goal.icon)}
@@ -147,9 +130,12 @@ export default function DashboardHeader({
             </h1>
             <div className="mt-1 sm:mt-1.5 flex min-w-0 items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 touch-pan-x">
               {goal.is_pinned && (
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10.5px] sm:text-[11px] font-medium text-primary border border-primary/20 shadow-xs">
+                <span
+                  className="inline-flex shrink-0 items-center justify-center rounded-full bg-primary/10 h-5 w-5 text-primary border border-primary/20 shadow-xs"
+                  title={isArabic ? "مثبت" : "Pinned"}
+                  aria-label={isArabic ? "مثبت" : "Pinned"}
+                >
                   <Pin className="w-3 h-3" />
-                  <span>{isArabic ? "مثبت" : "Pinned"}</span>
                 </span>
               )}
 
@@ -231,11 +217,11 @@ export default function DashboardHeader({
           <DropdownMenu dir={isArabic ? "rtl" : "ltr"}>
             <DropdownMenuTrigger asChild>
               <button
-                className="h-9 w-9 rounded-lg bg-card hover:bg-accent text-foreground transition-all duration-150 border border-border/70 shadow-xs flex items-center justify-center cursor-pointer active:scale-95 touch-manipulation select-none"
+                className="h-8 w-8 min-[360px]:h-9 min-[360px]:w-9 rounded-lg bg-card hover:bg-accent text-foreground transition-all duration-150 border border-border/70 shadow-xs flex items-center justify-center cursor-pointer active:scale-95 touch-manipulation select-none"
                 title={isArabic ? "خيارات الهدف" : "Goal Options"}
                 aria-label={isArabic ? "خيارات الهدف" : "Goal Options"}
               >
-                <MoreVertical className="w-4 h-4" />
+                <MoreVertical className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -395,29 +381,6 @@ export default function DashboardHeader({
           targetPoints={goal.target_points}
           progress={progress}
         />
-        {projectionCopy && (
-          <p
-            className={cn(
-              "flex items-center gap-1.5 px-0.5 text-[11px] font-semibold leading-none",
-              projectionCopy.tone === "behind" && "text-foreground",
-              projectionCopy.tone === "ahead" && "text-primary",
-              projectionCopy.tone === "on-track" && "text-muted-foreground/75",
-              projectionCopy.tone === "stalled" && "text-muted-foreground/75",
-            )}
-            title={
-              isArabic
-                ? "محسوب من سرعتك الفعلية، مو من الخطة الأصلية"
-                : "Derived from your actual pace, not the original plan"
-            }
-          >
-            {projectionCopy.tone === "behind" ? (
-              <TrendingDown className="h-3 w-3 shrink-0" aria-hidden />
-            ) : (
-              <TrendingUp className="h-3 w-3 shrink-0" aria-hidden />
-            )}
-            <span className="truncate">{projectionCopy.text}</span>
-          </p>
-        )}
       </div>
     </div>
   );

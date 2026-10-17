@@ -28,7 +28,6 @@ export interface GoalEditAiTabProps {
   totalDays: number;
   remainingDaysChip: { tone: 'soon' | 'today' | 'late'; text: string; title: string } | null;
   safePreviewTargetPoints: number;
-  activeLevel: { level: number };
   aiLabels: Record<string, string>;
   labels: Record<string, string>;
   isArabic: boolean;

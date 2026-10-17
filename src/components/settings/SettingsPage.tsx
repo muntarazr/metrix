@@ -5,12 +5,6 @@ import { Settings, ArrowRight, ArrowLeft, User as UserIcon, Sliders, Crown } fro
 import { translations, type Language } from '@/lib/translations';
 import { cn } from '@/lib/utils';
 import { MatrixManifestoDialog } from '@/components/login/MatrixManifestoDialog';
-import {
-    isNotificationsEnabled,
-    setNotificationsEnabled,
-    getNotificationTime,
-    setNotificationTime,
-} from '@/hooks/useStreakReminder';
 import { exportGoalMarkdownDirect } from '@/lib/goal-exporter';
 import AvatarDialog from './AvatarDialog';
 import SettingsProfileTab from './tabs/SettingsProfileTab';
@@ -39,8 +33,6 @@ export default function SettingsPage({
     const [theme, setTheme] = useState<'light' | 'dark'>('light');
     const [signingOut, setSigningOut] = useState(false);
     const [isManifestoOpen, setIsManifestoOpen] = useState(false);
-    const [streakNotifsEnabled, setStreakNotifsEnabled] = useState(false);
-    const [streakNotifTime, setStreakNotifTimeState] = useState('21:00');
     const [exportingGoalId, setExportingGoalId] = useState<string | null>(null);
 
     const {
@@ -73,8 +65,6 @@ export default function SettingsPage({
         if (typeof window === 'undefined') return;
         const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
         if (savedTheme) setTheme(savedTheme);
-        setStreakNotifsEnabled(isNotificationsEnabled());
-        setStreakNotifTimeState(getNotificationTime());
     }, []);
 
     const handleThemeChange = (newTheme: 'light' | 'dark') => {
@@ -92,17 +82,6 @@ export default function SettingsPage({
         localStorage.setItem('language', lang);
         document.documentElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
         document.documentElement.setAttribute('lang', lang);
-    };
-
-    const handleToggleStreakNotifs = async () => {
-        const next = !streakNotifsEnabled;
-        const granted = await setNotificationsEnabled(next);
-        setStreakNotifsEnabled(granted);
-    };
-
-    const handleTimeChange = (time: string) => {
-        setNotificationTime(time);
-        setStreakNotifTimeState(time);
     };
 
     const handleSignOut = async () => {
@@ -137,7 +116,7 @@ export default function SettingsPage({
 
     return (
         <div
-            className="w-full max-w-3xl mx-auto flex-1 flex flex-col gap-4"
+            className="w-full max-w-4xl lg:max-w-[1041px] mx-auto flex-1 flex flex-col gap-4"
             dir={isArabic ? 'rtl' : 'ltr'}
         >
             <MatrixManifestoDialog
@@ -146,15 +125,7 @@ export default function SettingsPage({
             />
 
             {/* Top Bar Header */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pb-2.5 border-b border-border/60">
-                <h1 className="text-lg sm:text-xl font-black text-foreground tracking-tight">
-                    {activeTab === 'profile'
-                        ? t.orbitProfile
-                        : activeTab === 'subscription'
-                            ? (isArabic ? 'الاشتراك والفوترة' : 'Subscription & Billing')
-                            : t.generalSettings}
-                </h1>
-
+            <div className="flex items-center justify-center sm:justify-end pb-2.5 border-b border-border/60">
                 <div className="flex w-full sm:w-auto items-center gap-1 bg-muted/40 p-1 rounded-xl border border-border/60 shadow-2xs self-stretch sm:self-auto overflow-x-auto">
                     <button
                         type="button"
@@ -256,10 +227,6 @@ export default function SettingsPage({
                         onThemeChange={handleThemeChange}
                         language={language}
                         onLanguageChange={handleLanguageChange}
-                        streakNotifsEnabled={streakNotifsEnabled}
-                        onToggleStreakNotifs={handleToggleStreakNotifs}
-                        streakNotifTime={streakNotifTime}
-                        onTimeChange={handleTimeChange}
                         onOpenManifesto={() => setIsManifestoOpen(true)}
                     />
                     <SettingsDangerZone

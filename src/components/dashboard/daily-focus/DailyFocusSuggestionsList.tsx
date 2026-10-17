@@ -19,6 +19,7 @@ import {
 import { translations, type Language } from "@/lib/translations";
 import type { DailyFocusSession, DailyFocusSuggestion } from "@/lib/daily-focus";
 import { cn } from "@/lib/utils";
+import { AiChipIcon } from "@/components/ui/AiChipIcon";
 
 interface DailyFocusSuggestionsListProps {
   language?: Language;
@@ -82,29 +83,29 @@ export function DailyFocusSuggestionsList({
 
     return (
       <div
-        className="flex min-h-full sm:min-h-[440px] flex-1 flex-col items-center justify-center p-2 sm:p-6"
+        className="flex min-h-0 flex-1 flex-col items-center justify-center p-1.5 sm:p-4 my-auto"
         dir={isArabic ? "rtl" : "ltr"}
       >
-        <div className="flex w-full max-w-lg flex-col items-center justify-center gap-3 sm:gap-5 rounded-2xl border border-border/70 bg-card p-4 sm:p-8 text-center shadow-xs">
-          <div className="relative flex h-13 w-13 sm:h-14 sm:w-14 items-center justify-center rounded-2xl border border-primary/25 bg-primary/10 text-primary shadow-xs">
-            <Sparkles className="size-6 sm:size-7" />
-            <span className="absolute -bottom-1 -end-1 flex h-5 w-5 items-center justify-center rounded-full bg-card border border-border/80 text-muted-foreground shadow-2xs">
-              <Lock className="size-2.5" />
-            </span>
+        <div className="flex w-full max-w-sm flex-col items-center rounded-2xl border border-border/70 bg-card/90 backdrop-blur-xs p-3.5 sm:p-5 text-center shadow-xs gap-3">
+          {/* Header Row: Compact Icon + Title Badge */}
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-primary/10 text-primary shadow-2xs">
+              <AiChipIcon className="size-4.5" />
+            </div>
+            <div className="text-start min-w-0">
+              <h3 className="text-xs sm:text-sm font-bold text-foreground tracking-tight leading-tight">
+                {t.suggestionsLockedDaysTitle || (isArabic ? "معايرة التوصيات" : "Calibrating")}
+              </h3>
+              <p className="text-[11px] text-muted-foreground/85 mt-0.5 leading-snug">
+                {isArabic
+                  ? "تتفعل تلقائياً بعد 5 أيام من تسجيل الأداء."
+                  : "Unlocks after 5 days of logged check-ins."}
+              </p>
+            </div>
           </div>
 
-          <div className="space-y-1.5 max-w-md">
-            <h3 className="text-sm sm:text-base font-bold text-foreground tracking-tight">
-              {t.suggestionsLockedDaysTitle || (isArabic ? "معايرة التوصيات الذكية" : "Calibrating Recommendations")}
-            </h3>
-            <p className="text-xs sm:text-[13px] leading-relaxed text-muted-foreground">
-              {t.suggestionsLockedDaysDesc || (isArabic
-                ? "يحتاج النظام إلى 5 أيام من تسجيل الأداء لتقديم توصيات دقيقة تناسب وتيرتك."
-                : "5 days of logged check-ins are required to calibrate tailored suggestions for your pace.")}
-            </p>
-          </div>
-
-          <div className="w-full max-w-xs sm:max-w-sm space-y-2 py-1">
+          {/* Stepper Progress Bar */}
+          <div className="w-full space-y-1.5 bg-muted/30 rounded-xl p-2.5 border border-border/60">
             <div className="flex items-center gap-1.5 w-full">
               {Array.from({ length: requiredDays }).map((_, idx) => {
                 const isCompleted = idx < daysPassed;
@@ -113,40 +114,38 @@ export function DailyFocusSuggestionsList({
                   <div
                     key={idx}
                     className={cn(
-                      "h-2 sm:h-2.5 flex-1 rounded-full transition-all duration-300",
+                      "h-1.5 flex-1 rounded-full transition-all duration-300",
                       isCompleted
                         ? "bg-primary"
                         : isCurrent
-                          ? "bg-primary/50 ring-2 ring-primary/20 animate-pulse"
-                          : "bg-muted border border-border/60",
+                          ? "bg-primary/50 ring-1.5 ring-primary/30 animate-pulse"
+                          : "bg-muted-foreground/15",
                     )}
                   />
                 );
               })}
             </div>
-
-            <div className="flex items-center justify-between text-xs font-medium text-muted-foreground px-0.5">
+            <div className="flex items-center justify-between text-[10.5px] font-medium text-muted-foreground px-0.5">
               <span className="tabular-nums font-semibold">
                 {isArabic
                   ? `اليوم ${currentDay} من ${requiredDays}`
                   : `Day ${currentDay} of ${requiredDays}`}
               </span>
               <span className="text-primary font-bold tabular-nums">
-                {isArabic
-                  ? `متبقي ${daysRemaining} ${daysRemaining === 1 ? "يوم" : "أيام"}`
-                  : `${daysRemaining} days left`}
+                {Math.round((daysPassed / requiredDays) * 100)}%
               </span>
             </div>
           </div>
 
+          {/* Compact Return Action */}
           {onNavigateToSection && (
             <button
               type="button"
               onClick={() => onNavigateToSection("tasks")}
-              className="inline-flex h-9 sm:h-10 items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground px-5 text-xs sm:text-sm font-semibold transition-all duration-150 hover:bg-primary/90 active:scale-98 shadow-xs cursor-pointer"
+              className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-xl bg-primary text-primary-foreground px-3 text-xs font-semibold transition-all duration-150 hover:bg-primary/90 active:scale-98 shadow-xs cursor-pointer"
             >
-              <ListTodo className="size-4 shrink-0" />
-              <span>{isArabic ? "التركيز على مهام اليوم" : "Focus on Today's Tasks"}</span>
+              <ListTodo className="size-3.5 shrink-0" />
+              <span>{isArabic ? "الانتقال لمهام اليوم" : "Go to Today's Tasks"}</span>
             </button>
           )}
         </div>

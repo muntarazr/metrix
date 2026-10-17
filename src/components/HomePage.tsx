@@ -5,7 +5,7 @@ import type { Language } from "@/lib/translations";
 import type { GoalTaskStats } from "@/app/page";
 import { BrandLockup } from "@/components/brand/Logo";
 import { createClient } from "@/utils/supabase/client";
-import { useSmartNotifications } from "@/hooks/useSmartNotifications";
+import { useHomeDailyFocus } from "@/hooks/useHomeDailyFocus";
 import ProgressLogDialog from "./progress/ProgressLogDialog";
 import type { TaskRow } from "@/lib/task-hierarchy";
 import HomeInputSection from "./home/HomeInputSection";
@@ -108,9 +108,23 @@ export default function HomePage({
 
   const supabase = useMemo(() => createClient(), []);
 
-  const { notifications, unreadNotifications, markAllAsRead } = useSmartNotifications({
+  const {
+    activeGoal: activeFocusGoal,
+    activeGoalId: activeFocusGoalId,
+    setActiveGoalId: setActiveFocusGoalId,
+    dailyFocus,
+    dailyFocusAnswer,
+    setDailyFocusAnswer,
+    loading: focusLoading,
+    submitting: focusSubmitting,
+    error: focusError,
+    generateFocusQuestion,
+    handleAnswerSubmit: handleFocusAnswerSubmit,
+    handleAppendTranscript: handleFocusAppendTranscript,
+  } = useHomeDailyFocus({
     goals,
-    language: isArabic ? "ar" : "en",
+    supabase,
+    language,
   });
 
   /* ---- Log mode: fetch tasks and open progress dialog ---- */
@@ -169,15 +183,15 @@ export default function HomePage({
 
   return (
     <div
-      className="mx-auto flex flex-1 min-h-0 w-full max-w-4xl 2xl:max-w-5xl flex-col gap-3 sm:gap-6 md:gap-7 px-1 min-[380px]:px-2 sm:px-4 pt-1.5 sm:pt-8 md:pt-14 pb-3 sm:pb-6"
+      className="mx-auto flex flex-1 min-h-0 h-full w-full max-w-4xl lg:max-w-[1041px] flex-col gap-2.5 sm:gap-3 md:gap-3.5 px-0.5 sm:px-1 pt-6 sm:pt-10 md:pt-14 pb-0.5 sm:pb-1"
       dir={isArabic ? "rtl" : "ltr"}
     >
       {/* Upper Focus Group: Header with Logo + Dual Mode Input */}
-      <div className="flex shrink-0 flex-col gap-2.5 sm:gap-4">
-        <div className="flex shrink-0 flex-col items-center justify-center gap-1.5 sm:gap-2 text-center px-1">
-          <BrandLockup className="h-auto w-[145px] min-[400px]:w-[165px] sm:w-[205px] md:w-[230px] text-foreground transition-transform duration-300 hover:scale-[1.02]" />
+      <div className="flex shrink-0 flex-col gap-2 sm:gap-3">
+        <div className="flex shrink-0 flex-col items-center justify-center gap-1 sm:gap-1.5 text-center px-1">
+          <BrandLockup className="h-auto w-[135px] min-[400px]:w-[155px] sm:w-[185px] md:w-[200px] text-foreground transition-transform duration-300 hover:scale-[1.02]" />
           <p
-            className="max-w-[18rem] text-xs font-semibold leading-relaxed text-muted-foreground/75 tracking-tight sm:max-w-[26rem] sm:text-sm text-balance"
+            className="max-w-[18rem] text-xs sm:text-[13px] font-semibold leading-normal sm:leading-relaxed text-muted-foreground/75 tracking-tight sm:max-w-[26rem] text-balance"
             dir={isArabic ? "rtl" : "ltr"}
             lang={isArabic ? "ar" : "en"}
           >
@@ -204,16 +218,24 @@ export default function HomePage({
         />
       </div>
 
-      {/* Lower Section: Tabs Container (Recent Goals & Notifications) */}
+      {/* Lower Section: Tabs Container (Recent Goals & Today's Question) */}
       <HomeGoalsSection
         recentGoals={recentGoals}
         taskStatsMap={taskStatsMap}
-        notifications={notifications}
-        unreadNotificationsCount={unreadNotifications.length}
         language={language}
         onSelectGoal={onSelectGoal}
-        onQuickLog={(goalId) => handleLogSubmit(goalId)}
-        onMarkAllNotifsRead={markAllAsRead}
+        activeFocusGoal={activeFocusGoal}
+        activeFocusGoalId={activeFocusGoalId}
+        onSelectFocusGoal={setActiveFocusGoalId}
+        dailyFocus={dailyFocus}
+        dailyFocusAnswer={dailyFocusAnswer}
+        onAnswerChange={setDailyFocusAnswer}
+        onAnswerSubmit={handleFocusAnswerSubmit}
+        onAppendTranscript={handleFocusAppendTranscript}
+        onRefreshQuestion={generateFocusQuestion}
+        focusLoading={focusLoading}
+        focusSubmitting={focusSubmitting}
+        focusError={focusError}
       />
 
       {/* Progress Log Dialog (opened from daily-log mode) */}

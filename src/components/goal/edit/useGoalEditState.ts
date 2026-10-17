@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { arSA, enUS } from 'react-day-picker/locale';
 import { createClient } from '@/utils/supabase/client';
 import { getScorableTasks, type TaskRow } from '@/lib/task-hierarchy';
-import { LEVEL_STEPS } from '@/components/challenge/RewardsSection';
 import { getGoalEndDaysChip } from '@/lib/goal-dates';
 import { apiUrl } from '@/lib/api';
 import {
@@ -148,18 +147,6 @@ export function useGoalEditState(
   const remainingDaysChip = useMemo(() => {
     return getGoalEndDaysChip(endDate, isArabic);
   }, [endDate, isArabic]);
-
-  const currentLevelIndex = useMemo(() => {
-    let index = 0;
-    for (let i = 0; i < LEVEL_STEPS.length; i++) {
-      if (currentProgressPercent >= LEVEL_STEPS[i].percent) {
-        index = i;
-      }
-    }
-    return index;
-  }, [currentProgressPercent]);
-
-  const activeLevel = LEVEL_STEPS[currentLevelIndex] || LEVEL_STEPS[0];
 
   const effectiveTasks = useMemo(() => {
     if (!taskChanges.length) return tasks;
@@ -542,7 +529,6 @@ export function useGoalEditState(
     safePreviewTargetPoints,
     suggestedDailyPoints,
     remainingDaysChip,
-    activeLevel,
     calculatedTaskPoints,
     labels,
     aiLabels,

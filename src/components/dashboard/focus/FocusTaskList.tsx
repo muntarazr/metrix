@@ -207,9 +207,9 @@ export function FocusTaskList({
   });
 
   return (
-    <div className="flex min-h-0 flex-1 w-full flex-col space-y-2">
+    <div className="flex min-h-0 flex-1 w-full flex-col space-y-1.5 sm:space-y-2">
       {isRestDayToday && (
-        <div className="rounded-2xl border border-primary/25 bg-primary/10 p-3.5 text-center space-y-1 animate-in fade-in">
+        <div className="rounded-xl border border-primary/25 bg-primary/10 p-2.5 text-center space-y-0.5 animate-in fade-in">
           <p className="text-xs font-bold text-foreground">
             {isArabic ? "لا توجد مهام مجدولة لليوم، وقت راحة فقط." : "No tasks scheduled for today, time to rest."}
           </p>
@@ -225,7 +225,7 @@ export function FocusTaskList({
         onValueCommit={(newMains) => handlePersistMainOrder(newMains)}
         getItemValue={(main) => main.id}
         strategy="vertical"
-        className="scrollbar-thin min-h-0 flex-1 w-full space-y-2 overflow-y-auto overscroll-contain pb-2"
+        className="scrollbar-thin min-h-0 flex-1 w-full space-y-1.5 sm:space-y-2 overflow-y-auto overscroll-contain pb-1.5"
       >
       {tasksList.map((main, mainIdx) => {
         const orderedSubtasks = manualOrder

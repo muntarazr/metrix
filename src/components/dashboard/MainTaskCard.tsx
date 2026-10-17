@@ -184,15 +184,15 @@ export function MainTaskCard({
           "ring-2 ring-primary/50 shadow-md border-primary bg-primary/5",
       )}
     >
-      <div className="ps-1.5 pe-3 py-2 sm:ps-2 sm:pe-3.5 sm:py-2.5">
+      <div className="ps-1 pe-2 py-1.5 min-[360px]:ps-1.5 min-[360px]:pe-2.5 min-[360px]:py-1.5 sm:ps-2 sm:pe-3 sm:py-2">
         <div className="flex flex-col">
           {/* Main task row */}
           <div
             className={cn(
-              "gap-2",
+              "gap-1 sm:gap-2",
               editingTaskId === main.id
                 ? "flex flex-col"
-                : "flex items-center justify-between gap-1.5 sm:gap-2",
+                : "flex items-center justify-between gap-1 sm:gap-2",
             )}
           >
             {editingTaskId === main.id ? (
@@ -280,7 +280,7 @@ export function MainTaskCard({
                     }
                   }}
                 >
-                  <TaskAppearancePicker
+                    <TaskAppearancePicker
                     value={main.accent_color}
                     seed={main.task_description}
                     currentEmoji={main.icon || "📝"}
@@ -294,19 +294,36 @@ export function MainTaskCard({
                       className="cursor-pointer hover:scale-105 active:scale-95 transition-transform"
                       title={isArabic ? "تعديل المظهر" : "Edit appearance"}
                     >
-                      <TaskProgressRing
-                        progress={mainCompletion}
-                        isCompleted={mainDone}
-                        size={36}
-                        strokeWidth={3.5}
-                        icon={
-                          main.icon ? (
-                            <span className="h-4 w-4 flex items-center justify-center text-foreground">
-                              {getGoalIcon(main.icon)}
-                            </span>
-                          ) : undefined
-                        }
-                      />
+                      <div className="block min-[360px]:hidden">
+                        <TaskProgressRing
+                          progress={mainCompletion}
+                          isCompleted={mainDone}
+                          size={30}
+                          strokeWidth={3}
+                          icon={
+                            main.icon ? (
+                              <span className="h-3.5 w-3.5 flex items-center justify-center text-foreground text-xs">
+                                {getGoalIcon(main.icon)}
+                              </span>
+                            ) : undefined
+                          }
+                        />
+                      </div>
+                      <div className="hidden min-[360px]:block">
+                        <TaskProgressRing
+                          progress={mainCompletion}
+                          isCompleted={mainDone}
+                          size={36}
+                          strokeWidth={3.5}
+                          icon={
+                            main.icon ? (
+                              <span className="h-4 w-4 flex items-center justify-center text-foreground">
+                                {getGoalIcon(main.icon)}
+                              </span>
+                            ) : undefined
+                          }
+                        />
+                      </div>
                     </button>
                   </TaskAppearancePicker>
 
@@ -322,21 +339,21 @@ export function MainTaskCard({
                       {main.task_description}
                     </span>
                     {main.completion_criteria && (
-                      <span className="line-clamp-1 text-[10.5px] text-muted-foreground/75 font-normal mt-0.5" title={main.completion_criteria}>
+                      <span className="line-clamp-1 text-[10px] min-[360px]:text-[10.5px] text-muted-foreground/75 font-normal mt-0.5" title={main.completion_criteria}>
                         {main.completion_criteria}
                       </span>
                     )}
                   </div>
 
                   {totalSubs > 0 && (
-                    <span className="shrink-0 text-[11px] font-bold text-muted-foreground/75 tabular-nums">
+                    <span className="shrink-0 text-[10.5px] min-[360px]:text-[11px] font-bold text-muted-foreground/75 tabular-nums">
                       {completedSubs}/{totalSubs}
                     </span>
                   )}
                 </div>
 
                 {/* Task Actions: Quick Focus Mode + 3-dots Menu */}
-                <div className="shrink-0 flex items-center gap-1.5">
+                <div className="shrink-0 flex items-center gap-1 sm:gap-1.5">
                   <button
                     type="button"
                     onClick={(e) => {
@@ -350,10 +367,10 @@ export function MainTaskCard({
                         impactWeight: main.impact_weight,
                       });
                     }}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-primary/30 bg-primary/10 text-primary transition-all duration-150 hover:bg-primary/20 hover:border-primary/50 active:scale-95 shadow-xs cursor-pointer touch-manipulation"
+                    className="inline-flex h-7 w-7 min-[360px]:h-8 min-[360px]:w-8 items-center justify-center rounded-lg min-[360px]:rounded-xl border border-primary/30 bg-primary/10 text-primary transition-all duration-150 hover:bg-primary/20 hover:border-primary/50 active:scale-95 shadow-xs cursor-pointer touch-manipulation"
                     title={isArabic ? "بدء جلسة تركيز" : "Start Focus Session"}
                   >
-                    <Target className="h-4 w-4" />
+                    <Target className="h-3.5 w-3.5 min-[360px]:h-4 min-[360px]:w-4" />
                   </button>
 
                   <MainTaskCardMenu

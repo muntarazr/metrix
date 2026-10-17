@@ -13,7 +13,6 @@ import { HistoryCard } from './challenge/HistoryCard';
 import { EndChallengeDialog } from './challenge/EndChallengeDialog';
 import { LoadingSkeleton } from './challenge/LoadingSkeleton';
 import { FeedbackBanner } from './challenge/FeedbackBanner';
-import { RewardsSection } from './challenge/RewardsSection';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { PANEL_SURFACE } from '@/lib/surfaces';
 import { cn } from '@/lib/utils';
@@ -220,18 +219,18 @@ export default function ChallengeTab({ goalId, currentPoints, targetPoints, lang
   }
 
   return (
-    <div className="h-full min-h-0 flex flex-col gap-2.5" dir={isArabic ? 'rtl' : 'ltr'}>
+    <div className="h-full min-h-0 flex flex-col gap-1.5 sm:gap-2.5" dir={isArabic ? 'rtl' : 'ltr'}>
       <FeedbackBanner feedback={feedback} />
 
       <ScrollArea className="flex-1 min-h-0" dir={isArabic ? 'rtl' : 'ltr'}>
-        <div className="space-y-2.5 pe-0.5 pb-4 sm:pb-1">
-        <section className={cn(PANEL_SURFACE, "rounded-xl p-3 sm:p-4")}>
+        <div className="space-y-1.5 sm:space-y-2.5 pe-0.5 pb-2 sm:pb-1">
+        <section className={cn(PANEL_SURFACE, "rounded-xl p-2.5 min-[360px]:p-3 sm:p-4")}>
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-muted/60 border border-border/70 text-muted-foreground">
-                <Users className="h-4 w-4" />
+              <div className="flex h-7.5 w-7.5 min-[360px]:h-8 min-[360px]:w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-[9px] sm:rounded-[10px] bg-muted/60 border border-border/70 text-muted-foreground">
+                <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </div>
-              <div className="text-sm font-bold tracking-tight text-foreground truncate">
+              <div className="text-xs min-[360px]:text-sm font-bold tracking-tight text-foreground truncate">
                 {isArabic ? 'التحدي مع الأصدقاء' : 'Challenge with Friends'}
               </div>
             </div>
@@ -302,15 +301,6 @@ export default function ChallengeTab({ goalId, currentPoints, targetPoints, lang
             t={t}
           />
         )}
-
-        <RewardsSection
-          goalId={goalId}
-          currentPoints={currentPoints}
-          targetPoints={targetPoints}
-          language={language}
-          numberFormatter={numberFormatter}
-          t={t}
-        />
 
         {(snapshot.status === 'active' || snapshot.status === 'ended') && (
           <ActivityCard

@@ -253,7 +253,7 @@ export default function FocusTab({
         />
 
         {/* Section Body */}
-        <div className="flex min-h-0 flex-1 w-full flex-col ps-3 pe-2 pt-2.5 pb-3 sm:ps-4 sm:pe-3 sm:pt-3 sm:pb-3.5">
+        <div className="flex min-h-0 flex-1 w-full flex-col ps-1.5 pe-1 pt-1 pb-1.5 min-[360px]:ps-2 min-[360px]:pe-1.5 min-[360px]:pt-1.5 min-[360px]:pb-2 sm:ps-3 sm:pe-2.5 sm:pt-2 sm:pb-2.5">
           {focusSection === "suggestions" ? (
             <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto overscroll-contain">
               <DailyFocusPanel

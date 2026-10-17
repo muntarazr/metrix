@@ -67,7 +67,6 @@ export default function GoalEditDialog({
     safePreviewTargetPoints,
     suggestedDailyPoints,
     remainingDaysChip,
-    activeLevel,
     calculatedTaskPoints,
     labels,
     aiLabels,
@@ -190,7 +189,6 @@ export default function GoalEditDialog({
               totalDays={totalDays}
               remainingDaysChip={remainingDaysChip}
               safePreviewTargetPoints={safePreviewTargetPoints}
-              activeLevel={activeLevel}
               aiLabels={aiLabels}
               labels={labels}
               isArabic={isArabic}

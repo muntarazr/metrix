@@ -4,7 +4,21 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
   TrendingUp,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
+import {
+  Label,
+  PolarRadiusAxis,
+  RadialBar,
+  RadialBarChart,
+} from 'recharts';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from '@/components/ui/chart';
 import { createClient } from '@/utils/supabase/client';
 import { type Language } from '@/lib/translations';
 import { parseDailyLogBreakdown } from '@/lib/daily-log-feedback';
@@ -111,6 +125,7 @@ export default function TaskInsights({ goalId, tasks, language = 'ar' }: TaskIns
   const [history, setHistory] = useState<TaskCheckinRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTask, setSelectedTask] = useState<TopTaskItem | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
 
   const todayStr = useMemo(() => {
     return getLocalDateKey();
@@ -482,90 +497,118 @@ export default function TaskInsights({ goalId, tasks, language = 'ar' }: TaskIns
         </div>
       )}
 
-      {/* Top Skills Section Card - Compact & Space-Efficient */}
-      <div className={cn(PANEL_SURFACE, "rounded-2xl p-2.5 transition-all duration-300")}>
-        {/* Section Header */}
-        <div className="flex items-center gap-2 pb-2 mb-2 border-b border-border/60">
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/15">
-            <TrendingUp className="h-3 w-3" />
+      {/* Top Skills Section Card - Clean Compact Radial Chart */}
+      <div className={cn(PANEL_SURFACE, "rounded-2xl p-2.5 sm:p-3 transition-all duration-300")}>
+        {/* Header with Title and Total */}
+        <div className="flex items-center justify-between gap-2 pb-1.5 mb-1 border-b border-border/50">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary border border-primary/20">
+              <TrendingUp className="h-3 w-3" />
+            </span>
+            <span className="text-xs font-bold text-foreground truncate">
+              {text.title}
+            </span>
+          </div>
+
+          <span className="text-[10px] text-muted-foreground shrink-0 font-medium">
+            {formatNumberEn(analytics.totalCompleted)} {text.totalDone}
           </span>
-          <h3 className="truncate text-xs font-extrabold text-foreground sm:text-sm">
-            {text.title}
-          </h3>
         </div>
 
-        {/* Top Tasks Compact Grid */}
-        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-3 sm:gap-2">
-          {analytics.topTasks.map((item, index) => {
-            const isTopRank = index === 0;
+        {/* Content: Clean Radial Stacked Chart Only */}
+        {(() => {
+          // Prepare dynamic stacked chart data and config
+          const topSkills = analytics.topTasks.slice(0, 4);
+          const colorVars = [
+            'var(--chart-1)',
+            'var(--chart-2)',
+            'var(--chart-3)',
+            'var(--chart-4)',
+          ];
+          const colorHexFallbacks = [
+            'hsl(var(--primary))',
+            'hsl(var(--chart-2, 217 91% 60%))',
+            'hsl(var(--chart-3, 142 71% 45%))',
+            'hsl(var(--chart-4, 38 92% 50%))',
+          ];
 
-            return (
-              <div
-                key={item.id}
-                onClick={() => setSelectedTask(item)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setSelectedTask(item);
-                  }
-                }}
-                className={cn(
-                  "group relative flex items-center justify-between rounded-xl border border-border/70 bg-card px-2.5 py-2 text-start transition-all duration-200 hover:border-primary/60 hover:shadow-xs cursor-pointer active:scale-[0.99] shadow-xs",
-                  isTopRank && "border-primary/40 ring-1 ring-primary/20 bg-primary/[0.03]"
-                )}
-              >
-                {/* Left Side: Rank + Name + Category/Frequency */}
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <span
-                    className={cn(
-                      "inline-flex h-5 min-w-5 items-center justify-center rounded-md px-1.5 text-[10px] font-semibold shrink-0 tabular-nums border",
-                      isTopRank
-                        ? "bg-primary text-primary-foreground border-primary/40 shadow-xs"
-                        : "bg-muted/60 text-muted-foreground border-border/60 font-medium"
-                    )}
+          const datum: Record<string, any> = { month: 'current' };
+          const config: ChartConfig = {};
+
+          topSkills.forEach((task, idx) => {
+            const key = `skill_${idx}`;
+            datum[key] = task.completions;
+            config[key] = {
+              label: task.fullName,
+              color: colorVars[idx] || colorHexFallbacks[idx],
+            };
+          });
+
+          const totalTopCompletions = topSkills.reduce((acc, t) => acc + t.completions, 0);
+
+          return (
+            <div className="w-full flex items-center justify-center">
+              <div className="w-full max-w-[240px] sm:max-w-[260px] h-[120px] sm:h-[130px] flex items-center justify-center overflow-hidden">
+                <ChartContainer
+                  config={config}
+                  className="w-full h-full aspect-auto flex items-center justify-center"
+                >
+                  <RadialBarChart
+                    data={[datum]}
+                    endAngle={180}
+                    cy="80%"
+                    innerRadius={58}
+                    outerRadius={84}
                   >
-                    #{index + 1}
-                  </span>
-
-                  <div className="min-w-0 flex-1">
-                    <h4
-                      className="truncate text-xs font-bold text-foreground group-hover:text-primary transition-colors leading-tight"
-                      title={item.fullName}
-                    >
-                      {item.fullName}
-                    </h4>
-                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground truncate mt-0.5">
-                      {item.parentName && (
-                        <>
-                          <span className="truncate max-w-[85px]">{item.parentName}</span>
-                          <span className="text-muted-foreground/40">•</span>
-                        </>
-                      )}
-                      <span>{item.frequency === 'daily' ? text.daily : text.weekly}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Side: Points + Multiplier */}
-                <div className="flex items-center gap-2 shrink-0 ms-2">
-                  <span className="text-[11px] font-bold text-foreground tabular-nums">
-                    <span className="text-primary font-black">+{formatNumberEn(item.totalPoints)}</span>
-                    <span className="text-[9px] text-muted-foreground ms-0.5">{text.points}</span>
-                  </span>
-                  <span
-                    className="inline-flex shrink-0 items-center gap-0.5 rounded-md border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-[11px] font-black text-primary tabular-nums"
-                    dir="ltr"
-                  >
-                    <span className="text-[9px] font-bold">×</span>
-                    {formatNumberEn(item.completions)}
-                  </span>
-                </div>
+                    <ChartTooltip
+                      cursor={false}
+                      content={<ChartTooltipContent hideLabel />}
+                    />
+                    <PolarRadiusAxis tick={false} tickLine={false} axisLine={false}>
+                      <Label
+                        content={({ viewBox }) => {
+                          if (viewBox && 'cx' in viewBox && 'cy' in viewBox) {
+                            return (
+                              <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle">
+                                <tspan
+                                  x={viewBox.cx}
+                                  y={(viewBox.cy || 0) - 10}
+                                  className="fill-foreground text-2xl font-black tabular-nums"
+                                >
+                                  {formatNumberEn(totalTopCompletions)}
+                                </tspan>
+                                <tspan
+                                  x={viewBox.cx}
+                                  y={(viewBox.cy || 0) + 7}
+                                  className="fill-muted-foreground text-[10px] font-semibold"
+                                >
+                                  {text.completions}
+                                </tspan>
+                              </text>
+                            );
+                          }
+                        }}
+                      />
+                    </PolarRadiusAxis>
+                    {topSkills.map((task, idx) => {
+                      const key = `skill_${idx}`;
+                      return (
+                        <RadialBar
+                          key={key}
+                          dataKey={key}
+                          stackId="a"
+                          cornerRadius={4}
+                          fill={`var(--color-${key})`}
+                          className="stroke-transparent stroke-2 cursor-pointer hover:opacity-85 transition-opacity"
+                        />
+                      );
+                    })}
+                  </RadialBarChart>
+                </ChartContainer>
               </div>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })()}
       </div>
     </section>
   );

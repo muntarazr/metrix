@@ -1,6 +1,6 @@
 'use client';
 
-import { Camera, Loader2, Bot, Flame, Sparkles, Brain, CheckCircle2, Download } from 'lucide-react';
+import { Camera, Loader2, Bot, Flame, Sparkles, Brain, CheckCircle2, Download, Zap, BookOpen, Target } from 'lucide-react';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { translations, type Language } from '@/lib/translations';
 import { cn, formatNumberEn } from '@/lib/utils';
@@ -107,51 +107,69 @@ export default function SettingsProfileTab({
                 )}
             </div>
 
-            {/* Minimal Stats Row */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {/* Compact Single-Row Horizontal Stats Strip */}
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 {[
-                    { value: `${maxStreak} ${t.days}`, label: t.bestStreak },
-                    { value: totalPointsEarned >= 1000 ? (totalPointsEarned / 1000).toFixed(1) + 'k' : totalPointsEarned.toString(), label: isArabic ? 'النقاط' : 'Points' },
-                    { value: totalLogs.toString(), label: isArabic ? 'التسجيلات' : 'Logs' },
-                    { value: `${completedGoals} / ${goals.length}`, label: t.completedGoals },
-                ].map((stat, idx) => (
-                    <div
-                        key={idx}
-                        className="rounded-xl border border-border/70 bg-card p-2.5 sm:p-3 text-center shadow-xs"
-                    >
-                        <p className="text-lg sm:text-xl font-black text-foreground tabular-nums tracking-tight">
-                            {stat.value}
-                        </p>
-                        <p className="text-[11px] font-semibold text-muted-foreground mt-0.5">
-                            {stat.label}
-                        </p>
-                    </div>
-                ))}
+                    {
+                        value: maxStreak.toString(),
+                        unit: isArabic ? 'يوم' : 'd',
+                        label: isArabic ? 'السلسلة' : 'Streak',
+                        icon: Flame,
+                        iconColor: "text-amber-500 bg-amber-500/12 border-amber-500/25",
+                    },
+                    {
+                        value: totalPointsEarned >= 1000 ? (totalPointsEarned / 1000).toFixed(1) + 'k' : totalPointsEarned.toString(),
+                        label: isArabic ? 'النقاط' : 'Points',
+                        icon: Zap,
+                        iconColor: "text-amber-400 bg-amber-400/12 border-amber-400/25",
+                    },
+                    {
+                        value: `${completedGoals}/${goals.length}`,
+                        label: isArabic ? 'الأهداف' : 'Goals',
+                        icon: Target,
+                        iconColor: "text-emerald-500 bg-emerald-500/12 border-emerald-500/25",
+                    },
+                ].map((stat, idx) => {
+                    const IconComp = stat.icon;
+                    return (
+                        <div
+                            key={idx}
+                            className="rounded-xl border border-border/70 bg-card/90 px-2 py-2 sm:px-3 sm:py-2.5 flex items-center gap-2 sm:gap-3 shadow-xs min-w-0"
+                        >
+                            <div className={cn("flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl border shadow-2xs", stat.iconColor)}>
+                                <IconComp className="w-5.5 h-5.5 sm:w-6 sm:h-6" />
+                            </div>
+                            <div className="flex flex-col justify-center min-w-0 flex-1 text-start">
+                                <div className="flex items-baseline gap-1 leading-none">
+                                    <span className="text-lg sm:text-xl md:text-2xl font-black text-foreground tabular-nums tracking-tight truncate">
+                                        {stat.value}
+                                    </span>
+                                    {stat.unit && (
+                                        <span className="text-xs sm:text-sm font-bold text-muted-foreground/85">
+                                            {stat.unit}
+                                        </span>
+                                    )}
+                                </div>
+                                <span className="text-xs sm:text-[13px] font-bold text-muted-foreground truncate leading-tight mt-1">
+                                    {stat.label}
+                                </span>
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
 
             {/* AI Coach Persona Selector */}
             <div className="rounded-xl border border-border/70 bg-card p-2.5 sm:p-3 space-y-2 shadow-xs">
-                <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/10 border border-primary/20 text-primary">
-                            <Bot className="w-3.5 h-3.5" />
-                        </div>
-                        <div className="flex items-baseline gap-2 min-w-0">
-                            <h3 className="font-bold text-xs sm:text-sm text-foreground tracking-tight truncate">
-                                {isArabic ? 'شخصية مدرب الذكاء الاصطناعي' : 'AI Coach Persona'}
-                            </h3>
-                            <span className="text-[10px] text-muted-foreground hidden sm:inline">
-                                {isArabic ? '— أسلوب التقييم ومستوى الصرامة' : '— Critique tone & rigor'}
-                            </span>
-                        </div>
+                <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/10 border border-primary/20 text-primary">
+                        <Bot className="w-3.5 h-3.5" />
                     </div>
-                    <span className="shrink-0 text-[10px] font-bold text-primary px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20">
-                        {coachPersona === 'strict'
-                            ? (isArabic ? 'صارم' : 'Strict')
-                            : coachPersona === 'analytical'
-                                ? (isArabic ? 'تحليلي' : 'Analytical')
-                                : (isArabic ? 'متوازن' : 'Balanced')}
-                    </span>
+                    <div className="flex items-baseline gap-2 min-w-0">
+                        <h3 className="font-bold text-xs sm:text-sm text-foreground tracking-tight truncate">
+                            {isArabic ? 'شخصية مدرب الذكاء الاصطناعي' : 'AI Coach Persona'}
+                        </h3>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 sm:gap-2" dir={isArabic ? 'rtl' : 'ltr'}>
@@ -160,24 +178,18 @@ export default function SettingsProfileTab({
                             id: 'strict' as const,
                             titleAr: 'صارم وحازم',
                             titleEn: 'Strict & Direct',
-                            descAr: 'انضباط صارم ومباشر بدون مجاملة.',
-                            descEn: 'Uncompromising rigor focused on discipline.',
                             icon: Flame,
                         },
                         {
                             id: 'balanced' as const,
                             titleAr: 'متوازن ومشجع',
                             titleEn: 'Balanced & Motivating',
-                            descAr: 'تقييم محفز يعزز الاستمرارية والجهد.',
-                            descEn: 'Encouraging yet honest, builds momentum.',
                             icon: Sparkles,
                         },
                         {
                             id: 'analytical' as const,
                             titleAr: 'واقعي وتحليلي',
                             titleEn: 'Analytical & Pragmatic',
-                            descAr: 'يركز على الأرقام والمخرجات الملموسة.',
-                            descEn: 'Pragmatic breakdown of time and outputs.',
                             icon: Brain,
                         },
                     ].map((persona) => {
@@ -189,33 +201,28 @@ export default function SettingsProfileTab({
                                 type="button"
                                 onClick={() => onPersonaChange(persona.id)}
                                 className={cn(
-                                    'px-2.5 py-1.5 sm:py-2 rounded-xl border text-start transition-all duration-200 cursor-pointer active:scale-[0.98] flex flex-col justify-center gap-0.5',
+                                    'px-2.5 py-2 rounded-xl border text-start transition-all duration-200 cursor-pointer active:scale-[0.98] flex items-center justify-between',
                                     isSelected
                                         ? 'border-primary/50 bg-primary/[0.08] shadow-xs ring-1 ring-primary/25'
                                         : 'border-border/60 bg-muted/20 hover:bg-muted/40 hover:border-border'
                                 )}
                             >
-                                <div className="flex items-center justify-between w-full">
-                                    <div className="flex items-center gap-1.5 min-w-0">
-                                        <span className={cn(
-                                            'p-1 rounded-md border flex items-center justify-center shrink-0',
-                                            isSelected
-                                                ? 'bg-primary text-primary-foreground border-primary'
-                                                : 'bg-muted/60 text-muted-foreground border-border/70'
-                                        )}>
-                                            <Icon className="w-3 h-3" />
-                                        </span>
-                                        <span className="font-extrabold text-xs text-foreground truncate">
-                                            {isArabic ? persona.titleAr : persona.titleEn}
-                                        </span>
-                                    </div>
-                                    {isSelected && (
-                                        <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                                    )}
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <span className={cn(
+                                        'p-1.5 rounded-lg border flex items-center justify-center shrink-0',
+                                        isSelected
+                                            ? 'bg-primary text-primary-foreground border-primary'
+                                            : 'bg-muted/60 text-muted-foreground border-border/70'
+                                    )}>
+                                        <Icon className="w-3.5 h-3.5" />
+                                    </span>
+                                    <span className="font-extrabold text-xs text-foreground truncate">
+                                        {isArabic ? persona.titleAr : persona.titleEn}
+                                    </span>
                                 </div>
-                                <p className="text-[10px] text-muted-foreground leading-snug line-clamp-2 sm:line-clamp-1">
-                                    {isArabic ? persona.descAr : persona.descEn}
-                                </p>
+                                {isSelected && (
+                                    <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
+                                )}
                             </button>
                         );
                     })}

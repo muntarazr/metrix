@@ -205,51 +205,56 @@ export default function Dashboard({
         />
       </div>
 
-      {/* ===== Log Progress Button ===== */}
-      <button
-        onClick={() => {
-          focus.setShowDailyFocusPrompt(false);
-          ops.setShowLogModal(true);
-        }}
-        className="flex w-full shrink-0 items-center justify-center gap-2.5 rounded-xl bg-primary h-10 min-[400px]:h-11 sm:h-12 text-sm sm:text-base font-medium text-primary-foreground shadow-xs shadow-primary/25 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.22)] hover:bg-primary/90 active:scale-[0.98] transition-all cursor-pointer select-none touch-manipulation"
-      >
-        <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary-foreground/20">
-          <Flame className="w-3.5 h-3.5 fill-current" />
-        </span>
-        {t.logProgressButton}
-      </button>
-
-      {/* ===== Tabs ===== */}
-      <div className="relative flex shrink-0 gap-1 overflow-hidden rounded-xl border border-border/70 bg-muted/60 p-1 h-10 sm:h-11 shadow-xs select-none">
-        {/* Sliding active background indicator */}
-        <div
-          className="absolute top-1 bottom-1 rounded-lg bg-card border border-border/70 shadow-xs"
-          style={{
-            width: "calc((100% - 16px) / 3)",
-            left: isArabic
-              ? "auto"
-              : `calc(4px + ${activeIndex} * ((100% - 16px) / 3 + 4px))`,
-            right: isArabic
-              ? `calc(4px + ${activeIndex} * ((100% - 16px) / 3 + 4px))`
-              : "auto",
-            transition: "all 300ms cubic-bezier(0.25, 1, 0.5, 1)",
+      {/* ===== Unified Navigation Bar with Log Progress Action ===== */}
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+        {/* Primary Log Progress Action Button (At start: Right in RTL, Left in LTR) */}
+        <button
+          onClick={() => {
+            focus.setShowDailyFocusPrompt(false);
+            ops.setShowLogModal(true);
           }}
-        />
-        {tabItems.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={cn(
-              "relative z-10 flex-1 min-w-0 flex items-center justify-center gap-1.5 sm:gap-2 py-1.5 px-1.5 sm:px-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-150 whitespace-nowrap cursor-pointer active:scale-95 touch-manipulation select-none",
-              activeTab === tab.key
-                ? "text-foreground font-semibold"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <span className="[&_svg]:h-4 [&_svg]:w-4 opacity-90">{tab.icon}</span>
-            <span className="truncate">{tab.label}</span>
-          </button>
-        ))}
+          title={t.logProgressButton}
+          aria-label={t.logProgressButton}
+          className="log-progress-btn-animated flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-primary h-9 min-[360px]:h-10 sm:h-11 px-2.5 min-[360px]:px-3 sm:px-3.5 text-xs min-[360px]:text-sm font-semibold text-primary-foreground shadow-xs shadow-primary/25 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.22)] hover:bg-primary/90 active:scale-[0.96] transition-all cursor-pointer select-none touch-manipulation"
+        >
+          <Flame className="log-progress-flame w-4 h-4 min-[360px]:w-[18px] min-[360px]:h-[18px] sm:w-5 sm:h-5 fill-current shrink-0" />
+          <span className="hidden min-[420px]:inline whitespace-nowrap">
+            {t.logProgressButton}
+          </span>
+        </button>
+
+        {/* Navigation Tabs */}
+        <div className="relative flex min-w-0 flex-1 gap-0.5 sm:gap-1 overflow-hidden rounded-xl border border-border/70 bg-muted/60 p-0.5 sm:p-1 h-9 min-[360px]:h-10 sm:h-11 shadow-xs select-none">
+          {/* Sliding active background indicator */}
+          <div
+            className="absolute top-0.5 bottom-0.5 sm:top-1 sm:bottom-1 rounded-lg bg-card border border-border/70 shadow-xs"
+            style={{
+              width: "calc((100% - 16px) / 3)",
+              left: isArabic
+                ? "auto"
+                : `calc(4px + ${activeIndex} * ((100% - 16px) / 3 + 4px))`,
+              right: isArabic
+                ? `calc(4px + ${activeIndex} * ((100% - 16px) / 3 + 4px))`
+                : "auto",
+              transition: "all 300ms cubic-bezier(0.25, 1, 0.5, 1)",
+            }}
+          />
+          {tabItems.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={cn(
+                "relative z-10 flex-1 min-w-0 flex items-center justify-center gap-1 min-[360px]:gap-1.5 sm:gap-2 py-1 px-1 min-[360px]:px-1.5 sm:px-2 rounded-lg text-[11px] min-[360px]:text-xs sm:text-sm font-medium transition-all duration-150 whitespace-nowrap cursor-pointer active:scale-95 touch-manipulation select-none",
+                activeTab === tab.key
+                  ? "text-foreground font-semibold"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <span className="[&_svg]:h-3.5 [&_svg]:w-3.5 sm:[&_svg]:h-4 sm:[&_svg]:w-4 opacity-90">{tab.icon}</span>
+              <span className="truncate">{tab.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ===== Error Banner ===== */}
@@ -291,11 +296,11 @@ export default function Dashboard({
           "min-h-0 flex-1",
           activeTab === "chart"
             ? cn(
-                "rounded-2xl p-3 sm:p-4 scrollbar-hide relative z-0 touch-pan-y overflow-y-scroll overscroll-contain pb-24 [-webkit-overflow-scrolling:touch] sm:pb-4",
+                "rounded-2xl p-1.5 min-[360px]:p-2 sm:p-3 scrollbar-hide relative z-0 touch-pan-y overflow-y-scroll overscroll-contain pb-20 [-webkit-overflow-scrolling:touch] sm:pb-3",
                 WELL_SURFACE,
               )
             : activeTab === "challenge"
-              ? cn("rounded-2xl p-3 sm:p-4 overflow-hidden", WELL_SURFACE)
+              ? cn("rounded-2xl p-1.5 min-[360px]:p-2 sm:p-3 overflow-hidden", WELL_SURFACE)
               : "overflow-hidden",
         )}
       >
@@ -401,8 +406,8 @@ export default function Dashboard({
             activeTab !== "chart" && "hidden",
           )}
         >
-          <div className="scrollbar-thin md:min-h-full space-y-3">
-            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_19.5rem] lg:grid-cols-[minmax(0,1fr)_21.5rem] xl:grid-cols-[minmax(0,1fr)_22.5rem] md:items-stretch">
+          <div className="scrollbar-thin md:min-h-full space-y-2 sm:space-y-2.5">
+            <div className="grid gap-1.5 min-[360px]:gap-2 sm:gap-2.5 md:grid-cols-[minmax(0,1fr)_19.5rem] lg:grid-cols-[minmax(0,1fr)_21.5rem] xl:grid-cols-[minmax(0,1fr)_22.5rem] md:items-stretch">
               <div className="w-full min-w-0 md:flex md:min-h-0">
                 <GrowthChart
                   data={data.chartData}

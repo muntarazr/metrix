@@ -454,7 +454,7 @@ export default function GrowthChart({
   const containerClass = cn(
     embedded
       ? "rounded-none border-0 bg-transparent p-0 shadow-none ring-0 hover:bg-transparent"
-      : cn("relative flex flex-col overflow-hidden rounded-2xl p-2.5", PANEL_SURFACE),
+      : cn("relative flex flex-col overflow-hidden rounded-xl sm:rounded-2xl p-2 min-[360px]:p-2.5 sm:p-3", PANEL_SURFACE),
     fillHeight && "h-full min-h-0",
     className,
   );
@@ -677,14 +677,14 @@ export default function GrowthChart({
     <div className={containerClass} dir={isArabic ? "rtl" : "ltr"}>
       {/* Top accent removed for cleaner design */}
 
-      <div className="pb-1 sm:pb-1.5">
-        <div className="flex items-center gap-2 sm:gap-2.5">
+      <div className="pb-0.5 sm:pb-1">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <div
             className="flex min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             role="tablist"
             aria-label={isArabic ? "النطاق الزمني" : "Time range"}
           >
-            <div className="inline-flex w-max shrink-0 gap-0.5 sm:gap-1 rounded-lg border border-border/70 bg-muted/60 p-0.5 shadow-xs">
+            <div className="inline-flex w-max shrink-0 gap-0.5 rounded-lg border border-border/70 bg-muted/60 p-0.5 shadow-xs">
               {timeRangeOptions.map((option) => (
                 <button
                   key={option.key}
@@ -693,10 +693,10 @@ export default function GrowthChart({
                   onClick={() => setTimeRange(option.key)}
                   aria-selected={timeRange === option.key}
                   className={cn(
-                    "h-7 whitespace-nowrap rounded-md px-1.5 min-[380px]:px-2 sm:px-2.5 text-[10.5px] sm:text-[11px] font-medium leading-none transition-all duration-150 cursor-pointer active:scale-95 touch-manipulation select-none",
+                    "h-6 min-[380px]:h-6.5 sm:h-7 whitespace-nowrap rounded-md px-1.5 min-[380px]:px-2 sm:px-2.5 text-[10px] sm:text-[11px] font-medium leading-none transition-all duration-150 cursor-pointer active:scale-95 touch-manipulation select-none",
                     isArabic
-                      ? "min-w-[2.25rem] sm:min-w-[2.75rem] tracking-normal"
-                      : "min-w-[2.25rem] sm:min-w-[2.5rem] tabular-nums",
+                      ? "min-w-[2rem] sm:min-w-[2.5rem] tracking-normal"
+                      : "min-w-[2rem] sm:min-w-[2.25rem] tabular-nums",
                     timeRange === option.key
                       ? "bg-card text-foreground border border-border/70 shadow-xs"
                       : "text-muted-foreground hover:text-foreground",
@@ -717,7 +717,7 @@ export default function GrowthChart({
                 aria-pressed={chartType === option.key}
                 aria-label={option.label}
                 className={cn(
-                  "flex h-7 w-7 items-center justify-center rounded-md transition-all duration-150 cursor-pointer active:scale-95",
+                  "flex h-6 w-6 min-[380px]:h-6.5 min-[380px]:w-6.5 sm:h-7 sm:w-7 items-center justify-center rounded-md transition-all duration-150 cursor-pointer active:scale-95",
                   chartType === option.key
                     ? "bg-card text-foreground border border-border/70 shadow-xs"
                     : "text-muted-foreground hover:text-foreground",
@@ -731,8 +731,8 @@ export default function GrowthChart({
         </div>
       </div>
 
-      <div className="mt-1.5 flex flex-1 min-h-0">
-        <div className="flex flex-col w-full min-w-0 flex-1 min-h-0 overflow-hidden rounded-xl border border-border/45 bg-muted/12 p-1.5 sm:p-2 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]">
+      <div className="mt-1 flex flex-1 min-h-0">
+        <div className="flex flex-col w-full min-w-0 flex-1 min-h-0 overflow-hidden rounded-xl border border-border/45 bg-muted/12 p-1 min-[360px]:p-1.5 sm:p-2 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]">
           {chartData.length === 0 ? (
             <div
               className={cn(

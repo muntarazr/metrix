@@ -17,7 +17,6 @@ import { createClient } from "@/utils/supabase/client";
 import { translations, type Language } from "@/lib/translations";
 import { applyDocumentLanguage, readStoredLanguage } from "@/lib/language";
 import { getLocalDateKey, getLocalWeekStartMonday } from "@/lib/task-periods";
-import { useStreakReminder } from "@/hooks/useStreakReminder";
 import { setAccessToken, isNativeApp } from "@/lib/api";
 import { useCapacitorAuth } from "@/hooks/useCapacitorAuth";
 import { cn } from "@/lib/utils";
@@ -86,9 +85,6 @@ export default function Home() {
     useState<PendingNavigation | null>(null);
 
   const t = translations[language];
-
-  // Background check for streaks at risk → browser notification
-  useStreakReminder(language);
 
   // Deep link listener for Capacitor OAuth callback + cold-start launch URL check
   const { checkLaunchUrl } = useCapacitorAuth(() => {
@@ -322,13 +318,16 @@ export default function Home() {
     <OrbitShell user={user}>
       <WelcomeDialog language={language} />
       <div
-        className={`mx-auto flex min-h-0 w-full max-w-7xl 2xl:max-w-[1600px] flex-col items-center px-2.5 min-[400px]:px-3 sm:px-6 lg:px-12 pt-[max(0.75rem,env(safe-area-inset-top))] sm:pt-6 lg:pt-8 lg:pl-28 rtl:lg:pl-12 rtl:lg:pr-28
+        className={`mx-auto flex min-h-0 w-full max-w-7xl 2xl:max-w-[1600px] flex-col items-center px-2 min-[360px]:px-2.5 min-[400px]:px-3 sm:px-6 lg:px-12 lg:pl-28 rtl:lg:pl-12 rtl:lg:pr-28
           ${
-            currentView === "home" || currentView === "create-goal"
-              ? "min-h-[100dvh] flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-12"
-              : isDashboardView
-                ? "h-[calc(100dvh_-_5rem_-_env(safe-area-inset-bottom))] min-h-[34rem] lg:min-h-0 shrink-0 overflow-hidden pb-0 sm:h-[calc(100dvh_-_6rem_-_env(safe-area-inset-bottom))] lg:h-[100dvh] lg:pb-12"
-                : "min-h-[100dvh] flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-12"
+            currentView === "home"
+              ? "pt-[max(3.75rem,calc(env(safe-area-inset-top)+2.75rem))] sm:pt-[4.5rem] lg:pt-24"
+              : "pt-[max(0.5rem,env(safe-area-inset-top))] sm:pt-6 lg:pt-8"
+          }
+          ${
+            currentView === "home" || isDashboardView
+              ? "h-[calc(100dvh_-_4.5rem_-_env(safe-area-inset-bottom))] min-h-0 lg:min-h-0 shrink-0 overflow-hidden pb-1 sm:h-[calc(100dvh_-_6rem_-_env(safe-area-inset-bottom))] sm:pb-2 lg:h-[100dvh] lg:pb-5"
+              : "min-h-[100dvh] flex-1 pb-[calc(4.5rem+env(safe-area-inset-bottom))] sm:pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-12"
           }
           ${loading ? "justify-center" : "justify-start"}`}
       >
@@ -345,7 +344,7 @@ export default function Home() {
             <div
               className={cn(
                 "w-full min-w-0 flex-1 min-h-0",
-                currentView === "home" ? "flex flex-col" : "hidden"
+                currentView === "home" ? "flex flex-col h-full" : "hidden"
               )}
             >
               <HomePage

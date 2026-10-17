@@ -208,26 +208,6 @@ export function useFocusTimer({
             setIsRunning(false);
             setIsTimerFinished(true);
             playFocusChime();
-
-            // Request / show system browser notification if allowed
-            if (typeof window !== "undefined" && "Notification" in window) {
-              if (Notification.permission === "granted") {
-                try {
-                  new Notification(
-                    isArabic
-                      ? "انتهت جلسة التركيز بنجاح! 🎉"
-                      : "Focus Session Finished! 🎉",
-                    {
-                      body: isArabic
-                        ? `أتممت وقت التركيز على "${task?.description}" وحصلت على +${task?.impactWeight || 5} نقاط!`
-                        : `Finished focus on "${task?.description}" and earned +${task?.impactWeight || 5} points!`,
-                    },
-                  );
-                } catch {
-                  // ignore
-                }
-              }
-            }
             return 0;
           }
           return prev - 1;
