@@ -75,3 +75,6 @@ next-env.d.ts
 # internal audit artifacts
 .refactor-audit/
 audit-evidence/
+
+# Google client secrets
+client_secret*.json
