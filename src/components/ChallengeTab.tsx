@@ -302,24 +302,22 @@ export default function ChallengeTab({ goalId, currentPoints, targetPoints, lang
           />
         )}
 
-        {(snapshot.status === 'active' || snapshot.status === 'ended') && (
-          <ActivityCard
-            goalId={goalId}
-            recentEvents={snapshot.recentEvents}
-            visibleEvents={visibleEvents}
-            canToggleEvents={canToggleEvents}
-            showAllEvents={showAllEvents}
-            onToggleShowAll={() => setShowAllEvents((prev) => !prev)}
-            meName={meName}
-            opponentName={opponentName}
-            meGoalTitle={snapshot.me?.goalTitle}
-            opponentGoalTitle={snapshot.opponent?.goalTitle}
-            locale={locale}
-            numberFormatter={numberFormatter}
-            ui={ui}
-            t={t}
-          />
-        )}
+        <ActivityCard
+          goalId={goalId}
+          recentEvents={snapshot.recentEvents}
+          visibleEvents={visibleEvents}
+          canToggleEvents={canToggleEvents}
+          showAllEvents={showAllEvents}
+          onToggleShowAll={() => setShowAllEvents((prev) => !prev)}
+          meName={meName}
+          opponentName={opponentName}
+          meGoalTitle={snapshot.me?.goalTitle}
+          opponentGoalTitle={snapshot.opponent?.goalTitle}
+          locale={locale}
+          numberFormatter={numberFormatter}
+          ui={ui}
+          t={t}
+        />
 
         </div>
       </ScrollArea>

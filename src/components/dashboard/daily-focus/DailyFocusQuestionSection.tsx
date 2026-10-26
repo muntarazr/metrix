@@ -5,7 +5,8 @@ import { Check, ChevronDown, Loader2, Send, Sparkles } from "lucide-react";
 import { translations, type Language } from "@/lib/translations";
 import type { DailyFocusSession } from "@/lib/daily-focus";
 import { cn } from "@/lib/utils";
-import VoiceRecorder from "../../shared/VoiceRecorder";
+import VoiceRecorder, { useVoiceGlow } from "../../shared/VoiceRecorder";
+import { VoiceBeam } from "voice-glow";
 
 interface DailyFocusQuestionSectionProps {
   language?: Language;
@@ -33,6 +34,7 @@ export function DailyFocusQuestionSection({
   onAppendTranscript,
 }: DailyFocusQuestionSectionProps) {
   const t = translations[language];
+  const voiceGlow = useVoiceGlow();
   const hasAnswer = Boolean(dailyFocus?.answered_at);
   const [editingAnswer, setEditingAnswer] = useState(false);
   const [isAnswerExpanded, setIsAnswerExpanded] = useState(false);
@@ -116,43 +118,53 @@ export function DailyFocusQuestionSection({
 
 
           <div className="relative">
-            <textarea
-              id="daily-focus-panel-answer"
-              value={answer}
-              onChange={(event) => {
-                const val = event.target.value;
-                const lines = val.split("\n");
-                if (lines.length > 5) {
-                  onAnswerChange(lines.slice(0, 5).join("\n"));
-                } else {
-                  onAnswerChange(val);
-                }
-              }}
-              onKeyDown={(e) => {
-                if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                  e.preventDefault();
-                  if (!submitDisabled) {
-                    onAnswerSubmit();
-                    setEditingAnswer(false);
+            <VoiceBeam
+              stream={voiceGlow.stream}
+              active={voiceGlow.active}
+              motion={voiceGlow.motion}
+              theme={voiceGlow.theme}
+            >
+              <textarea
+                id="daily-focus-panel-answer"
+                value={answer}
+                onChange={(event) => {
+                  const val = event.target.value;
+                  const lines = val.split("\n");
+                  if (lines.length > 5) {
+                    onAnswerChange(lines.slice(0, 5).join("\n"));
+                  } else {
+                    onAnswerChange(val);
                   }
+                }}
+                onKeyDown={(e) => {
+                  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                    e.preventDefault();
+                    if (!submitDisabled) {
+                      onAnswerSubmit();
+                      setEditingAnswer(false);
+                    }
+                  }
+                }}
+                placeholder={
+                  isArabic
+                    ? "اكتب جوابك باختصار (حتى 5 أسطر) أو اختر من الخيارات أعلاه..."
+                    : "Write your answer briefly (up to 5 lines) or choose an option above..."
                 }
-              }}
-              placeholder={
-                isArabic
-                  ? "اكتب جوابك باختصار (حتى 5 أسطر) أو اختر من الخيارات أعلاه..."
-                  : "Write your answer briefly (up to 5 lines) or choose an option above..."
-              }
-              disabled={loading || submitting}
-              rows={3}
-              className={cn(
-                "min-h-20 w-full rounded-xl border border-border/70 bg-background px-3.5 py-2.5 pb-12 pe-12 text-base sm:text-sm leading-relaxed text-foreground outline-none transition-all placeholder:text-muted-foreground/50 focus:border-primary/30 focus:ring-2 focus:ring-primary/15",
-                (loading || submitting) && "cursor-not-allowed opacity-70",
-              )}
-              dir={isArabic ? "rtl" : "ltr"}
-            />
-            <div className="pointer-events-auto absolute bottom-2 end-2">
+                disabled={loading || submitting}
+                rows={3}
+                className={cn(
+                  "block min-h-20 w-full rounded-xl border border-border/70 bg-background px-3.5 py-2.5 pb-12 pe-12 text-base sm:text-sm leading-relaxed text-foreground outline-none transition-all placeholder:text-muted-foreground/50 focus:border-primary/30 focus:ring-2 focus:ring-primary/15",
+                  (loading || submitting) && "cursor-not-allowed opacity-70",
+                )}
+                dir={isArabic ? "rtl" : "ltr"}
+              />
+            </VoiceBeam>
+            <div className="pointer-events-auto absolute bottom-2 end-2 z-10">
               <VoiceRecorder
                 onTranscript={onAppendTranscript}
+                onStreamChange={voiceGlow.setStream}
+                onRecordingChange={voiceGlow.setIsRecording}
+                onProcessingChange={voiceGlow.setIsProcessing}
                 language={language}
                 size="sm"
                 statusAboveButton

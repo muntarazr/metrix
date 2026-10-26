@@ -15,7 +15,7 @@ export interface Goal {
     ai_summary?: string | null;
 }
 
-export type SettingsTab = 'general' | 'profile' | 'subscription';
+export type SettingsTab = 'profile' | 'general';
 
 export type CoachPersona = 'strict' | 'balanced' | 'analytical';
 

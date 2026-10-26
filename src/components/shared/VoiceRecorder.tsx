@@ -2,16 +2,60 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Mic, Loader2, StopCircle } from "lucide-react";
+import { getAudioContext, type VoiceBeamMotion, type VoiceBeamTheme } from "voice-glow";
 import { cn } from "@/lib/utils";
 import { translations, type Language } from "@/lib/translations";
 import { apiUrl } from "@/lib/api";
+
+export function useVoiceGlow() {
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [theme, setTheme] = useState<VoiceBeamTheme>("dark");
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const root = document.documentElement;
+    const updateTheme = () => {
+      setTheme(root.classList.contains("dark") ? "dark" : "light");
+    };
+    updateTheme();
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
+
+  const motion = useCallback((): VoiceBeamMotion | null => {
+    if (!isProcessing) return null;
+    const t = typeof performance !== "undefined" ? performance.now() / 420 : 0;
+    return {
+      gather: 1,
+      offset: Math.sin(t) * 0.65,
+      stretch: Math.abs(Math.cos(t)) * 0.4,
+      heldLevel: 0.65,
+      cornerFollow: 0.5,
+    };
+  }, [isProcessing]);
+
+  return {
+    stream,
+    setStream,
+    isRecording,
+    setIsRecording,
+    isProcessing,
+    setIsProcessing,
+    active: isRecording || isProcessing,
+    motion: isProcessing ? motion : null,
+    theme,
+  };
+}
 
 interface VoiceRecorderProps {
   onTranscript: (text: string) => void;
   language?: Language;
   className?: string;
-  /** Smaller control for textareas, toolbars and dialogs */
-  size?: "default" | "sm";
+  /** Smaller control for textareas, toolbars and dialogs, or responsive */
+  size?: "default" | "sm" | "responsive";
   /** In corner overlays, stack status lines above the button */
   statusAboveButton?: boolean;
   /** Optional variant (kept for backwards compatibility) */
@@ -22,6 +66,8 @@ interface VoiceRecorderProps {
   onRecordingChange?: (isRecording: boolean) => void;
   /** Optional notification when processing status changes */
   onProcessingChange?: (isProcessing: boolean) => void;
+  /** Optional notification when the active MediaStream changes */
+  onStreamChange?: (stream: MediaStream | null) => void;
 }
 
 export default function VoiceRecorder({
@@ -32,6 +78,7 @@ export default function VoiceRecorder({
   statusAboveButton = true,
   onRecordingChange,
   onProcessingChange,
+  onStreamChange,
 }: VoiceRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -63,13 +110,25 @@ export default function VoiceRecorder({
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
+    onStreamChange?.(null);
     mediaRecorderRef.current = null;
     audioChunksRef.current = [];
-  }, []);
+  }, [onStreamChange]);
+
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
+      onStreamChange?.(null);
+    };
+  }, [onStreamChange]);
 
   const startRecording = useCallback(async () => {
     try {
       setError(null);
+      getAudioContext();
 
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -81,6 +140,7 @@ export default function VoiceRecorder({
       });
 
       streamRef.current = stream;
+      onStreamChange?.(stream);
       audioChunksRef.current = [];
 
       const mimeType = MediaRecorder.isTypeSupported("audio/webm")
@@ -98,6 +158,11 @@ export default function VoiceRecorder({
 
       mediaRecorder.onstop = async () => {
         setIsProcessing(true);
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((track) => track.stop());
+          streamRef.current = null;
+        }
+        onStreamChange?.(null);
         const copy = translations[language];
 
         try {
@@ -143,8 +208,9 @@ export default function VoiceRecorder({
       console.error("Recording error:", err);
       setError(translations[language].voiceMicAccessError);
       setIsRecording(false);
+      onStreamChange?.(null);
     }
-  }, [language, onTranscript, cleanup]);
+  }, [language, onTranscript, cleanup, onStreamChange]);
 
   const stopRecording = useCallback(() => {
     if (
@@ -168,9 +234,16 @@ export default function VoiceRecorder({
   const sizeClasses =
     size === "sm"
       ? "h-9 w-9"
-      : "h-10 w-10";
+      : size === "responsive"
+        ? "h-9 w-9 sm:h-10 sm:w-10"
+        : "h-10 w-10";
 
-  const iconClasses = size === "sm" ? "size-3.5 sm:size-4" : "size-4";
+  const iconClasses =
+    size === "sm"
+      ? "size-3.5"
+      : size === "responsive"
+        ? "size-3.5 sm:size-4"
+        : "size-4";
 
   return (
     <div className={cn("relative inline-flex items-center", className)}>

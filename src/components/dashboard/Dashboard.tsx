@@ -244,7 +244,7 @@ export default function Dashboard({
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={cn(
-                "relative z-10 flex-1 min-w-0 flex items-center justify-center gap-1 min-[360px]:gap-1.5 sm:gap-2 py-1 px-1 min-[360px]:px-1.5 sm:px-2 rounded-lg text-[11px] min-[360px]:text-xs sm:text-sm font-medium transition-all duration-150 whitespace-nowrap cursor-pointer active:scale-95 touch-manipulation select-none",
+                "relative z-10 flex-1 min-w-0 flex items-center justify-center gap-0.5 min-[360px]:gap-1 sm:gap-2 py-1 px-0.5 min-[360px]:px-1 sm:px-2 rounded-lg text-[10.5px] min-[360px]:text-[11.5px] min-[400px]:text-xs sm:text-sm font-medium transition-all duration-150 whitespace-nowrap cursor-pointer active:scale-95 touch-manipulation select-none",
                 activeTab === tab.key
                   ? "text-foreground font-semibold"
                   : "text-muted-foreground hover:text-foreground",

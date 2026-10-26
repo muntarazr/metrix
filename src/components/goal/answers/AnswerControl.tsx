@@ -1,5 +1,6 @@
 'use client';
 
+import { Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { AnswerControlProps } from './answer-types';
 import {
@@ -163,6 +164,7 @@ export function AnswerControl({
                 <div className="flex flex-wrap gap-2">
                     {(options || []).map((opt) => {
                         const active = matchedOption === opt || (!matchedOption && value === opt);
+                        const isRecommended = /(موصى\s*به|recommended)/i.test(opt);
                         return (
                             <button
                                 key={opt}
@@ -171,11 +173,18 @@ export function AnswerControl({
                                 onClick={() => handleOptionClick(opt)}
                                 className={cn(
                                     CHIP_CLASSES,
-                                    active ? CHIP_ACTIVE : CHIP_IDLE,
-                                    'cursor-pointer disabled:cursor-not-allowed disabled:opacity-50'
+                                    active
+                                        ? CHIP_ACTIVE
+                                        : isRecommended
+                                            ? 'border-primary/45 bg-primary/10 text-foreground font-semibold shadow-2xs hover:bg-primary/15'
+                                            : CHIP_IDLE,
+                                    'inline-flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50'
                                 )}
                             >
-                                {opt}
+                                {isRecommended && (
+                                    <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />
+                                )}
+                                <span>{opt}</span>
                             </button>
                         );
                     })}
@@ -214,17 +223,32 @@ export function AnswerControl({
         return (
             <div className="space-y-2.5">
                 <div className="flex flex-wrap gap-2">
-                    {(options || []).map((opt) => (
-                        <button
-                            key={opt}
-                            type="button"
-                            disabled={disabled}
-                            onClick={() => toggleOption(opt)}
-                            className={cn(CHIP_CLASSES, selectedList.includes(opt) ? CHIP_ACTIVE : CHIP_IDLE, 'cursor-pointer disabled:cursor-not-allowed disabled:opacity-50')}
-                        >
-                            {opt}
-                        </button>
-                    ))}
+                    {(options || []).map((opt) => {
+                        const isRecommended = /(موصى\s*به|recommended)/i.test(opt);
+                        const active = selectedList.includes(opt);
+                        return (
+                            <button
+                                key={opt}
+                                type="button"
+                                disabled={disabled}
+                                onClick={() => toggleOption(opt)}
+                                className={cn(
+                                    CHIP_CLASSES,
+                                    active
+                                        ? CHIP_ACTIVE
+                                        : isRecommended
+                                            ? 'border-primary/45 bg-primary/10 text-foreground font-semibold shadow-2xs hover:bg-primary/15'
+                                            : CHIP_IDLE,
+                                    'inline-flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50'
+                                )}
+                            >
+                                {isRecommended && (
+                                    <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />
+                                )}
+                                <span>{opt}</span>
+                            </button>
+                        );
+                    })}
                 </div>
                 <input
                     type="text"

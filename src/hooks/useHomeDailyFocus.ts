@@ -229,15 +229,30 @@ export function useHomeDailyFocus({
     }
   }, [dailyFocusGoal, loading, submitting, supabase, dailyFocusRows, todayDateKey, language, isArabic]);
 
-  // Automatically generate question if goal exists and no session for today
+  // Every-other-day schedule ("كل يوم وترك"): Day 0 (creation) has a question, Day 1 does not, Day 2 has, etc.
+  const isQuestionDay = useMemo(() => {
+    if (!activeGoal) return false;
+    const createdDate = new Date(activeGoal.created_at || Date.now());
+    const today = new Date(todayDateKey);
+    const dayDiff = Math.max(0, Math.floor((today.setHours(0, 0, 0, 0) - createdDate.setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24)));
+    return dayDiff % 2 === 0;
+  }, [activeGoal, todayDateKey]);
+
+  const todayRow = useMemo(() => {
+    return dailyFocusRows.find((r) => r.prompt_date === todayDateKey) || null;
+  }, [dailyFocusRows, todayDateKey]);
+
+  const isRestDay = Boolean(activeGoal?.id && !todayRow && !isQuestionDay);
+
+  // Automatically generate question ONLY if goal exists, today is a question day, and no session for today
   useEffect(() => {
-    if (activeGoal?.id && !loading && !dailyFocus && dailyFocusRows.length >= 0) {
-      const todayRow = dailyFocusRows.find((r) => r.prompt_date === todayDateKey);
-      if (!todayRow && !error) {
-        generateFocusQuestion();
-      }
+    if (!activeGoal?.id || goals.length === 0) return;
+    if (loading || dailyFocus || error) return;
+
+    if (!todayRow && isQuestionDay) {
+      generateFocusQuestion();
     }
-  }, [activeGoal?.id, dailyFocus, dailyFocusRows, todayDateKey, loading, error, generateFocusQuestion]);
+  }, [activeGoal?.id, goals.length, dailyFocus, todayRow, loading, error, isQuestionDay, generateFocusQuestion]);
 
   // Handle answer submit
   const handleAnswerSubmit = useCallback(async () => {
@@ -325,6 +340,8 @@ export function useHomeDailyFocus({
     loading,
     submitting,
     error,
+    isQuestionDay,
+    isRestDay,
     generateFocusQuestion,
     handleAnswerSubmit,
     handleAppendTranscript,

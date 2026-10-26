@@ -118,6 +118,8 @@ export default function HomePage({
     loading: focusLoading,
     submitting: focusSubmitting,
     error: focusError,
+    isQuestionDay,
+    isRestDay,
     generateFocusQuestion,
     handleAnswerSubmit: handleFocusAnswerSubmit,
     handleAppendTranscript: handleFocusAppendTranscript,
@@ -236,6 +238,8 @@ export default function HomePage({
         focusLoading={focusLoading}
         focusSubmitting={focusSubmitting}
         focusError={focusError}
+        isQuestionDay={isQuestionDay}
+        isRestDay={isRestDay}
       />
 
       {/* Progress Log Dialog (opened from daily-log mode) */}

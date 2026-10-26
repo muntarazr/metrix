@@ -1,0 +1,10 @@
+{
+  "event_name": "deployment_triggered",
+  "status": "pending",
+  "metadata": {
+    "source": "n8n_webhook",
+    "day": 1,
+    "project": "METRIX",
+    "timestamp": "2026-10-20T14:30:00Z"
+  }
+}

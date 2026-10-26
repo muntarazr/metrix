@@ -3,7 +3,8 @@
 import AnalyzingScreen from "./AnalyzingScreen";
 import { X, Trophy, AlertCircle, ArrowRight } from "lucide-react";
 import { translations, type Language } from "@/lib/translations";
-import VoiceRecorder from "../shared/VoiceRecorder";
+import VoiceRecorder, { useVoiceGlow } from "../shared/VoiceRecorder";
+import { VoiceBeam } from "voice-glow";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,7 @@ export default function MilestoneLogScreen({
   onClose,
 }: MilestoneLogScreenProps) {
   const t = translations[language];
+  const voiceGlow = useVoiceGlow();
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-md z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -150,22 +152,32 @@ export default function MilestoneLogScreen({
                 {t.describeWhatYouDid}
               </Label>
               <div className="relative">
-                <Textarea
-                  id="milestone-progress-textarea"
-                  value={logText}
-                  onChange={(e) => setLogText(e.target.value)}
-                  placeholder={
-                    language === "ar"
-                      ? "اشرح بالتفصيل لماذا يعتبر هذا الإنجاز قفزة استثنائية في هدفك..."
-                      : "Explain in detail why this is an exceptional leap in your goal..."
-                  }
-                  disabled={loading}
-                  dir={language === "ar" ? "rtl" : "ltr"}
-                  className="w-full h-28 sm:h-36 min-h-[100px] sm:min-h-[110px] p-3.5 sm:p-4 pb-12 sm:pb-14 pe-12 sm:pe-14 rounded-2xl resize-none transition-all duration-200 placeholder:text-muted-foreground/50 bg-muted/20 text-foreground border-border/70 focus-visible:border-primary/50 focus-visible:bg-card focus-visible:ring-1 focus-visible:ring-primary/20 text-base leading-relaxed"
-                />
-                <div className="absolute bottom-2.5 end-2.5">
+                <VoiceBeam
+                  stream={voiceGlow.stream}
+                  active={voiceGlow.active}
+                  motion={voiceGlow.motion}
+                  theme={voiceGlow.theme}
+                >
+                  <Textarea
+                    id="milestone-progress-textarea"
+                    value={logText}
+                    onChange={(e) => setLogText(e.target.value)}
+                    placeholder={
+                      language === "ar"
+                        ? "اشرح بالتفصيل لماذا يعتبر هذا الإنجاز قفزة استثنائية في هدفك..."
+                        : "Explain in detail why this is an exceptional leap in your goal..."
+                    }
+                    disabled={loading}
+                    dir={language === "ar" ? "rtl" : "ltr"}
+                    className="w-full h-28 sm:h-36 min-h-[100px] sm:min-h-[110px] p-3.5 sm:p-4 pb-12 sm:pb-14 pe-12 sm:pe-14 rounded-2xl resize-none transition-all duration-200 placeholder:text-muted-foreground/50 bg-muted/20 text-foreground border-border/70 focus-visible:border-primary/50 focus-visible:bg-card focus-visible:ring-1 focus-visible:ring-primary/20 text-base leading-relaxed"
+                  />
+                </VoiceBeam>
+                <div className="absolute bottom-2.5 end-2.5 z-10">
                   <VoiceRecorder
                     onTranscript={handleVoiceTranscript}
+                    onStreamChange={voiceGlow.setStream}
+                    onRecordingChange={voiceGlow.setIsRecording}
+                    onProcessingChange={voiceGlow.setIsProcessing}
                     language={language === "ar" ? "ar" : "en"}
                     size="sm"
                   />

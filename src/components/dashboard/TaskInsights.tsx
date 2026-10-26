@@ -2,16 +2,17 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  AlertCircle,
   TrendingUp,
-  ChevronDown,
-  ChevronUp,
+  Award,
+  CheckCircle2,
+  Repeat,
+  Sparkles,
 } from 'lucide-react';
 import {
-  Label,
-  PolarRadiusAxis,
-  RadialBar,
-  RadialBarChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  XAxis,
 } from 'recharts';
 import {
   ChartContainer,
@@ -405,6 +406,38 @@ export default function TaskInsights({ goalId, tasks, language = 'ar' }: TaskIns
 
   const summary = isArabic ? getSummaryTextAr() : getSummaryTextEn();
   const maxCompletions = analytics.topTasks[0]?.completions || 1;
+  const totalPointsEarned = analytics.topTasks.reduce((sum, item) => sum + item.totalPoints, 0);
+  const topSkill = analytics.topTasks[0] || null;
+  const topSkillShare =
+    topSkill && analytics.totalCompleted > 0
+      ? Math.round((topSkill.completions / analytics.totalCompleted) * 100)
+      : 0;
+
+  const chartData = analytics.topTasks.map((task, idx) => {
+    const words = task.fullName.trim().split(/\s+/);
+    const shortLabel =
+      words.length > 2
+        ? `${words.slice(0, 2).join(' ')}…`
+        : task.fullName.length > 14
+          ? `${task.fullName.slice(0, 14)}…`
+          : task.fullName;
+    return {
+      id: task.id,
+      rank: `#${idx + 1}`,
+      skill: shortLabel,
+      fullName: task.fullName,
+      completions: task.completions,
+      points: task.totalPoints,
+      task,
+    };
+  });
+
+  const chartConfig = {
+    completions: {
+      label: text.completions,
+      color: 'var(--primary)',
+    },
+  } satisfies ChartConfig;
 
   return (
     <section dir={isArabic ? 'rtl' : 'ltr'} className="space-y-2.5">
@@ -423,6 +456,9 @@ export default function TaskInsights({ goalId, tasks, language = 'ar' }: TaskIns
                   <div className="flex items-center gap-2">
                     <span className="inline-flex h-5 items-center justify-center rounded bg-primary/10 border border-primary/20 px-1.5 text-[10px] font-black text-primary">
                       #{analytics.topTasks.findIndex((t) => t.id === selectedTask.id) + 1}
+                    </span>
+                    <span className="inline-flex items-center rounded-md border border-border/70 bg-muted/40 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                      {selectedTask.frequency === 'weekly' ? text.weekly : text.daily}
                     </span>
                     {selectedTask.parentName && (
                       <span className="text-xs font-semibold text-muted-foreground truncate">
@@ -497,118 +533,132 @@ export default function TaskInsights({ goalId, tasks, language = 'ar' }: TaskIns
         </div>
       )}
 
-      {/* Top Skills Section Card - Clean Compact Radial Chart */}
+      {/* Top Skills Section Card - Compact Horizontal Layout (Low Vertical Height) */}
       <div className={cn(PANEL_SURFACE, "rounded-2xl p-2.5 sm:p-3 transition-all duration-300")}>
-        {/* Header with Title and Total */}
-        <div className="flex items-center justify-between gap-2 pb-1.5 mb-1 border-b border-border/50">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary border border-primary/20">
-              <TrendingUp className="h-3 w-3" />
+        {/* Compact Single-Row Header */}
+        <div className="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-border/50">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20">
+              <TrendingUp className="h-3.5 w-3.5" />
             </span>
-            <span className="text-xs font-bold text-foreground truncate">
+            <h3 className="text-xs sm:text-sm font-extrabold text-foreground truncate">
               {text.title}
-            </span>
+            </h3>
+            {topSkill && (
+              <span className="hidden lg:inline-flex items-center gap-1 rounded-md bg-muted/50 border border-border/60 px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground truncate max-w-[240px]">
+                <Award className="h-3 w-3 text-primary shrink-0" />
+                <span className="truncate">{topSkill.fullName}</span>
+                <span className="text-primary font-bold shrink-0">({formatNumberEn(topSkillShare)}%)</span>
+              </span>
+            )}
           </div>
 
-          <span className="text-[10px] text-muted-foreground shrink-0 font-medium">
-            {formatNumberEn(analytics.totalCompleted)} {text.totalDone}
-          </span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="inline-flex items-center gap-1 rounded-md border border-border/70 bg-muted/40 px-1.5 py-0.5 text-[10px] font-bold text-foreground tabular-nums">
+              <CheckCircle2 className="h-2.5 w-2.5 text-primary" />
+              {formatNumberEn(analytics.totalCompleted)} {text.totalDone}
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-md border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary tabular-nums">
+              <Sparkles className="h-2.5 w-2.5" />
+              +{formatNumberEn(totalPointsEarned)} {text.points}
+            </span>
+          </div>
         </div>
 
-        {/* Content: Clean Radial Stacked Chart Only */}
-        {(() => {
-          // Prepare dynamic stacked chart data and config
-          const topSkills = analytics.topTasks.slice(0, 4);
-          const colorVars = [
-            'var(--chart-1)',
-            'var(--chart-2)',
-            'var(--chart-3)',
-            'var(--chart-4)',
-          ];
-          const colorHexFallbacks = [
-            'hsl(var(--primary))',
-            'hsl(var(--chart-2, 217 91% 60%))',
-            'hsl(var(--chart-3, 142 71% 45%))',
-            'hsl(var(--chart-4, 38 92% 50%))',
-          ];
-
-          const datum: Record<string, any> = { month: 'current' };
-          const config: ChartConfig = {};
-
-          topSkills.forEach((task, idx) => {
-            const key = `skill_${idx}`;
-            datum[key] = task.completions;
-            config[key] = {
-              label: task.fullName,
-              color: colorVars[idx] || colorHexFallbacks[idx],
-            };
-          });
-
-          const totalTopCompletions = topSkills.reduce((acc, t) => acc + t.completions, 0);
-
-          return (
-            <div className="w-full flex items-center justify-center">
-              <div className="w-full max-w-[240px] sm:max-w-[260px] h-[120px] sm:h-[130px] flex items-center justify-center overflow-hidden">
-                <ChartContainer
-                  config={config}
-                  className="w-full h-full aspect-auto flex items-center justify-center"
-                >
-                  <RadialBarChart
-                    data={[datum]}
-                    endAngle={180}
-                    cy="80%"
-                    innerRadius={58}
-                    outerRadius={84}
-                  >
-                    <ChartTooltip
-                      cursor={false}
-                      content={<ChartTooltipContent hideLabel />}
+        {/* Side-by-Side: Compact Bar Chart + Compact Skill Pills (No extra vertical stacking) */}
+        <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.05fr)_minmax(0,1.25fr)] gap-2.5 items-center">
+          {/* Compact Bar Chart */}
+          <div className="w-full min-w-0">
+            <ChartContainer config={chartConfig} className="h-[110px] sm:h-[118px] w-full aspect-auto">
+              <BarChart
+                accessibilityLayer
+                data={chartData}
+                margin={{ top: 4, right: 4, left: 4, bottom: 0 }}
+              >
+                <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
+                <XAxis
+                  dataKey="skill"
+                  tickLine={false}
+                  tickMargin={6}
+                  axisLine={false}
+                  interval={0}
+                  tick={{ fontSize: 10 }}
+                />
+                <ChartTooltip
+                  cursor={{ fill: 'var(--muted)', opacity: 0.25 }}
+                  content={
+                    <ChartTooltipContent
+                      labelFormatter={(_, payload) => {
+                        const item = payload?.[0]?.payload;
+                        return item?.fullName || '';
+                      }}
                     />
-                    <PolarRadiusAxis tick={false} tickLine={false} axisLine={false}>
-                      <Label
-                        content={({ viewBox }) => {
-                          if (viewBox && 'cx' in viewBox && 'cy' in viewBox) {
-                            return (
-                              <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle">
-                                <tspan
-                                  x={viewBox.cx}
-                                  y={(viewBox.cy || 0) - 10}
-                                  className="fill-foreground text-2xl font-black tabular-nums"
-                                >
-                                  {formatNumberEn(totalTopCompletions)}
-                                </tspan>
-                                <tspan
-                                  x={viewBox.cx}
-                                  y={(viewBox.cy || 0) + 7}
-                                  className="fill-muted-foreground text-[10px] font-semibold"
-                                >
-                                  {text.completions}
-                                </tspan>
-                              </text>
-                            );
-                          }
-                        }}
+                  }
+                />
+                <Bar
+                  dataKey="completions"
+                  fill="var(--color-completions)"
+                  radius={6}
+                  maxBarSize={36}
+                  className="cursor-pointer transition-opacity hover:opacity-85"
+                  onClick={(barData) => {
+                    if (barData?.task) {
+                      setSelectedTask(barData.task);
+                    }
+                  }}
+                />
+              </BarChart>
+            </ChartContainer>
+          </div>
+
+          {/* Compact 2-Column Details List beside the chart */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 min-w-0">
+            {analytics.topTasks.slice(0, 4).map((task, idx) => {
+              const ratio = Math.max(8, Math.round((task.completions / maxCompletions) * 100));
+              return (
+                <button
+                  key={task.id}
+                  type="button"
+                  onClick={() => setSelectedTask(task)}
+                  className="group relative flex flex-col justify-between gap-1 rounded-xl border border-border/70 bg-background/60 hover:bg-muted/40 hover:border-primary/30 px-2.5 py-1.5 text-start transition-all duration-150 cursor-pointer active:scale-[0.99]"
+                >
+                  <div className="flex items-center justify-between gap-1.5 w-full min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <span
+                        className={cn(
+                          "inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded px-1 text-[9px] font-black tabular-nums border",
+                          idx === 0
+                            ? "bg-primary/15 text-primary border-primary/30"
+                            : "bg-muted/60 text-muted-foreground border-border/70"
+                        )}
+                      >
+                        #{idx + 1}
+                      </span>
+                      <span className="text-[11px] font-bold text-foreground truncate group-hover:text-primary transition-colors">
+                        {task.fullName}
+                      </span>
+                    </div>
+                    <span className="shrink-0 text-[10px] font-extrabold text-primary tabular-nums">
+                      {formatNumberEn(task.completions)}×
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 w-full">
+                    <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted/70">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all duration-500"
+                        style={{ width: `${ratio}%` }}
                       />
-                    </PolarRadiusAxis>
-                    {topSkills.map((task, idx) => {
-                      const key = `skill_${idx}`;
-                      return (
-                        <RadialBar
-                          key={key}
-                          dataKey={key}
-                          stackId="a"
-                          cornerRadius={4}
-                          fill={`var(--color-${key})`}
-                          className="stroke-transparent stroke-2 cursor-pointer hover:opacity-85 transition-opacity"
-                        />
-                      );
-                    })}
-                  </RadialBarChart>
-                </ChartContainer>
-              </div>
-            </div>
-          );
-        })()}
+                    </div>
+                    <span className="shrink-0 text-[9.5px] font-semibold text-muted-foreground tabular-nums">
+                      +{formatNumberEn(task.totalPoints)} {text.points}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </section>
   );

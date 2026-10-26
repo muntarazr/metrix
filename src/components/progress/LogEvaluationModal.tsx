@@ -101,15 +101,15 @@ export default function LogEvaluationModal({
 
   if (showAnimatedUpdates) {
     return (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[90] flex items-center justify-center p-4">
-        <div className="bg-card rounded-2xl sm:rounded-3xl w-full max-w-lg max-h-[90dvh] overflow-y-auto overscroll-contain p-4 sm:p-6 border border-border shadow-2xl animate-in zoom-in-95 duration-300">
+      <div className="fixed inset-0 bg-black/65 backdrop-blur-md z-[90] flex items-center justify-center p-3.5 sm:p-4">
+        <div className="relative bg-card/95 backdrop-blur-2xl rounded-2xl sm:rounded-3xl w-full max-w-lg max-h-[90dvh] overflow-y-auto overscroll-contain p-4 sm:p-6 border border-white/10 dark:border-white/[0.08] shadow-[0_25px_65px_-15px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.06)] animate-in fade-in zoom-in-95 duration-200">
           <div className="flex justify-between items-center pb-2 mb-2 border-b border-border/40">
-            <span className="text-xs font-extrabold text-muted-foreground">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               {isArabic ? "حركة التحديثات" : "Updates Animation"}
             </span>
             <button
               onClick={() => setShowAnimatedUpdates(false)}
-              className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
+              className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>

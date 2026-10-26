@@ -1,15 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Settings, ArrowRight, ArrowLeft, User as UserIcon, Sliders, Crown } from 'lucide-react';
+import { User as UserIcon, Sliders } from 'lucide-react';
 import { translations, type Language } from '@/lib/translations';
 import { cn } from '@/lib/utils';
+import { WELL_SURFACE } from '@/lib/surfaces';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { MatrixManifestoDialog } from '@/components/login/MatrixManifestoDialog';
 import { exportGoalMarkdownDirect } from '@/lib/goal-exporter';
 import AvatarDialog from './AvatarDialog';
 import SettingsProfileTab from './tabs/SettingsProfileTab';
 import SettingsPreferencesTab from './tabs/SettingsPreferencesTab';
-import SettingsSubscriptionTab from './tabs/SettingsSubscriptionTab';
 import SettingsDangerZone from './tabs/SettingsDangerZone';
 import { useSettingsProfile } from './useSettingsProfile';
 import type { Goal, SettingsTab, SettingsPageProps } from './types';
@@ -122,65 +123,98 @@ export default function SettingsPage({
             <MatrixManifestoDialog
                 open={isManifestoOpen}
                 onOpenChange={setIsManifestoOpen}
+                language={language}
             />
 
-            {/* Top Bar Header */}
-            <div className="flex items-center justify-center sm:justify-end pb-2.5 border-b border-border/60">
-                <div className="flex w-full sm:w-auto items-center gap-1 bg-muted/40 p-1 rounded-xl border border-border/60 shadow-2xs self-stretch sm:self-auto overflow-x-auto">
-                    <button
-                        type="button"
-                        onClick={() => setActiveTab('profile')}
-                        className={cn(
-                            "flex flex-1 sm:flex-initial items-center justify-center gap-1.5 px-2 sm:px-3 py-2 sm:py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer touch-manipulation",
-                            activeTab === 'profile'
-                                ? "bg-card text-foreground shadow-xs border border-border/70"
-                                : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
-                        )}
-                    >
-                        <UserIcon className="w-3.5 h-3.5" />
-                        <span>{isArabic ? "الملف الشخصي" : "Profile"}</span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setActiveTab('general')}
-                        className={cn(
-                            "flex flex-1 sm:flex-initial items-center justify-center gap-1.5 px-2 sm:px-3 py-2 sm:py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer touch-manipulation",
-                            activeTab === 'general'
-                                ? "bg-card text-foreground shadow-xs border border-border/70"
-                                : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
-                        )}
-                    >
-                        <Sliders className="w-3.5 h-3.5" />
-                        <span>{isArabic ? "التفضيلات" : "Preferences"}</span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setActiveTab('subscription')}
-                        className={cn(
-                            "flex flex-1 sm:flex-initial items-center justify-center gap-1.5 px-2 sm:px-3 py-2 sm:py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer touch-manipulation",
-                            activeTab === 'subscription'
-                                ? "bg-card text-amber-500 shadow-xs border border-border/70 font-black"
-                                : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
-                        )}
-                    >
-                        <Crown className="w-3.5 h-3.5" />
-                        <span>{isArabic ? "الاشتراك" : "Subscription"}</span>
-                    </button>
+            <div className={cn(WELL_SURFACE, "p-3 sm:p-4 rounded-2xl sm:rounded-[22px] flex-1 flex flex-col min-h-0")}>
+                {/* Tabs Bar Header */}
+                <div className="flex items-center gap-2 mb-3">
+                    <div className="flex flex-1 gap-1 p-1 rounded-xl bg-muted/60 border border-border/70 h-11">
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('profile')}
+                            className={cn(
+                                "flex flex-1 min-w-0 items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer touch-manipulation",
+                                activeTab === 'profile'
+                                    ? "bg-card text-foreground shadow-sm ring-1 ring-border/45"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/20"
+                            )}
+                        >
+                            <UserIcon className="w-4 h-4 opacity-80 shrink-0" />
+                            <span className="truncate">{isArabic ? "الملف الشخصي" : "Profile"}</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('general')}
+                            className={cn(
+                                "flex flex-1 min-w-0 items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer touch-manipulation",
+                                activeTab === 'general'
+                                    ? "bg-card text-foreground shadow-sm ring-1 ring-border/45"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/20"
+                            )}
+                        >
+                            <Sliders className="w-4 h-4 opacity-80 shrink-0" />
+                            <span className="truncate">{isArabic ? "التفضيلات" : "Preferences"}</span>
+                        </button>
+                    </div>
                 </div>
-            </div>
 
-            {profileMessage && (
-                <div
-                    className={cn(
-                        "text-xs font-bold px-3.5 py-2 rounded-xl border animate-in fade-in slide-in-from-top-1 duration-200 shadow-xs",
-                        profileMessage.type === 'success'
-                            ? "bg-primary/10 text-primary border-primary/25"
-                            : "bg-destructive/10 text-destructive border-destructive/25"
-                    )}
-                >
-                    {profileMessage.text}
-                </div>
-            )}
+                {profileMessage && (
+                    <div
+                        className={cn(
+                            "text-xs font-bold px-3.5 py-2 rounded-xl border animate-in fade-in slide-in-from-top-1 duration-200 shadow-xs mb-3",
+                            profileMessage.type === 'success'
+                                ? "bg-primary/10 text-primary border-primary/25"
+                                : "bg-destructive/10 text-destructive border-destructive/25"
+                        )}
+                    >
+                        {profileMessage.text}
+                    </div>
+                )}
+
+                {/* Tab Content inside ScrollArea */}
+                <ScrollArea className="flex-1 min-h-0 pe-1" dir={isArabic ? 'rtl' : 'ltr'}>
+                    <div className="pb-1">
+                        {activeTab === 'profile' ? (
+                            <SettingsProfileTab
+                                user={user}
+                                displayName={displayName}
+                                onDisplayNameChange={handleDisplayNameChange}
+                                onDisplayNameBlur={handleDisplayNameBlur}
+                                isSavingName={isSavingName}
+                                avatarUrl={avatarUrl}
+                                onOpenAvatarModal={() => setIsAvatarModalOpen(true)}
+                                maxStreak={maxStreak}
+                                totalPointsEarned={totalPointsEarned}
+                                totalLogs={totalLogs}
+                                completedGoals={completedGoals}
+                                goals={goals}
+                                coachPersona={coachPersona}
+                                onPersonaChange={handlePersonaChange}
+                                onSelectGoal={onSelectGoal}
+                                onExportGoal={handleExportGoal}
+                                exportingGoalId={exportingGoalId}
+                                language={language}
+                            />
+                        ) : (
+                            <div className="space-y-4">
+                                <SettingsPreferencesTab
+                                    theme={theme}
+                                    onThemeChange={handleThemeChange}
+                                    language={language}
+                                    onLanguageChange={handleLanguageChange}
+                                    onOpenManifesto={() => setIsManifestoOpen(true)}
+                                />
+                                <SettingsDangerZone
+                                    signingOut={signingOut}
+                                    onSignOut={handleSignOut}
+                                    language={language}
+                                />
+                            </div>
+                        )}
+                    </div>
+                </ScrollArea>
+            </div>
 
             {/* Hidden File Input for Custom Upload */}
             <input
@@ -190,52 +224,6 @@ export default function SettingsPage({
                 className="hidden"
                 onChange={handlePhotoUpload}
             />
-
-            {activeTab === 'profile' ? (
-                <SettingsProfileTab
-                    user={user}
-                    displayName={displayName}
-                    onDisplayNameChange={handleDisplayNameChange}
-                    onDisplayNameBlur={handleDisplayNameBlur}
-                    isSavingName={isSavingName}
-                    avatarUrl={avatarUrl}
-                    onOpenAvatarModal={() => setIsAvatarModalOpen(true)}
-                    maxStreak={maxStreak}
-                    totalPointsEarned={totalPointsEarned}
-                    totalLogs={totalLogs}
-                    completedGoals={completedGoals}
-                    goals={goals}
-                    coachPersona={coachPersona}
-                    onPersonaChange={handlePersonaChange}
-                    onSelectGoal={onSelectGoal}
-                    onExportGoal={handleExportGoal}
-                    exportingGoalId={exportingGoalId}
-                    language={language}
-                />
-            ) : activeTab === 'subscription' ? (
-                <SettingsSubscriptionTab
-                    goals={goals}
-                    language={language}
-                    onUpgradeClick={() => {
-                        window.location.hash = '#pricing';
-                    }}
-                />
-            ) : (
-                <div className="space-y-4">
-                    <SettingsPreferencesTab
-                        theme={theme}
-                        onThemeChange={handleThemeChange}
-                        language={language}
-                        onLanguageChange={handleLanguageChange}
-                        onOpenManifesto={() => setIsManifestoOpen(true)}
-                    />
-                    <SettingsDangerZone
-                        signingOut={signingOut}
-                        onSignOut={handleSignOut}
-                        language={language}
-                    />
-                </div>
-            )}
 
             {/* Avatar Dialog */}
             <AvatarDialog

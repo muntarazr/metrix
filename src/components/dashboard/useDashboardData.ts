@@ -400,6 +400,27 @@ export function useDashboardData({
     fetchLogs,
   ]);
 
+  useEffect(() => {
+    const onChallengeLogUpdated = (event: Event) => {
+      const custom = event as CustomEvent<{ goalId?: string }>;
+      if (!custom.detail?.goalId || custom.detail.goalId === goalId) {
+        void refreshAll();
+        onGoalUpdated?.();
+      }
+    };
+
+    window.addEventListener(
+      "challenge-log-updated",
+      onChallengeLogUpdated as EventListener,
+    );
+    return () => {
+      window.removeEventListener(
+        "challenge-log-updated",
+        onChallengeLogUpdated as EventListener,
+      );
+    };
+  }, [goalId, refreshAll, onGoalUpdated]);
+
   // Streak rest day
   const freezableDate = useMemo(
     () => getFreezableDate(loggedDateKeys, streakFreezes),

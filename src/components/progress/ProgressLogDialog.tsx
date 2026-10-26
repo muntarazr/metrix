@@ -401,8 +401,8 @@ export default function ProgressLogDialog({
   // Updates Screen (Animated metrics)
   if (showUpdatesScreen && updatesStepData) {
     return (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[80] flex items-center justify-center p-4">
-        <div className="bg-card rounded-2xl sm:rounded-3xl w-full max-w-lg max-h-[90dvh] overflow-y-auto overscroll-contain p-4 sm:p-6 border border-border shadow-2xl animate-in zoom-in-95 duration-300">
+      <div className="fixed inset-0 bg-black/65 backdrop-blur-md z-[80] flex items-center justify-center p-3.5 sm:p-4">
+        <div className="relative bg-card/95 backdrop-blur-2xl rounded-2xl sm:rounded-3xl w-full max-w-lg max-h-[90dvh] overflow-y-auto overscroll-contain p-4 sm:p-6 border border-white/10 dark:border-white/[0.08] shadow-[0_25px_65px_-15px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.06)] animate-in fade-in zoom-in-95 duration-200">
           <ProgressUpdatesStep
             updates={updatesStepData}
             language={language}

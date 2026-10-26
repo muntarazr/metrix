@@ -2,7 +2,6 @@
 
 import { useRef, useState, useEffect, useTransition } from "react";
 import {
-  CircleAlert,
   Plus,
   Zap,
   PenLine,
@@ -15,7 +14,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { PANEL_SURFACE } from "@/lib/surfaces";
 import { getIconComponent } from "@/components/goal/IconPicker";
-import VoiceRecorder from "@/components/shared/VoiceRecorder";
+import VoiceRecorder, { useVoiceGlow } from "@/components/shared/VoiceRecorder";
+import { VoiceBeam } from "voice-glow";
 import type { Goal } from "./HomeTypes";
 
 interface HomeInputSectionProps {
@@ -33,25 +33,6 @@ interface HomeInputSectionProps {
   language: Language;
   focusInputSignal?: number;
 }
-
-const MINIMUM_GOAL_WORDS = 15;
-
-const PROMPT_MESSAGES = {
-  ar: {
-    5: "وضّح النتيجة التي تريد الوصول لها وما الذي تريد تغييره فعلاً.",
-    4: "أضف لماذا هذا الهدف مهم لك أو ما الأثر الذي تنتظره منه.",
-    3: "زد وقتاً أو ظرفاً مهماً حتى تصبح الخطة أقرب لواقعك.",
-    2: "الوصف صار أفضل، وأي تفصيل عن النتيجة سيجعل البداية أدق.",
-    1: "باقي توضيح صغير عن الهدف حتى نبدأ بخطة أوضح.",
-  },
-  en: {
-    5: "Clarify the result you want and what you want to change.",
-    4: "Add why this goal matters or the impact you expect from it.",
-    3: "Add timing or context so the plan feels closer to your reality.",
-    2: "This is clearer now, and one more outcome detail will sharpen the start.",
-    1: "One small clarification will help us start with a clearer plan.",
-  },
-} as const;
 
 export default function HomeInputSection({
   goals,
@@ -84,46 +65,12 @@ export default function HomeInputSection({
     }
   }, [focusInputSignal, boxMode]);
 
-  const [isRecording, setIsRecording] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [showAIDetailPrompt, setShowAIDetailPrompt] = useState(false);
+  const voiceGlow = useVoiceGlow();
+  const { isRecording, isProcessing } = voiceGlow;
   const [selectedCreationMode, setSelectedCreationMode] = useState<"ai" | "manual">("ai");
 
   // Goal input analysis
   const normalizedGoalInput = goalInput.trim().replace(/\s+/g, " ");
-  const goalWordCount = normalizedGoalInput ? normalizedGoalInput.split(" ").length : 0;
-  const goalNeedsMoreDetail = normalizedGoalInput.length > 0 && goalWordCount < MINIMUM_GOAL_WORDS;
-  const aiPromptVisible = showAIDetailPrompt && goalNeedsMoreDetail;
-
-  const promptColorStage = !goalNeedsMoreDetail
-    ? 0
-    : goalWordCount < 3
-      ? 5
-      : goalWordCount < 6
-        ? 4
-        : goalWordCount < 9
-          ? 3
-          : goalWordCount < 12
-            ? 2
-            : 1;
-
-  const promptToneClasses =
-    promptColorStage === 5 || promptColorStage === 4
-      ? "border-foreground/25 bg-gradient-to-b from-foreground/12 via-foreground/12 to-background"
-      : promptColorStage === 3 || promptColorStage === 2
-        ? "border-foreground/15 bg-gradient-to-b from-foreground/12 via-foreground/12 to-background"
-        : "border-foreground/15 bg-gradient-to-b from-foreground/12 via-background/90 to-background";
-
-  const promptCardClasses =
-    promptColorStage === 5 || promptColorStage === 4
-      ? "border-foreground/25 bg-foreground/12"
-      : "border-foreground/15 bg-foreground/12";
-
-  const goalPromptMessage = goalNeedsMoreDetail
-    ? isArabic
-      ? PROMPT_MESSAGES.ar[promptColorStage as 1 | 2 | 3 | 4 | 5]
-      : PROMPT_MESSAGES.en[promptColorStage as 1 | 2 | 3 | 4 | 5]
-    : null;
 
   const goalInputPlaceholder = isProcessing
     ? isArabic
@@ -140,15 +87,21 @@ export default function HomeInputSection({
   const resizeGoalTextarea = (textarea: HTMLTextAreaElement) => {
     textarea.style.height = "0px";
     const computedStyle = window.getComputedStyle(textarea);
-    const lineHeight = Number.parseFloat(computedStyle.lineHeight) || 28;
+    const lineHeight = Number.parseFloat(computedStyle.lineHeight) || 24;
     const paddingTop = Number.parseFloat(computedStyle.paddingTop) || 0;
     const paddingBottom = Number.parseFloat(computedStyle.paddingBottom) || 0;
     const minHeight = lineHeight + paddingTop + paddingBottom;
-    const maxHeight = lineHeight * 4 + paddingTop + paddingBottom;
+    const maxHeight = lineHeight * 4.5 + paddingTop + paddingBottom;
     const nextHeight = Math.min(Math.max(textarea.scrollHeight, minHeight), maxHeight);
     textarea.style.height = `${nextHeight}px`;
     textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
   };
+
+  useEffect(() => {
+    if (goalTextareaRef.current) {
+      resizeGoalTextarea(goalTextareaRef.current);
+    }
+  }, [goalInput, boxMode]);
 
   const handleManualCreate = () => {
     setSelectedCreationMode("manual");
@@ -156,7 +109,6 @@ export default function HomeInputSection({
       goalTextareaRef.current?.focus();
       return;
     }
-    setShowAIDetailPrompt(false);
     onNavigateToCreate?.(normalizedGoalInput, "manual");
   };
 
@@ -166,78 +118,39 @@ export default function HomeInputSection({
       goalTextareaRef.current?.focus();
       return;
     }
-    if (goalNeedsMoreDetail) {
-      setShowAIDetailPrompt(true);
-      return;
-    }
-    setShowAIDetailPrompt(false);
     onNavigateToCreate?.(normalizedGoalInput, "ai");
   };
 
   return (
     <div
-      className={cn(
-        "relative shrink-0 transition-all duration-300",
-        aiPromptVisible && boxMode === "new" ? "pt-12 min-[400px]:pt-11 sm:pt-11" : "pt-0"
-      )}
+      className="relative shrink-0 transition-all duration-300 pt-0"
       dir={isArabic ? "rtl" : "ltr"}
     >
-      {/* Floating detail hint banner */}
-      <div
-        className={cn(
-          "pointer-events-none absolute inset-x-0 top-0 z-10 overflow-hidden transition-all duration-300",
-          aiPromptVisible && boxMode === "new"
-            ? "h-[5.5rem] opacity-100 sm:h-[5.75rem]"
-            : "h-0 opacity-0"
-        )}
-      >
-        <div
-          className={cn(
-            "rounded-t-[22px] border border-b-0 px-3 pt-1.5 pb-6 sm:px-5 sm:pt-1.5 sm:pb-9",
-            promptToneClasses
-          )}
-        >
-          <div
-            role="status"
-            aria-live="polite"
-            className={cn(
-              "flex items-center gap-2 sm:gap-3 text-xs sm:text-sm font-medium leading-4 sm:leading-6 text-foreground",
-              isArabic ? "flex-row-reverse text-right" : "text-left"
-            )}
-          >
-            <div className="shrink-0 rounded-full border border-primary/25 bg-background/60 p-1.5 backdrop-blur">
-              <CircleAlert className="size-4 shrink-0 text-primary" />
-            </div>
-            <p
-              id="goal-ai-detail-prompt"
-              className="flex-1 text-xs sm:text-[13px] font-semibold leading-4 sm:leading-5 text-foreground/90 line-clamp-2"
-            >
-              {goalPromptMessage}
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* Main card box */}
+      <VoiceBeam
+        stream={voiceGlow.stream}
+        active={boxMode === "new" && voiceGlow.active}
+        motion={voiceGlow.motion}
+        theme={voiceGlow.theme}
+        scale={1.15}
+        rangeWidth={1.35}
+        className="z-20"
+      >
       <div
         className={cn(
-          "relative z-20 flex items-stretch gap-1 sm:gap-2 overflow-hidden rounded-2xl min-h-[114px] sm:min-h-[118px]",
+          "relative flex items-stretch gap-1 sm:gap-2 overflow-hidden rounded-2xl min-h-[96px] sm:min-h-[102px]",
           PANEL_SURFACE,
           "shadow-sm shadow-black/[0.03] transition-all duration-300 ease-out dark:shadow-black/10",
           boxMode === "new"
-            ? isRecording
-              ? "border-destructive/45 bg-destructive/12"
-              : isProcessing
-                ? "border-primary/25 bg-primary/12"
-                : aiPromptVisible
-                  ? promptCardClasses
-                  : "border-border"
+            ? isRecording || isProcessing
+              ? "border-primary/30"
+              : "border-border"
             : "border-primary/25"
         )}
       >
         {/* Vertical mode toggle */}
         <div
-          className="flex shrink-0 flex-col gap-1 p-1 sm:p-1.5 bg-muted/20 border-inline-end border-border/70"
+          className="flex shrink-0 flex-col justify-center gap-1 p-1 sm:p-1.5 bg-muted/20 border-inline-end border-border/70"
           role="tablist"
           aria-label={isArabic ? "وضع الصندوق" : "Box mode"}
         >
@@ -247,7 +160,7 @@ export default function HomeInputSection({
             aria-selected={boxMode === "new"}
             onClick={() => onBoxModeChange("new")}
             className={cn(
-              "flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-200 cursor-pointer",
+              "flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl transition-all duration-200 cursor-pointer",
               boxMode === "new"
                 ? "bg-primary/12 text-primary ring-1 ring-primary/25 shadow-[0_4px_12px_-6px_color-mix(in_oklch,var(--primary)_60%,transparent)]"
                 : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
@@ -263,7 +176,7 @@ export default function HomeInputSection({
             onClick={() => onBoxModeChange("log")}
             disabled={goals.length === 0}
             className={cn(
-              "flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-200 cursor-pointer",
+              "flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl transition-all duration-200 cursor-pointer",
               boxMode === "log"
                 ? "bg-primary/12 text-primary ring-1 ring-primary/25 shadow-[0_4px_12px_-6px_color-mix(in_oklch,var(--primary)_45%,transparent)]"
                 : "text-muted-foreground hover:bg-muted/60 hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
@@ -277,57 +190,48 @@ export default function HomeInputSection({
         {/* Content area */}
         {boxMode === "new" ? (
           /* ===== NEW GOAL MODE ===== */
-          <div className="relative min-w-0 flex-1 flex flex-col justify-between min-h-[114px] sm:min-h-[118px]">
+          <div className="relative min-w-0 flex-1 flex flex-col justify-between min-h-[96px] sm:min-h-[102px]">
             <div
               className={cn(
-                "pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b to-transparent",
-                isRecording
-                  ? "from-destructive/12 via-destructive/12"
-                  : isProcessing
-                    ? "from-primary/12 via-primary/12"
-                    : "from-primary/12 via-primary/12"
+                "pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b to-transparent",
+                "from-primary/12 via-primary/12"
               )}
             />
-            <div className="relative px-2 pt-2 pb-1.5 sm:px-3 sm:pt-2.5 sm:pb-2.5">
+            <div className="relative z-10 flex-1 flex flex-col min-h-0 px-2 pt-1.5 pb-0.5 sm:px-3 sm:pt-2 sm:pb-1">
               <Textarea
                 ref={goalTextareaRef}
                 rows={1}
                 value={goalInput}
                 onChange={(e) => {
-                  const val = e.target.value;
-                  onGoalInputChange(val);
-                  const norm = val.trim().replace(/\s+/g, " ");
-                  const words = norm ? norm.split(" ").length : 0;
-                  if (words >= MINIMUM_GOAL_WORDS) {
-                    setShowAIDetailPrompt(false);
-                  }
+                  onGoalInputChange(e.target.value);
                   resizeGoalTextarea(e.currentTarget);
                 }}
                 onInput={(e) => resizeGoalTextarea(e.currentTarget)}
                 placeholder={goalInputPlaceholder}
-                aria-describedby={aiPromptVisible ? "goal-ai-detail-prompt" : undefined}
                 className={cn(
-                  "min-h-[44px] max-h-[132px] resize-none overflow-y-hidden border-0 bg-transparent px-2 sm:px-3 py-1.5 sm:py-2 shadow-none scrollbar-thin",
-                  "text-base font-medium leading-6 text-foreground sm:text-base sm:leading-7 md:text-base",
+                  "flex-1 min-h-[38px] sm:min-h-[42px] max-h-[140px] resize-none overflow-y-hidden border-0 bg-transparent px-2 sm:px-2.5 py-1 sm:py-1.5 shadow-none scrollbar-thin",
+                  "text-sm font-medium leading-[1.65] text-foreground sm:text-base sm:leading-[1.7] md:text-base",
                   "placeholder:text-muted-foreground/50",
                   "focus-visible:border-0 focus-visible:ring-0 focus-visible:ring-offset-0",
                   "dark:bg-transparent",
                   isArabic ? "text-right" : "text-left",
-                  isRecording && "placeholder:text-destructive/75 caret-destructive"
+                  isRecording && "placeholder:text-primary/80 caret-primary"
                 )}
                 dir={isArabic ? "rtl" : "auto"}
               />
             </div>
             <div
               className={cn(
-                "flex flex-row-reverse items-center justify-between gap-2 px-2 pb-2 pt-0 sm:items-center sm:px-3 sm:pb-3",
+                "relative z-10 flex flex-row-reverse items-center justify-between gap-2 px-2 pb-2 pt-0 sm:items-center sm:px-3 sm:pb-2.5",
                 isArabic ? "sm:flex-row-reverse" : "sm:flex-row"
               )}
             >
               <VoiceRecorder
+                size="responsive"
                 language={language}
-                onRecordingChange={setIsRecording}
-                onProcessingChange={setIsProcessing}
+                onStreamChange={voiceGlow.setStream}
+                onRecordingChange={voiceGlow.setIsRecording}
+                onProcessingChange={voiceGlow.setIsProcessing}
                 onTranscript={(transcript) => {
                   onGoalInputChange((prev) =>
                     prev ? `${prev} ${transcript}` : transcript
@@ -362,11 +266,9 @@ export default function HomeInputSection({
                   aria-pressed={selectedCreationMode === "ai"}
                   className={cn(
                     "w-full h-9 min-w-0 gap-1 sm:gap-2 rounded-full border px-1.5 sm:px-4 text-[11px] min-[380px]:text-xs font-semibold shadow-none transition-all duration-300 sm:h-10 sm:text-sm cursor-pointer",
-                    aiPromptVisible
-                      ? "border-primary/45 bg-primary/12 text-primary"
-                      : selectedCreationMode === "ai"
-                        ? "border-primary/25 bg-primary/12 text-primary ring-1 ring-primary/15 hover:bg-primary/12"
-                        : "border-border bg-background text-muted-foreground/90 hover:bg-muted/60 hover:text-foreground"
+                    selectedCreationMode === "ai"
+                      ? "border-primary/25 bg-primary/12 text-primary ring-1 ring-primary/15 hover:bg-primary/15"
+                      : "border-border bg-background text-muted-foreground/90 hover:bg-muted/60 hover:text-foreground"
                   )}
                 >
                   <Sparkles className="size-3.5 sm:size-4 shrink-0" />
@@ -377,17 +279,17 @@ export default function HomeInputSection({
           </div>
         ) : (
           /* ===== DAILY LOG MODE ===== */
-          <div className="relative min-w-0 flex-1 flex flex-col justify-between min-h-[114px] sm:min-h-[118px]">
+          <div className="relative min-w-0 flex-1 flex flex-col justify-between min-h-[96px] sm:min-h-[102px]">
             <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-primary/10 to-transparent" />
-            <div className="relative flex-1 px-2 pt-2 pb-1.5 sm:px-3 sm:pt-2.5 sm:pb-2.5 flex flex-col justify-center min-h-[44px]">
+            <div className="relative flex-1 px-2 pt-1.5 pb-1 sm:px-3 sm:pt-2 sm:pb-1.5 flex flex-col justify-center min-h-[38px]">
               {goals.length === 0 ? (
-                <div className="flex items-center justify-center rounded-xl border border-dashed border-border/70 bg-muted/12 px-3 py-3 text-center">
+                <div className="flex items-center justify-center rounded-xl border border-dashed border-border/70 bg-muted/12 px-3 py-2 text-center">
                   <p className="text-xs text-muted-foreground/75">
                     {t.noGoalsToLog}
                   </p>
                 </div>
               ) : (
-                <div className="flex flex-wrap items-center gap-1.5 max-h-[76px] overflow-y-auto overscroll-contain scrollbar-thin py-0.5">
+                <div className="flex flex-wrap items-center gap-1.5 max-h-[64px] sm:max-h-[68px] overflow-y-auto overscroll-contain scrollbar-thin py-0.5">
                   {goals.length > 1 && (
                     <button
                       type="button"
@@ -456,7 +358,7 @@ export default function HomeInputSection({
             </div>
 
             {/* Action Button */}
-            <div className="px-2 pb-2 pt-0 sm:px-3 sm:pb-3">
+            <div className="px-2 pb-2 pt-0 sm:px-3 sm:pb-2.5">
               <Button
                 type="button"
                 disabled={
@@ -490,6 +392,7 @@ export default function HomeInputSection({
           </div>
         )}
       </div>
+      </VoiceBeam>
     </div>
   );
 }

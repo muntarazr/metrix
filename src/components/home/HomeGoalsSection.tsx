@@ -21,7 +21,8 @@ import type { DailyFocusSession } from "@/lib/daily-focus";
 import { getIconComponent } from "@/components/goal/IconPicker";
 import { getGoalEndDaysChip } from "@/lib/goal-dates";
 import GoalProgressBar from "@/components/shared/GoalProgressBar";
-import VoiceRecorder from "@/components/shared/VoiceRecorder";
+import VoiceRecorder, { useVoiceGlow } from "@/components/shared/VoiceRecorder";
+import { VoiceBeam } from "voice-glow";
 import { cn } from "@/lib/utils";
 import { WELL_SURFACE } from "@/lib/surfaces";
 import type { Goal } from "./HomeTypes";
@@ -45,6 +46,8 @@ interface HomeGoalsSectionProps {
   focusLoading: boolean;
   focusSubmitting: boolean;
   focusError: string | null;
+  isRestDay?: boolean;
+  isQuestionDay?: boolean;
 }
 
 export default function HomeGoalsSection({
@@ -65,9 +68,12 @@ export default function HomeGoalsSection({
   focusLoading,
   focusSubmitting,
   focusError,
+  isRestDay = false,
+  isQuestionDay = true,
 }: HomeGoalsSectionProps) {
   const isArabic = language === "ar";
   const t = translations[language];
+  const voiceGlow = useVoiceGlow();
   const [bottomTab, setBottomTab] = useState<"goals" | "question">("goals");
   const [editingAnswer, setEditingAnswer] = useState(false);
   const [isAnswerExpanded, setIsAnswerExpanded] = useState(false);
@@ -140,7 +146,7 @@ export default function HomeGoalsSection({
                   <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold shrink-0">
                     ✓
                   </span>
-                ) : dailyFocus?.question ? (
+                ) : !isRestDay && dailyFocus?.question ? (
                   <span className="inline-flex h-2 w-2 rounded-full bg-primary animate-pulse shrink-0" />
                 ) : null}
               </button>
@@ -322,7 +328,7 @@ export default function HomeGoalsSection({
             /* Daily Question & Answer View */
             <div className="flex flex-col gap-2.5 min-h-full">
               {!activeFocusGoal ? (
-                <div className="flex h-full min-h-[140px] sm:min-h-[160px] flex-col items-center justify-center p-3 sm:p-4 text-center">
+                <div className="flex flex-1 min-h-[140px] sm:min-h-[160px] flex-col items-center justify-center p-3 sm:p-4 text-center">
                   <div className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-2xl border border-border/70 bg-card text-muted-foreground/50 shadow-xs mb-2">
                     <Sparkles className="h-5 w-5 sm:h-6 sm:w-6" />
                   </div>
@@ -334,6 +340,35 @@ export default function HomeGoalsSection({
                       ? "يقوم الذكاء الاصطناعي بتوليد سؤال يومي لكل هدف لمعايرة خطواتك ومساعدتك على الإنجاز."
                       : "AI generates a daily focus question for your active goals to calibrate your steps."}
                   </p>
+                </div>
+              ) : isRestDay && !dailyFocus && !focusLoading ? (
+                <div className="rounded-xl border border-border/70 bg-card p-5 sm:p-6 shadow-xs flex flex-col items-center justify-center text-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-primary/25 bg-primary/10 text-primary shadow-xs">
+                    <Target className="h-5 w-5" />
+                  </div>
+                  <div className="space-y-1.5 max-w-sm">
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-bold text-primary border border-primary/20">
+                        {isArabic ? "يوم تنفيذ وتركيز" : "Execution Day"}
+                      </span>
+                    </div>
+                    <h3 className="text-sm sm:text-base font-bold text-foreground">
+                      {isArabic ? "اليوم استراحة من الأسئلة – ركّز على إنجاز مهامك" : "Today is for Execution – Focus on Your Tasks"}
+                    </h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {isArabic
+                        ? "نظام الأسئلة يعمل يوم وترك (يوم سؤال ويوم تنفيذ حر) حتى لا تشعر بالضغط وتركز على إنجاز مهامك اليومية دون تشتيت. سؤالك الاستراتيجي القادم سيكون غداً!"
+                        : "Questions alternate every other day so you can execute your tasks without interruption. Your next question will be ready tomorrow!"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onRefreshQuestion}
+                    className="mt-1 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-border/70 bg-muted/40 hover:bg-muted text-xs font-semibold text-muted-foreground hover:text-foreground transition-all cursor-pointer active:scale-95"
+                  >
+                    <Sparkles className="h-3.5 w-3.5 text-primary" />
+                    <span>{isArabic ? "توليد سؤال اختياري لليوم" : "Generate optional question for today"}</span>
+                  </button>
                 </div>
               ) : (
                 <div className="rounded-xl border border-border/70 bg-card p-3.5 sm:p-4 shadow-xs flex flex-col gap-3">
@@ -428,38 +463,48 @@ export default function HomeGoalsSection({
                   {showAnswerInput ? (
                     <div className="space-y-2 pt-1">
                       <div className="relative">
-                        <textarea
-                          value={dailyFocusAnswer}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            const lines = val.split("\n");
-                            if (lines.length > 5) {
-                              onAnswerChange(lines.slice(0, 5).join("\n"));
-                            } else {
-                              onAnswerChange(val);
-                            }
-                          }}
-                          onKeyDown={(e) => {
-                            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                              e.preventDefault();
-                              if (!submitDisabled) {
-                                onAnswerSubmit();
-                                setEditingAnswer(false);
+                        <VoiceBeam
+                          stream={voiceGlow.stream}
+                          active={voiceGlow.active}
+                          motion={voiceGlow.motion}
+                          theme={voiceGlow.theme}
+                        >
+                          <textarea
+                            value={dailyFocusAnswer}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              const lines = val.split("\n");
+                              if (lines.length > 5) {
+                                onAnswerChange(lines.slice(0, 5).join("\n"));
+                              } else {
+                                onAnswerChange(val);
                               }
+                            }}
+                            onKeyDown={(e) => {
+                              if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                                e.preventDefault();
+                                if (!submitDisabled) {
+                                  onAnswerSubmit();
+                                  setEditingAnswer(false);
+                                }
+                              }
+                            }}
+                            placeholder={
+                              isArabic
+                                ? "اكتب جوابك باختصار أو اختر من الخيارات أعلاه..."
+                                : "Write your answer briefly or choose an option above..."
                             }
-                          }}
-                          placeholder={
-                            isArabic
-                              ? "اكتب جوابك باختصار أو اختر من الخيارات أعلاه..."
-                              : "Write your answer briefly or choose an option above..."
-                          }
-                          disabled={focusLoading || focusSubmitting}
-                          rows={3}
-                          className="w-full rounded-xl border border-border/70 bg-background px-3 py-2.5 pb-10 pe-11 text-xs sm:text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus:border-primary/40 focus:ring-2 focus:ring-primary/15 outline-none resize-none sm:min-h-[92px]"
-                        />
-                        <div className="absolute bottom-2 end-2">
+                            disabled={focusLoading || focusSubmitting}
+                            rows={3}
+                            className="block w-full rounded-xl border border-border/70 bg-background px-3 py-2.5 pb-10 pe-11 text-xs sm:text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus:border-primary/40 focus:ring-2 focus:ring-primary/15 outline-none resize-none sm:min-h-[92px]"
+                          />
+                        </VoiceBeam>
+                        <div className="absolute bottom-2 end-2 z-10">
                           <VoiceRecorder
                             onTranscript={onAppendTranscript}
+                            onStreamChange={voiceGlow.setStream}
+                            onRecordingChange={voiceGlow.setIsRecording}
+                            onProcessingChange={voiceGlow.setIsProcessing}
                             language={language}
                             size="sm"
                             statusAboveButton

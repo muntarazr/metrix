@@ -117,30 +117,30 @@ export default function GoalsList({ goals, taskStatsMap = {}, selectedGoalId, on
     return (
         <div className="w-full max-w-4xl lg:max-w-[1041px] mx-auto flex-1 flex flex-col gap-4">
             <div className={cn(WELL_SURFACE, "p-3 sm:p-4 rounded-2xl sm:rounded-[22px] flex-1 flex flex-col min-h-0")}>
-                <div className="flex items-center gap-2 mb-3">
-                    <div className="flex flex-1 gap-1 p-1 rounded-xl bg-muted/60 border border-border/70 h-11">
+                <div className="flex items-center gap-1.5 sm:gap-2 mb-3">
+                    <div className="flex flex-1 gap-1 p-1 rounded-xl bg-muted/60 border border-border/70 h-11 min-w-0">
                         <button
                             onClick={() => setActiveTab('goals')}
                             className={cn(
-                                "flex flex-1 min-w-0 items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200",
+                                "flex flex-1 min-w-0 items-center justify-center gap-1 sm:gap-2 px-1.5 sm:px-3 py-2 rounded-lg text-[11px] min-[360px]:text-xs sm:text-sm font-semibold transition-all duration-200",
                                 activeTab === 'goals'
                                     ? "bg-card text-foreground shadow-sm ring-1 ring-border/45"
                                     : "text-muted-foreground hover:text-foreground hover:bg-muted/20"
                             )}
                         >
-                            <Target className="w-4 h-4 opacity-80 shrink-0" />
+                            <Target className="w-3.5 h-3.5 sm:w-4 sm:h-4 opacity-80 shrink-0" />
                             <span className="truncate">{t.myGoals}</span>
                         </button>
                         <button
                             onClick={() => setActiveTab('statistics')}
                             className={cn(
-                                "flex flex-1 min-w-0 items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200",
+                                "flex flex-1 min-w-0 items-center justify-center gap-1 sm:gap-2 px-1.5 sm:px-3 py-2 rounded-lg text-[11px] min-[360px]:text-xs sm:text-sm font-semibold transition-all duration-200",
                                 activeTab === 'statistics'
                                     ? "bg-card text-foreground shadow-sm ring-1 ring-border/45"
                                     : "text-muted-foreground hover:text-foreground hover:bg-muted/20"
                             )}
                         >
-                            <BarChart3 className="w-4 h-4 opacity-80 shrink-0" />
+                            <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4 opacity-80 shrink-0" />
                             <span className="truncate">{t.goalsStatistics}</span>
                         </button>
                     </div>
@@ -150,18 +150,18 @@ export default function GoalsList({ goals, taskStatsMap = {}, selectedGoalId, on
                         <button
                             type="button"
                             onClick={onNavigateToCreate || onNavigateToManualCreate}
-                            className="self-stretch px-3 sm:px-4 rounded-xl font-bold flex items-center justify-center gap-1.5 sm:gap-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm active:scale-95 transition-all text-xs sm:text-sm cursor-pointer select-none shrink-0"
+                            className="self-stretch px-2.5 sm:px-4 rounded-xl font-bold flex items-center justify-center gap-1 sm:gap-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm active:scale-95 transition-all text-xs sm:text-sm cursor-pointer select-none shrink-0"
                             aria-label={isArabic ? 'إضافة هدف جديد' : (t.newGoal || 'New Goal')}
                         >
                             <Plus className="w-4 h-4 shrink-0" />
-                            <span>{isArabic ? 'إضافة هدف جديد' : (t.newGoal || 'New Goal')}</span>
+                            <span className="hidden min-[380px]:inline">{isArabic ? 'هدف جديد' : (t.newGoal || 'New Goal')}</span>
                         </button>
                     )}
                 </div>
 
                 {goals.length === 0 && activeTab === 'goals' ? (
                     <div className="flex-1 min-h-0 flex items-center justify-center">
-                        <div className="flex flex-col items-center justify-center text-center p-5 sm:p-12 bg-card/12 rounded-2xl border border-dashed border-border gap-4 max-w-md mx-auto">
+                        <div className="flex flex-col items-center justify-center text-center gap-4 max-w-md mx-auto">
                             <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border/70 bg-muted/20">
                                 <Target className="w-7 h-7 text-muted-foreground/75" />
                             </div>

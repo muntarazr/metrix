@@ -4,7 +4,8 @@ import { Loader2, Send, Sparkles, X } from "lucide-react";
 import { translations, type Language } from "@/lib/translations";
 import type { DailyFocusSession } from "@/lib/daily-focus";
 import { cn } from "@/lib/utils";
-import VoiceRecorder from "@/components/shared/VoiceRecorder";
+import VoiceRecorder, { useVoiceGlow } from "@/components/shared/VoiceRecorder";
+import { VoiceBeam } from "voice-glow";
 import {
   Dialog,
   DialogContent,
@@ -44,6 +45,7 @@ export default function DailyFocusQuestionDialog({
   onSubmit,
 }: DailyFocusQuestionDialogProps) {
   const t = translations[language];
+  const voiceGlow = useVoiceGlow();
   const submitDisabled = submitting || loading || !answer.trim();
 
   const currentQuestionNumber = Math.max(
@@ -66,77 +68,63 @@ export default function DailyFocusQuestionDialog({
         className={cn(
           // Mobile: bottom sheet
           "fixed bottom-0 left-0 right-0 top-auto w-full max-w-none translate-x-0 translate-y-0",
-          "rounded-t-[1.5rem] rounded-b-none",
-          // Desktop: centered modal (medium width)
+          "rounded-t-2xl rounded-b-none",
+          // Desktop: centered modal (matching LogModeSelectScreen / AIDailyLogScreen)
           "sm:bottom-auto sm:left-1/2 sm:right-auto sm:top-1/2",
-          "sm:w-full sm:max-w-xl",
+          "sm:w-full sm:max-w-lg",
           "sm:-translate-x-1/2 sm:-translate-y-1/2",
           "sm:rounded-3xl",
           // Base styles
-          "gap-0 overflow-hidden border border-border/70 bg-background p-0",
-          "shadow-lg sm:shadow-lg",
-          "dark:border-white/8 dark:shadow-lg dark:sm:shadow-lg",
+          "flex max-h-[92dvh] sm:max-h-[88dvh] flex-col gap-0 overflow-hidden border border-border bg-card p-0",
+          "shadow-2xl shadow-black/10",
         )}
         dir={isArabic ? "rtl" : "ltr"}
       >
-        <div className="flex max-h-[88dvh] flex-col sm:max-h-[min(88svh,52rem)]">
-          {/* Single custom close button — logical inset for LTR/RTL */}
-          <DialogClose 
-            aria-label={isArabic ? "إغلاق" : "Close"}
-            className="absolute top-3 end-3 z-10 flex size-8 items-center justify-center rounded-full bg-muted/60 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:top-4 sm:end-4"
-          >
-            <X className="size-4" />
-            <span className="sr-only">{isArabic ? "إغلاق" : "Close"}</span>
-          </DialogClose>
+        <div className="flex max-h-[92dvh] sm:max-h-[88dvh] flex-col min-h-0 w-full">
+          {/* ── Header ── */}
+          <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-border/70 flex justify-between items-center gap-3 shrink-0">
+            <DialogHeader
+              className={cn(
+                "flex-1 min-w-0 gap-0.5 space-y-0 !text-start sm:!text-start items-start",
+              )}
+            >
+              {/* Unified top row: Title + Badge + Counter */}
+              <div className="flex flex-wrap items-center gap-2 w-full">
+                <DialogTitle className="text-base sm:text-lg font-extrabold text-foreground tracking-tight truncate">
+                  {t.dailyFocus}
+                </DialogTitle>
+                <span className="inline-flex items-center gap-1 rounded-lg bg-primary/12 border border-primary/20 px-2 py-0.5 text-xs font-bold text-primary shrink-0">
+                  <Sparkles className="size-3 shrink-0" aria-hidden />
+                  {questionLabel}
+                </span>
+                {dailyFocus?.required_answer_days && (
+                  <span className="text-[11px] font-semibold text-muted-foreground/75 shrink-0">
+                    ({cycleLabel})
+                  </span>
+                )}
+              </div>
+
+              {/* Subtitle / context description */}
+              <DialogDescription className="text-xs text-muted-foreground/75 font-semibold mt-0.5 leading-relaxed truncate w-full text-start">
+                {t.dailyAiQuestionDesc}
+              </DialogDescription>
+            </DialogHeader>
+
+            <DialogClose
+              aria-label={isArabic ? "إغلاق" : "Close"}
+              className="p-2 hover:bg-muted/60 rounded-xl transition-all duration-200 active:scale-95 shrink-0 border border-border/45 hover:border-border/70 text-muted-foreground hover:text-foreground touch-manipulation cursor-pointer"
+            >
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="sr-only">{isArabic ? "إغلاق" : "Close"}</span>
+            </DialogClose>
+          </div>
 
           {/* ── Scroll area ── */}
-          <div className="flex-1 overflow-y-auto overscroll-contain pb-4">
-            {/* Mobile drag handle */}
-            <div className="flex justify-center pt-2 sm:hidden">
-              <div className="h-1 w-10 rounded-full bg-foreground/12" />
-            </div>
-
-            {/* Header — padding respects dir; title scale is medium */}
-            <div className="px-5 pt-4 pb-3 pe-12 sm:px-7 sm:pt-5 sm:pb-4 sm:pe-14">
-              <DialogHeader
-                className={cn(
-                  "gap-1.5 space-y-0 !text-start sm:!text-start items-start",
-                )}
-              >
-                {/* Unified top row: Badge + Counter */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary dark:bg-primary/20">
-                    <Sparkles className="size-3.5 shrink-0" aria-hidden />
-                    {t.dailyFocus}
-                  </span>
-                  <span className="inline-flex items-center rounded-full bg-muted/70 px-2.5 py-1 text-xs font-medium text-muted-foreground border border-border/50">
-                    {questionLabel}
-                  </span>
-                  {dailyFocus?.required_answer_days && (
-                    <span className="text-[11px] font-medium text-muted-foreground/80">
-                      ({cycleLabel})
-                    </span>
-                  )}
-                </div>
-
-                {/* Subtitle / context description */}
-                <DialogDescription className="text-xs text-muted-foreground sm:text-[13px] leading-relaxed pt-0.5">
-                  {t.dailyAiQuestionDesc}
-                </DialogDescription>
-
-                <DialogTitle className="sr-only">
-                  {t.dailyFocus} - {questionLabel}
-                </DialogTitle>
-              </DialogHeader>
-            </div>
-
-            {/* Divider */}
-            <div className="mx-5 h-px bg-border/60 sm:mx-7" />
-
+          <div className="px-4 sm:px-6 py-4 sm:py-5 space-y-3.5 sm:space-y-4 overflow-y-auto overscroll-contain flex-1">
             {/* Question block */}
-            <div className="px-5 py-4 sm:px-7 sm:py-4">
+            <div className="p-3.5 sm:p-4 bg-primary/[0.08] border border-primary/20 rounded-xl shadow-2xs">
               {loading && !dailyFocus ? (
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   <div className="h-4 w-full animate-pulse rounded-full bg-muted" />
                   <div className="h-4 w-5/6 animate-pulse rounded-full bg-muted" />
                   <div className="h-4 w-4/6 animate-pulse rounded-full bg-muted" />
@@ -144,7 +132,7 @@ export default function DailyFocusQuestionDialog({
               ) : (
                 <p
                   className={cn(
-                    "whitespace-pre-line text-[15px] font-semibold leading-8 text-foreground sm:text-base sm:leading-8",
+                    "whitespace-pre-line text-sm sm:text-[15px] font-semibold leading-relaxed sm:leading-7 text-foreground",
                     "text-start break-words",
                   )}
                 >
@@ -153,104 +141,113 @@ export default function DailyFocusQuestionDialog({
               )}
             </div>
 
-            {/* Divider */}
-            <div className="mx-5 h-px bg-border/20 sm:mx-7" />
-
             {/* Error alert if any */}
             {error && (
-              <div role="alert" className="mx-5 my-2.5 sm:mx-7 rounded-xl border border-destructive/20 bg-destructive/10 px-3.5 py-2.5 text-xs font-medium text-destructive">
+              <div
+                role="alert"
+                className="rounded-xl border border-destructive/20 bg-destructive/12 px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-destructive"
+              >
                 {error}
               </div>
             )}
 
-            {/* Answer area */}
-            <div className="px-5 pt-3 pb-2 sm:px-7">
-              {/* Dynamic Quick Options Chips */}
-              {dailyFocus?.quick_options && dailyFocus.quick_options.length > 0 && (
-                <div className="mb-3 space-y-1.5">
-                  <p className="text-start text-[10px] font-bold ltr:uppercase ltr:tracking-wider rtl:tracking-normal text-muted-foreground/80 sm:text-[11px]">
-                    {isArabic ? "خيارات سريعة (اختر مباشرة أو اكتب أدناه):" : "Quick Options (tap to pick or write below):"}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {dailyFocus.quick_options.map((option, idx) => {
-                      const isSelected = answer.trim() === option.trim();
-                      return (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => {
-                            if (isSelected) {
-                              onAnswerChange("");
-                            } else {
-                              onAnswerChange(option);
-                            }
-                          }}
-                          className={cn(
-                            "inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all active:scale-95 text-start cursor-pointer",
-                            isSelected
-                              ? "border-primary bg-primary text-primary-foreground shadow-xs ring-2 ring-primary/20"
-                              : "border-border/80 bg-muted/30 hover:bg-muted/60 text-foreground/90 hover:border-primary/40",
-                          )}
-                        >
-                          <span>{option}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+            {/* Dynamic Quick Options Chips */}
+            {dailyFocus?.quick_options && dailyFocus.quick_options.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="px-1 text-start text-xs font-bold ltr:uppercase ltr:tracking-wider rtl:tracking-normal text-muted-foreground/75">
+                  {isArabic
+                    ? "خيارات سريعة (اختر مباشرة أو اكتب أدناه):"
+                    : "Quick Options (tap to pick or write below):"}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {dailyFocus.quick_options.map((option, idx) => {
+                    const isSelected = answer.trim() === option.trim();
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            onAnswerChange("");
+                          } else {
+                            onAnswerChange(option);
+                          }
+                        }}
+                        className={cn(
+                          "inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all duration-200 active:scale-95 text-start cursor-pointer",
+                          isSelected
+                            ? "border-primary bg-primary text-primary-foreground shadow-xs ring-2 ring-primary/20"
+                            : "border-border/70 bg-muted/20 hover:bg-muted/60 text-foreground/90 hover:border-primary/40",
+                        )}
+                      >
+                        <span>{option}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-              )}
+              </div>
+            )}
 
-              <div className="flex items-center justify-between mb-1.5">
-                <label 
+            {/* Answer area */}
+            <div className="space-y-1.5 sm:space-y-2">
+              <div className="flex items-center justify-between px-1">
+                <label
                   htmlFor="daily-focus-dialog-answer"
-                  className="block text-start text-[10px] font-bold ltr:uppercase ltr:tracking-[0.18em] rtl:tracking-normal text-muted-foreground/90 sm:text-[11px]"
+                  className="text-xs sm:text-sm font-bold text-muted-foreground/75 ltr:uppercase ltr:tracking-wider rtl:tracking-normal cursor-pointer"
                 >
                   {t.answerQuestion}
                 </label>
               </div>
 
               <div className="relative">
-                <textarea
-                  id="daily-focus-dialog-answer"
-                  value={answer}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const lines = val.split("\n");
-                    if (lines.length > 5) {
-                      onAnswerChange(lines.slice(0, 5).join("\n"));
-                    } else {
-                      onAnswerChange(val);
+                <VoiceBeam
+                  stream={voiceGlow.stream}
+                  active={voiceGlow.active}
+                  motion={voiceGlow.motion}
+                  theme={voiceGlow.theme}
+                >
+                  <textarea
+                    id="daily-focus-dialog-answer"
+                    value={answer}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const lines = val.split("\n");
+                      if (lines.length > 5) {
+                        onAnswerChange(lines.slice(0, 5).join("\n"));
+                      } else {
+                        onAnswerChange(val);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                        e.preventDefault();
+                        if (!submitDisabled) onSubmit();
+                      }
+                    }}
+                    placeholder={
+                      isArabic
+                        ? "اكتب جوابك باختصار (حتى 5 أسطر) أو اختر من الخيارات أعلاه..."
+                        : "Write your answer briefly (up to 5 lines) or choose an option above..."
                     }
-                  }}
-                  onKeyDown={(e) => {
-                    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                      e.preventDefault();
-                      if (!submitDisabled) onSubmit();
-                    }
-                  }}
-                  placeholder={
-                    isArabic
-                      ? "اكتب جوابك باختصار (حتى 5 أسطر) أو اختر من الخيارات أعلاه..."
-                      : "Write your answer briefly (up to 5 lines) or choose an option above..."
-                  }
-                  disabled={loading || submitting}
-                  rows={3}
-                  className={cn(
-                    "w-full resize-none rounded-xl border border-border/70 bg-muted/20",
-                    "min-h-[6.5rem] sm:min-h-[7.5rem]",
-                    "px-4 py-3 pb-12 pe-14",
-                    "text-base leading-relaxed text-foreground placeholder:text-muted-foreground/50 sm:text-[14px]",
-                    "text-start outline-none transition-all duration-200",
-                    "focus:border-primary/25 focus:bg-background focus:ring-4 focus:ring-primary/15",
-                    "dark:bg-white/5 dark:border-white/5 dark:focus:bg-white/10",
-                    (loading || submitting) && "cursor-not-allowed opacity-60",
-                  )}
-                  dir={isArabic ? "rtl" : "ltr"}
-                />
+                    disabled={loading || submitting}
+                    rows={3}
+                    className={cn(
+                      "block w-full h-28 sm:h-36 min-h-[100px] sm:min-h-[110px] p-3.5 sm:p-4 pb-12 sm:pb-14 pe-12 sm:pe-14 rounded-2xl resize-none",
+                      "border border-border/70 bg-muted/20 text-foreground placeholder:text-muted-foreground/50",
+                      "text-base leading-relaxed text-start outline-none transition-all duration-200",
+                      "focus:border-primary/50 focus:bg-card focus:ring-1 focus:ring-primary/20",
+                      (loading || submitting) && "cursor-not-allowed opacity-60",
+                    )}
+                    dir={isArabic ? "rtl" : "ltr"}
+                  />
+                </VoiceBeam>
 
-                <div className="absolute bottom-2.5 end-2.5">
+                <div className="absolute bottom-2.5 end-2.5 z-10">
                   <VoiceRecorder
                     onTranscript={onAppendTranscript}
+                    onStreamChange={voiceGlow.setStream}
+                    onRecordingChange={voiceGlow.setIsRecording}
+                    onProcessingChange={voiceGlow.setIsProcessing}
                     language={language}
                     size="sm"
                     statusAboveButton
@@ -261,17 +258,17 @@ export default function DailyFocusQuestionDialog({
           </div>
 
           {/* ── Footer ── */}
-          <div className="border-t border-border/70 bg-background px-5 py-3 sm:px-7 sm:py-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:pb-4">
+          <div className="px-4 py-3 sm:px-6 sm:py-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:pb-4 border-t border-border/70 bg-card shrink-0">
             <button
               type="button"
               onClick={onSubmit}
               disabled={submitDisabled}
               className={cn(
-                "group relative flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 sm:h-11 sm:rounded-2xl",
-                "text-sm font-bold text-primary-foreground sm:text-[0.9375rem]",
-                "transition-all duration-200",
-                "hover:brightness-110 active:scale-[0.99] shadow-md shadow-primary/12",
-                "disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none",
+                "group relative flex h-11 sm:h-12 w-full items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-primary px-5",
+                "text-sm sm:text-base font-bold text-primary-foreground",
+                "transition-all duration-200 cursor-pointer",
+                "hover:bg-primary/90 active:scale-[0.98] shadow-md shadow-primary/12",
+                "disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none",
               )}
             >
               {submitting ? (
@@ -279,7 +276,7 @@ export default function DailyFocusQuestionDialog({
               ) : (
                 <>
                   <Send
-                    className="size-[1.125rem] shrink-0 transition-transform group-hover:-translate-y-0.5 ltr:group-hover:translate-x-0.5 rtl:-scale-x-100 rtl:group-hover:-translate-x-0.5"
+                    className="w-4 h-4 sm:w-5 sm:h-5 shrink-0 transition-transform group-hover:-translate-y-0.5 ltr:group-hover:translate-x-0.5 rtl:-scale-x-100 rtl:group-hover:-translate-x-0.5"
                     aria-hidden
                   />
                   <span>{t.submitAnswer}</span>

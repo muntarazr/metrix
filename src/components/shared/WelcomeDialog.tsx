@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useSyncExternalStore } from 'react';
+import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
 import { BrandLockup } from '@/components/brand/Logo';
 import { ArrowLeft, ArrowRight, ListChecks, Sparkles, Swords, TrendingUp } from 'lucide-react';
@@ -76,6 +77,9 @@ const COPY = {
 
 interface WelcomeDialogProps {
   language?: Language;
+  user?: User | null;
+  goalsCount?: number;
+  onOpenChange?: (open: boolean) => void;
 }
 
 /**
@@ -93,7 +97,12 @@ function useTourSeen() {
   );
 }
 
-export default function WelcomeDialog({ language = 'ar' }: WelcomeDialogProps) {
+export default function WelcomeDialog({
+  language = 'ar',
+  user: userProp,
+  goalsCount,
+  onOpenChange,
+}: WelcomeDialogProps) {
   const seen = useTourSeen();
   const [dismissed, setDismissed] = useState(false);
   const [accountChecked, setAccountChecked] = useState(seen);
@@ -101,33 +110,96 @@ export default function WelcomeDialog({ language = 'ar' }: WelcomeDialogProps) {
   const [step, setStep] = useState(0);
   const isVisible = accountChecked && !accountSeen && !seen && !dismissed;
 
+  // Notify parent of visibility changes so the navigation bar can be hidden
+  // while the 5 onboarding steps are active, and displayed once completed or skipped.
+  useEffect(() => {
+    onOpenChange?.(isVisible);
+    return () => {
+      onOpenChange?.(false);
+    };
+  }, [isVisible, onOpenChange]);
+
   // Completion is tied to the account, not just this device: a returning
-  // user on a new browser should never see the onboarding tour again.
+  // user on a new browser or someone signing in again should never see the onboarding tour.
   useEffect(() => {
     if (seen) return;
 
     let cancelled = false;
     const supabase = createClient();
 
-    supabase.auth
-      .getUser()
-      .then(({ data }) => {
+    const evaluateUser = async () => {
+      try {
+        let currentUser = userProp;
+        if (!currentUser) {
+          const { data } = await supabase.auth.getUser();
+          currentUser = data.user;
+        }
+
         if (cancelled) return;
-        const user = data.user;
-        setAccountSeen(Boolean(user?.user_metadata?.onboarding_seen));
-        setAccountChecked(true);
-      })
-      .catch(() => {
+
+        if (!currentUser) {
+          // If no user is logged in, don't show the onboarding tour
+          setAccountSeen(true);
+          setAccountChecked(true);
+          return;
+        }
+
+        // Check if user is returning based on metadata, goalsCount, or account age (> 2 minutes)
+        let isExisting = Boolean(currentUser.user_metadata?.onboarding_seen);
+
+        if (!isExisting && typeof goalsCount === 'number' && goalsCount > 0) {
+          isExisting = true;
+        }
+
+        if (!isExisting && currentUser.created_at) {
+          const accountAgeMs = Date.now() - new Date(currentUser.created_at).getTime();
+          if (accountAgeMs > 2 * 60 * 1000) {
+            isExisting = true;
+          }
+        }
+
+        // Double-check database for existing goals if still undecided
+        if (!isExisting) {
+          const { count } = await supabase
+            .from('goals')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', currentUser.id);
+
+          if (count && count > 0) {
+            isExisting = true;
+          }
+        }
+
+        if (isExisting) {
+          try {
+            localStorage.setItem(STORAGE_KEY, 'true');
+          } catch {}
+          setAccountSeen(true);
+          setAccountChecked(true);
+
+          if (!currentUser.user_metadata?.onboarding_seen) {
+            supabase.auth.updateUser({
+              data: { onboarding_seen: true },
+            }).catch(() => {});
+          }
+        } else {
+          setAccountSeen(false);
+          setAccountChecked(true);
+        }
+      } catch {
         if (!cancelled) {
           setAccountSeen(false);
           setAccountChecked(true);
         }
-      });
+      }
+    };
+
+    evaluateUser();
 
     return () => {
       cancelled = true;
     };
-  }, [seen]);
+  }, [seen, userProp, goalsCount]);
 
   const slides = SLIDES[language] ?? SLIDES.ar;
   const copy = COPY[language] ?? COPY.ar;
@@ -146,8 +218,11 @@ export default function WelcomeDialog({ language = 'ar' }: WelcomeDialogProps) {
   if (!isVisible) return null;
 
   const dismiss = () => {
-    localStorage.setItem(STORAGE_KEY, 'true');
+    try {
+      localStorage.setItem(STORAGE_KEY, 'true');
+    } catch {}
     setDismissed(true);
+    onOpenChange?.(false);
 
     const supabase = createClient();
     supabase.auth

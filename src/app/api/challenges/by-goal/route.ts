@@ -107,22 +107,27 @@ async function buildParticipantScore(params: {
 
 async function getRecentEvents(
   supabase: SupabaseClient,
-  participant: ParticipantRow,
+  goalId: string,
   actor: 'me' | 'opponent',
-  challengeEndedAt: string | null
+  options?: {
+    joinedAt?: string | null;
+    challengeEndedAt?: string | null;
+  }
 ) {
   let query = supabase
     .from('daily_logs')
     .select('id, created_at, ai_score, breakdown')
-    .eq('goal_id', participant.goal_id)
-    .gte('created_at', participant.joined_at)
+    .eq('goal_id', goalId)
     .order('created_at', { ascending: false })
-    .limit(20);
+    .limit(30);
 
-  // For "me", show all milestones — including ones submitted after the challenge ended.
-  // For "opponent", limit to challenge timeframe (post-challenge activity is irrelevant).
-  if (challengeEndedAt && actor === 'opponent') {
-    query = query.lte('created_at', challengeEndedAt);
+  // For "opponent", limit to challenge timeframe (from joined_at to challengeEndedAt).
+  // For "me", show all milestones on this goal so the user's achievements are always visible.
+  if (actor === 'opponent' && options?.joinedAt) {
+    query = query.gte('created_at', options.joinedAt);
+  }
+  if (actor === 'opponent' && options?.challengeEndedAt) {
+    query = query.lte('created_at', options.challengeEndedAt);
   }
 
   const { data, error } = await query;
@@ -146,7 +151,15 @@ async function getRecentEvents(
   });
 }
 
-function noneSnapshot() {
+function noneSnapshot(
+  recentEvents: Array<{
+    logId?: string;
+    actor: 'me' | 'opponent';
+    points: number;
+    createdAt: string;
+    milestone?: any;
+  }> = []
+) {
   return {
     status: 'none' as const,
     challengeId: null,
@@ -157,7 +170,7 @@ function noneSnapshot() {
       me: ZERO_SCORE,
       opponent: ZERO_SCORE,
     },
-    recentEvents: [] as Array<{ actor: 'me' | 'opponent'; points: number; createdAt: string }>,
+    recentEvents,
     endedAt: null,
   };
 }
@@ -207,7 +220,8 @@ export async function POST(req: NextRequest) {
     }
 
     if (!myParticipant) {
-      return NextResponse.json({ data: noneSnapshot() });
+      const myEvents = await getRecentEvents(supabase, goalId, 'me');
+      return NextResponse.json({ data: noneSnapshot(myEvents) });
     }
 
     const { data: room, error: roomError } = await supabase
@@ -221,7 +235,8 @@ export async function POST(req: NextRequest) {
     }
 
     if (!room) {
-      return NextResponse.json({ data: noneSnapshot() });
+      const myEvents = await getRecentEvents(supabase, goalId, 'me');
+      return NextResponse.json({ data: noneSnapshot(myEvents) });
     }
 
     const { data: participants, error: participantsError } = await supabase
@@ -260,8 +275,16 @@ export async function POST(req: NextRequest) {
             localMidnightUtc,
           })
         : Promise.resolve(ZERO_SCORE),
-      getRecentEvents(supabase, me, 'me', room.ended_at),
-      opponent ? getRecentEvents(supabase, opponent, 'opponent', room.ended_at) : Promise.resolve([]),
+      getRecentEvents(supabase, me.goal_id, 'me', {
+        joinedAt: me.joined_at,
+        challengeEndedAt: room.ended_at,
+      }),
+      opponent
+        ? getRecentEvents(supabase, opponent.goal_id, 'opponent', {
+            joinedAt: opponent.joined_at,
+            challengeEndedAt: room.ended_at,
+          })
+        : Promise.resolve([]),
     ]);
 
     const recentEvents = [...meEvents, ...opponentEvents]

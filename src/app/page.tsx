@@ -63,15 +63,17 @@ export default function Home() {
 
   // Sync cached data on client mount after hydration to prevent HTML mismatch
   useEffect(() => {
-    const cached = getCachedItem<Goal[]>(STORAGE_KEYS.GOALS);
-    if (cached && cached.length > 0) {
-      setGoals(cached);
-      setLoading(false);
-    }
-    const cachedStats = getCachedItem<Record<string, GoalTaskStats>>(STORAGE_KEYS.TASK_STATS);
-    if (cachedStats) {
-      setTaskStatsMap(cachedStats);
-    }
+    queueMicrotask(() => {
+      const cached = getCachedItem<Goal[]>(STORAGE_KEYS.GOALS);
+      if (cached && cached.length > 0) {
+        setGoals(cached);
+        setLoading(false);
+      }
+      const cachedStats = getCachedItem<Record<string, GoalTaskStats>>(STORAGE_KEYS.TASK_STATS);
+      if (cachedStats) {
+        setTaskStatsMap(cachedStats);
+      }
+    });
   }, []);
   const [language, setLanguage] = useState<Language>("ar");
   const [user, setUser] = useState<User | null>(null);
@@ -79,24 +81,13 @@ export default function Home() {
   const [isAiGoalCreationGuardActive, setIsAiGoalCreationGuardActive] =
     useState(false);
   const [isProgressLogOpen, setIsProgressLogOpen] = useState(false);
+  const [isWelcomeTourOpen, setIsWelcomeTourOpen] = useState(false);
   const [homeBoxMode, setHomeBoxMode] = useState<"new" | "log" | null>(null);
   const [homeFocusSignal, setHomeFocusSignal] = useState(0);
   const [pendingNavigation, setPendingNavigation] =
     useState<PendingNavigation | null>(null);
 
   const t = translations[language];
-
-  // Deep link listener for Capacitor OAuth callback + cold-start launch URL check
-  const { checkLaunchUrl } = useCapacitorAuth(() => {
-    const refresh = async () => {
-      const {
-        data: { user: u },
-      } = await supabase.auth.getUser();
-      setUser(u);
-      if (u) fetchGoals(u.id);
-    };
-    refresh();
-  });
 
   const fetchTaskStats = useCallback(
     async (goalIds: string[]) => {
@@ -173,6 +164,18 @@ export default function Home() {
     },
     [supabase, fetchTaskStats],
   );
+
+  // Deep link listener for Capacitor OAuth callback + cold-start launch URL check
+  const { checkLaunchUrl } = useCapacitorAuth(() => {
+    const refresh = async () => {
+      const {
+        data: { user: u },
+      } = await supabase.auth.getUser();
+      setUser(u);
+      if (u) fetchGoals(u.id);
+    };
+    refresh();
+  });
 
   useEffect(() => {
     const initData = async () => {
@@ -316,7 +319,12 @@ export default function Home() {
 
   return (
     <OrbitShell user={user}>
-      <WelcomeDialog language={language} />
+      <WelcomeDialog
+        language={language}
+        user={user}
+        goalsCount={goals.length}
+        onOpenChange={setIsWelcomeTourOpen}
+      />
       <div
         className={`mx-auto flex min-h-0 w-full max-w-7xl 2xl:max-w-[1600px] flex-col items-center px-2 min-[360px]:px-2.5 min-[400px]:px-3 sm:px-6 lg:px-12 lg:pl-28 rtl:lg:pl-12 rtl:lg:pr-28
           ${
@@ -475,7 +483,7 @@ export default function Home() {
         )}
       </div>
 
-      {!isProgressLogOpen && (
+      {!isProgressLogOpen && !isWelcomeTourOpen && (
         <OrbitDock
           goals={goals}
           selectedGoalId={selectedGoalId}

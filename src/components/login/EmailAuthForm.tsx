@@ -103,7 +103,7 @@ export function EmailAuthForm({ language = 'ar' }: EmailAuthFormProps) {
     setPending(true);
 
     if (mode === 'signin') {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
@@ -113,6 +113,16 @@ export function EmailAuthForm({ language = 'ar' }: EmailAuthFormProps) {
         setPending(false);
         return;
       }
+
+      // Existing user logging in: mark onboarding as seen immediately
+      try {
+        localStorage.setItem('metrix_onboarding_seen', 'true');
+        if (data?.user && !data.user.user_metadata?.onboarding_seen) {
+          supabase.auth.updateUser({
+            data: { onboarding_seen: true },
+          }).catch(() => {});
+        }
+      } catch {}
 
       // refresh() so server components re-read the freshly set session cookie
       router.push('/');
