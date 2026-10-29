@@ -2,7 +2,7 @@ export const en = {
     // Settings Page
     settings: 'Settings',
     orbitSettings: 'Settings',
-    settingsSubtitle: 'Customize your Orbit experience',
+    settingsSubtitle: 'Customize your experience, preferences, and notifications',
     generalSettings: 'General',
     profileSettings: 'Profile',
     profileSubtitle: 'Manage your personal information and stats',
@@ -87,7 +87,7 @@ export const en = {
     hideDetails: 'Hide Details',
     current: 'Current',
     target: 'Target',
-    orbitCompletion: 'Orbit Completion',
+    orbitCompletion: 'Goal Completion',
     growthTrajectory: 'Growth Trajectory',
     progressOverTime: 'Your progress over time',
     totalPoints: 'Total Points',
@@ -242,7 +242,7 @@ export const en = {
     noGoalsYet: 'No goals yet.',
 
     // Loading
-    loadingOrbit: 'LOADING ORBIT',
+    loadingOrbit: 'LOADING SYSTEM...',
 
     // Chart
     noDataYet: 'No activity data yet. Start logging to see your growth!',

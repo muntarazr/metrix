@@ -4,7 +4,7 @@ export const ar: Translations = {
     // Settings Page
     settings: 'الإعدادات',
     orbitSettings: 'الإعدادات',
-    settingsSubtitle: 'خصص تجربتك في Orbit',
+    settingsSubtitle: 'تخصيص تجربة الاستخدام والمظهر والإشعارات',
     generalSettings: 'عام',
     profileSettings: 'الملف الشخصي',
     profileSubtitle: 'إدارة معلوماتك وإحصائياتك',
@@ -74,7 +74,7 @@ export const ar: Translations = {
     badgePlannerTitle: 'المهندس المعماري',
     badgePlannerDesc: 'تخطيط وبناء مسارات أهداف متعددة ومنظمة',
     // Tiers
-    tierNovice: 'مستكشف Orbit',
+    tierNovice: 'مستكشف مبتدئ',
     tierApprentice: 'سائر المسار',
     tierPro: 'محترف الإنجاز',
     tierMaster: 'خبير استراتيجي',
@@ -244,7 +244,7 @@ export const ar: Translations = {
     noGoalsYet: 'لا توجد أهداف بعد.',
 
     // Loading
-    loadingOrbit: 'جاري التحميل',
+    loadingOrbit: 'جاري تحميل النظام...',
 
     // Chart
     noDataYet: 'لا توجد بيانات نشاط بعد. ابدأ بالتسجيل لرؤية نموك!',
