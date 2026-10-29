@@ -1,87 +1,146 @@
 # METRIX
 
 <p align="center">
-  <img src="public/thumbnails/metrix-thumbnail-ready.jpg" alt="METRIX System Preview" width="100%" style="border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1);" />
+  <img src="docs/images/dashboard-overview.png" alt="METRIX Dashboard Overview" width="100%" style="border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1);" />
 </p>
 
 <p align="center">
-  <strong>نظام صارم قائم على النقاط وتقييم الذكاء الاصطناعي لتتبع وتحقيق الأهداف الشخصية</strong><br>
-  <em>A strict, point-based personal growth and goal execution platform evaluated by AI.</em>
+  <strong>A strict, quantitative, point-based goal execution and accountability platform evaluated by AI.</strong><br>
+  Replace casual to-do lists with rigorous milestone decomposition, daily focus tracking, and unflattering progress audits.
 </p>
 
 <p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/Next.js-16%20(Turbopack)-black?logo=next.js" alt="Next.js 16" />
   <img src="https://img.shields.io/badge/Supabase-Database%20%26%20Auth-3ECF8E?logo=supabase" alt="Supabase" />
   <img src="https://img.shields.io/badge/TypeScript-Strict-3178C6?logo=typescript" alt="TypeScript" />
   <img src="https://img.shields.io/badge/RTL-Native%20Arabic%20First-teal" alt="RTL Native" />
+  <img src="https://img.shields.io/badge/Capacitor-Android%20Ready-119EFF?logo=capacitor" alt="Capacitor" />
 </p>
 
 ---
 
-## ⚡ الميزات الجوهرية (Key Highlights)
+## 📸 Interface Showcase
 
-- 🎯 **توليد خطة بالذكاء الاصطناعي (AI Plan Generation):** تحويل وصف أي هدف إلى خطة عمل هرمية متكاملة بضغطة زر عبر Google Gemini، أو بنائها يدوياً.
-- ⚡ **التركيز اليومي (Daily Focus):** وضع مهام اليوم الأكثر حساسية في واجهة نقية وموجهة لإنجازها دون تشتيت.
-- ⚖️ **تقييم موضوعي ومحاسبة (Strict Evaluator):** تسجيل الإنجاز عبر اليوميات الصوتية أو النصية مع تقييم ذكي يمنح النقاط بناءً على معايير الجودة الصارمة.
-- 📈 **مسار النمو والتحليلات (Growth Trajectory):** مخططات بيانية تفاعلية لقياس تراكم النقاط، السلاسل اليومية (Streaks)، وتوثيق المعالم (Milestones).
-- ⚔️ **مبارزات التحدي (1v1 Duels):** التنافس المباشر مع صديق على هدف محدد عبر رمز دعوة فوري.
-- 📱 **واجهة موحدة للويب والموبايل:** تطبيق متجاوب بالكامل مع دعم تصدير Android عبر Capacitor.
+### 1. Goal Deconstruction & Daily Focus
+Break ambitious multi-month goals into strict hierarchical daily milestones with weighted point values and hard daily caps.
+
+<p align="center">
+  <img src="docs/images/goal-dashboard.png" alt="Goal Dashboard & Task Hierarchy" width="100%" style="border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.08);" />
+</p>
+
+### 2. Trajectory Analytics & 1v1 Duels
+Track cumulative productivity over 7, 30, and 90-day intervals, or challenge partners to 1v1 execution duels via invite codes.
+
+<p align="center">
+  <img src="docs/images/analytics-trajectory.png" alt="Growth Trajectory" width="49%" style="border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08);" />
+  <img src="docs/images/challenge-duel.png" alt="1v1 Challenge Duels" width="49%" style="border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08);" />
+</p>
+
+### 3. Gamification, Badges & Mobile Experience
+Earn system ranks based on verified output, maintain streaks with built-in freeze protections, and access the entire system seamlessly on mobile devices.
+
+<p align="center">
+  <img src="docs/images/profile-achievements.png" alt="Profile Achievements & Badges" width="60%" style="border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08);" />
+  <img src="docs/images/mobile-home.png" alt="Mobile Experience" width="38%" style="border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08);" />
+</p>
 
 ---
 
-## 🛠️ التقنيات المستخدمة (Tech Stack)
+## ⚡ Core Highlights
 
-| الطبقة | التقنية |
+- 🎯 **AI & Manual Goal Decomposition:** Convert any ambitious target into actionable subtasks with defined criteria using Google Gemini or manual structured entry.
+- ⚖️ **Objective AI Evaluator:** Audio or text check-ins are scored without flattering. Full points require verifiable deliverables; passive effort receives zero.
+- 📈 **Quantitative Caps & Streaks:** Enforces mathematical daily caps to prevent fake progress and burnouts, with automatic streak freeze mechanics.
+- ⚔️ **Competitive Duels:** Challenge friends or peers to head-to-head accountability competitions with synced goal targets.
+- 🌐 **RTL-Native Bilingual Architecture:** Seamless Arabic-first and English bilingual experience built with modern CSS logical properties.
+- 📱 **Unified Web & Mobile:** Single codebase powering both the Next.js web application and Android APK export via Capacitor.
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technologies |
 |---|---|
-| **Frontend** | Next.js 16 (App Router + Turbopack), Tailwind CSS v4, Lucide Icons |
-| **Backend & Auth** | Supabase (PostgreSQL with RLS), Google OAuth, Edge Functions |
-| **Intelligence** | Google Gemini (Evaluation & Planning), Mistral (Voice Transcription) |
-| **Storage & Mobile** | ImageKit, Capacitor (Android) |
+| **Frontend** | Next.js 16 (App Router + Turbopack), React 19, Tailwind CSS v4, Lucide Icons |
+| **Backend & Database** | Supabase (PostgreSQL with RLS), Google OAuth, Edge Functions |
+| **AI Intelligence** | Google Gemini 2.5 (Goal Generation & Evaluation), Mistral (Voice Transcription) |
+| **Media & Mobile** | ImageKit (Milestone Media), Capacitor (Android Native Export) |
 
 ---
 
-## 🚀 التشغيل المحلي السريع (Quickstart)
+## 🚀 Quickstart
+
+### 1. Clone & Install
 
 ```bash
-# 1. استنساخ المستودع وتثبيت الاعتماديات
 git clone https://github.com/muntarazr/metrix.git
 cd metrix
 npm install
+```
 
-# 2. إعداد متغيرات البيئة
+### 2. Configure Environment
+
+Copy `.env.example` to `.env.local` and add your project credentials:
+
+```bash
 cp .env.example .env.local
-# ثم أضف مفاتيح Supabase و Gemini في ملف .env.local
+```
 
-# 3. تشغيل خادم التطوير
+Required variables:
+- `NEXT_PUBLIC_SUPABASE_URL` & `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `GEMINI_API_KEY`
+- `MISTRAL_API_KEY`
+
+### 3. Setup Database
+
+Run the consolidated schema in your Supabase SQL Editor:
+- [`supabase/setup.sql`](supabase/setup.sql)
+
+### 4. Run Development Server
+
+```bash
 npm run dev
 ```
 
-افتح [http://localhost:3000](http://localhost:3000) في متصفحك.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## 🧪 الاختبارات والجودة (Testing & Verification)
+## 🧪 Testing & Verification
 
 ```bash
-# تشغيل اختبارات المنطق الحساس
+# Run unit & logic test suites (89 passing tests)
 npm test
 
-# فحص توافق الأنواع (Type Check)
+# Type-check TypeScript codebase
 npx tsc --noEmit
 
-# بناء نسخة الإنتاج
+# Production build test
 npm run build
 ```
 
 ---
 
-## 🤝 المساهمة والأمان (Contributing & Security)
+## 🤖 Agent Skill Integration
 
-- للمساهمة في المشروع، يرجى مراجعة [CONTRIBUTING.md](CONTRIBUTING.md).
-- للإبلاغ عن أي ثغرة أمنية بمسؤولية، يرجى مراجعة [SECURITY.md](SECURITY.md).
-- خطة العمل ومعايير الـ Open Source مفصلة في [docs/OPEN_SOURCE_PLAN.md](docs/OPEN_SOURCE_PLAN.md).
+METRIX is also packaged as an installable **AI Agent Skill** (`metrix-goal-engine`), allowing agents (Claude Code, Gemini CLI, Antigravity) to decompose goals and evaluate daily check-ins directly in your terminal:
 
-## 📄 الترخيص (License)
+```bash
+npx skills add ./skills/metrix-goal-engine
+```
 
-هذا المشروع مرخص تحت رخصة [MIT License](LICENSE).
+Learn more in [skills/metrix-goal-engine/SKILL.md](skills/metrix-goal-engine/SKILL.md).
+
+---
+
+## 🤝 Contributing & Security
+
+- **Contributing:** Please read [CONTRIBUTING.md](CONTRIBUTING.md) for code standards and PR submission guidelines.
+- **Security:** To report security concerns responsibly, see [SECURITY.md](SECURITY.md).
+- **Roadmap:** Detailed implementation notes are in [docs/OPEN_SOURCE_PLAN.md](docs/OPEN_SOURCE_PLAN.md).
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).
