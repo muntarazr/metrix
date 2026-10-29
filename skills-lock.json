@@ -43,6 +43,12 @@
       "skillPath": "skills/engineering/improve-codebase-architecture/SKILL.md",
       "computedHash": "ac2c94885f34ff8492dc12aa4543182f661f32ea1722b8d6b6c2c7045af33ae3"
     },
+    "metrix-goal-engine": {
+      "source": "muntarazr/metrix",
+      "sourceType": "github",
+      "skillPath": "skills/metrix-goal-engine/SKILL.md",
+      "computedHash": "0370790e192394b3c27f5e111dbf922bc19da70f5b2098cc23df98695257727c"
+    },
     "mobile-native": {
       "source": "emilkowalski/skills",
       "sourceType": "github",
