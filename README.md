@@ -1,49 +1,39 @@
 # METRIX
 
 <p align="center">
-  <img src="docs/images/dashboard-overview.png" alt="METRIX Dashboard Overview" width="100%" style="border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1);" />
+  <img src="docs/images/dashboard-overview.png" alt="METRIX Dashboard Overview" width="90%" style="border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);" />
 </p>
 
 <p align="center">
   <strong>A strict, quantitative, point-based goal execution and accountability platform evaluated by AI.</strong><br>
-  Replace casual to-do lists with rigorous milestone decomposition, daily focus tracking, and unflattering progress audits.
+  Replace casual to-do lists with rigorous milestone decomposition, daily focus tracking, and objective progress audits.
 </p>
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT" /></a>
+  <a href="https://github.com/muntarazr/metrix/stargazers"><img src="https://img.shields.io/github/stars/muntarazr/metrix?style=flat&logo=github&color=gold" alt="GitHub Stars" /></a>
   <img src="https://img.shields.io/badge/Next.js-16%20(Turbopack)-black?logo=next.js" alt="Next.js 16" />
   <img src="https://img.shields.io/badge/Supabase-Database%20%26%20Auth-3ECF8E?logo=supabase" alt="Supabase" />
   <img src="https://img.shields.io/badge/TypeScript-Strict-3178C6?logo=typescript" alt="TypeScript" />
   <img src="https://img.shields.io/badge/RTL-Native%20Arabic%20First-teal" alt="RTL Native" />
-  <img src="https://img.shields.io/badge/Capacitor-Android%20Ready-119EFF?logo=capacitor" alt="Capacitor" />
+  <a href="https://www.skills.sh/muntarazr/metrix/metrix-goal-engine"><img src="https://img.shields.io/badge/skills.sh-metrix--goal--engine-purple" alt="skills.sh" /></a>
 </p>
 
 ---
 
 ## 📸 Interface Showcase
 
-### 1. Goal Deconstruction & Daily Focus
-Break ambitious multi-month goals into strict hierarchical daily milestones with weighted point values and hard daily caps.
+All views share a unified cosmic dark theme with deep teal accents, RTL-native typography, and fluid dock navigation:
 
-<p align="center">
-  <img src="docs/images/goal-dashboard.png" alt="Goal Dashboard & Task Hierarchy" width="100%" style="border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.08);" />
-</p>
+| **Goal Breakdown & Tasks** | **Growth Trajectory** |
+| :---: | :---: |
+| <img src="docs/images/goal-dashboard.png" alt="Goal & Task Hierarchy" width="100%" style="border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1);" /> | <img src="docs/images/analytics-trajectory.png" alt="Growth Trajectory" width="100%" style="border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1);" /> |
+| *Hierarchical subtasks with criteria & weights* | *Historical point tracking over 7, 30 & 90 days* |
 
-### 2. Trajectory Analytics & 1v1 Duels
-Track cumulative productivity over 7, 30, and 90-day intervals, or challenge partners to 1v1 execution duels via invite codes.
-
-<p align="center">
-  <img src="docs/images/analytics-trajectory.png" alt="Growth Trajectory" width="49%" style="border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08);" />
-  <img src="docs/images/challenge-duel.png" alt="1v1 Challenge Duels" width="49%" style="border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08);" />
-</p>
-
-### 3. Gamification, Badges & Mobile Experience
-Earn system ranks based on verified output, maintain streaks with built-in freeze protections, and access the entire system seamlessly on mobile devices.
-
-<p align="center">
-  <img src="docs/images/profile-achievements.png" alt="Profile Achievements & Badges" width="60%" style="border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08);" />
-  <img src="docs/images/mobile-home.png" alt="Mobile Experience" width="38%" style="border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08);" />
-</p>
+| **1v1 Challenge Duels** | **System Tiers & Badges** |
+| :---: | :---: |
+| <img src="docs/images/challenge-duel.png" alt="Challenge Duels" width="100%" style="border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1);" /> | <img src="docs/images/profile-achievements.png" alt="Badges & Achievements" width="100%" style="border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1);" /> |
+| *Direct invite-code competitive accountability* | *XP progression, streak freezes & badges* |
 
 ---
 
@@ -55,6 +45,18 @@ Earn system ranks based on verified output, maintain streaks with built-in freez
 - ⚔️ **Competitive Duels:** Challenge friends or peers to head-to-head accountability competitions with synced goal targets.
 - 🌐 **RTL-Native Bilingual Architecture:** Seamless Arabic-first and English bilingual experience built with modern CSS logical properties.
 - 📱 **Unified Web & Mobile:** Single codebase powering both the Next.js web application and Android APK export via Capacitor.
+
+---
+
+## 🤖 Installable Agent Skill (`skills.sh`)
+
+METRIX is also packaged as an official **AI Agent Skill** (`metrix-goal-engine`), allowing agents (Claude Code, Cursor, Windsurf, Antigravity) to decompose goals and evaluate daily check-ins with persistent external storage:
+
+```bash
+npx skills add muntarazr/metrix
+```
+
+> 🔗 **View on Directory**: [https://www.skills.sh/muntarazr/metrix/metrix-goal-engine](https://www.skills.sh/muntarazr/metrix/metrix-goal-engine)
 
 ---
 
@@ -111,7 +113,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ## 🧪 Testing & Verification
 
 ```bash
-# Run unit & logic test suites (89 passing tests)
+# Run unit & sensitive logic tests (89 passing tests)
 npm test
 
 # Type-check TypeScript codebase
@@ -120,18 +122,6 @@ npx tsc --noEmit
 # Production build test
 npm run build
 ```
-
----
-
-## 🤖 Agent Skill Integration
-
-METRIX is also packaged as an installable **AI Agent Skill** (`metrix-goal-engine`), allowing agents (Claude Code, Gemini CLI, Antigravity) to decompose goals and evaluate daily check-ins directly in your terminal:
-
-```bash
-npx skills add ./skills/metrix-goal-engine
-```
-
-Learn more in [skills/metrix-goal-engine/SKILL.md](skills/metrix-goal-engine/SKILL.md).
 
 ---
 
