@@ -80,6 +80,12 @@
       "skillPath": "skills/safe-refactor/SKILL.md",
       "computedHash": "cd52867aba26aafb53379d43068cef9b2feca3a3fff850f877a99f710ccd02c0"
     },
+    "security-and-hardening": {
+      "source": "addyosmani/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/security-and-hardening/SKILL.md",
+      "computedHash": "dbab1f4697ece5cab24a90911ae052320d8f8b191324df7f836aa42344699b89"
+    },
     "shadcn": {
       "source": "vercel/vercel-plugin",
       "sourceType": "github",

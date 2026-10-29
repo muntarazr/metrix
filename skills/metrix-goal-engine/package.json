@@ -1,0 +1,15 @@
+{
+  "name": "@metrix/agent-skill-goal-engine",
+  "version": "1.0.0",
+  "description": "Strict, point-based goal decomposition and objective progress evaluation engine for AI agents",
+  "keywords": [
+    "agent-skills",
+    "productivity",
+    "goals",
+    "habits",
+    "evaluation",
+    "accountability"
+  ],
+  "author": "METRIX Contributors",
+  "license": "MIT"
+}
