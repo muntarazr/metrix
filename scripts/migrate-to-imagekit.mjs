@@ -1,12 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = process.env.SUPABASE_URL || "https://asxynodsnmrymmdspprn.supabase.co";
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const IMAGEKIT_PRIVATE_KEY = process.env.IMAGEKIT_PRIVATE_KEY;
-const IMAGEKIT_ENDPOINT = "https://ik.imagekit.io/amalcenter";
+const IMAGEKIT_ENDPOINT = process.env.IMAGEKIT_ENDPOINT;
 const IMAGEKIT_UPLOAD_URL = "https://upload.imagekit.io/api/v1/files/upload";
 
-const required = { SUPABASE_SERVICE_ROLE_KEY, IMAGEKIT_PRIVATE_KEY };
+const required = { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, IMAGEKIT_PRIVATE_KEY, IMAGEKIT_ENDPOINT };
 for (const [name, val] of Object.entries(required)) {
   if (!val) {
     console.error(`Missing required env: ${name}`);
